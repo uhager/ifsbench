@@ -1,0 +1,2 @@
+include versioneer.py
+include ifsbench/_version.py
