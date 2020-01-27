@@ -1,5 +1,27 @@
+import pytest
+import shutil
+
 from ifsbench import FCBenchmark
 from pathlib import Path
+
+
+@pytest.fixture
+def here():
+    return Path(__file__).parent.resolve()
+
+
+@pytest.fixture
+def rundir(here):
+    """
+    Remove any created ``source`` directories
+    """
+    rundir = here/'rundir'
+    rundir.mkdir(parents=True, exist_ok=True)
+    yield rundir
+
+    # Clean up after us
+    if rundir.exists():
+        shutil.rmtree(rundir)
 
 
 class T21FC(FCBenchmark):
@@ -8,30 +30,23 @@ class T21FC(FCBenchmark):
     """
 
     input_files = [
-        Path('...')
+        'inputA',
+        './someplace/inputB',
+        Path('./inputC'),
     ]
-    
 
-def test_simple_setup(self, here):
+
+@pytest.mark.parametrize('copy', [True, False])
+def test_benchmark_from_files(here, rundir, copy):
     """
     Test input file verification for a simple benchmark setup.
     """
-    benchmark = T21FC.from_files()
+    benchmark = T21FC.from_files(rundir=rundir, srcdir=here/'inidata', copy=copy)
+
+    # Let benchmark test itself
     benchmark.check_input()
 
-
-if __name__ == "__main__":
-    """
-    Really just for demo purposes....
-    """
-
-    # Example of how to create and run one of the above...
-    ifs = IFSExecutable(build_dir=, install_dir='...')
-
-    # benchmark = T21FC.from_tarball('path_to_tarball', run_dir='./')
-
-    namelist = IFSNamelist('path_to_default_namelist')
-    benchmark = T21FC.from_files('path_to_glob_for_input', namelist=namelist)
-
-    benchmark.check_input()  # <= check that all required input data is found
-    benchmark.run(ifs=ifs, env=env.XC40)
+    # And then we just make sure
+    assert (rundir/'inputA').exists()
+    assert (rundir/'someplace/inputB').exists()
+    assert (rundir/'inputC').exists()
