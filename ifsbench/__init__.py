@@ -11,8 +11,8 @@ __version__ = get_versions()['version']
 del get_versions
 
 
+from .arch import * # noqa
 from .benchmark import * # noqa
-from .environment import * # noqa
 from .ifs import * # noqa
 from .logging import * # noqa
 from .namelist import * # noqa
