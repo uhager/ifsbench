@@ -1,9 +1,7 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
 
-from .environment import Workstation
-from .ifs import IFSExecutable
-from .namelist import IFSNamelist
+from .logging import warning, error
 from .util import copy_data, symlink_data
 
 
@@ -18,6 +16,8 @@ class Benchmark(ABC):
     def __init__(self, **kwargs):
         self.expid = kwargs.get('expid')
         self.rundir = kwargs.get('rundir', None)
+
+        self.ifs = kwargs.get('ifs')
 
     @property
     @classmethod
@@ -61,22 +61,11 @@ class Benchmark(ABC):
                 source = candidates[0]
 
             if copy:
-                copy_data(source, dest)
+                copy_data(source, dest, force=force)
             else:
-                symlink_data(source, dest)
+                symlink_data(source, dest, force=force)
 
         return cls(**kwargs)
-
-    @classmethod
-    def from_experiment(cls):
-        """
-        Create instance of ``Benchmark`` object from an experiment.
-
-        Note, this requires the experiment to be suspended just before
-        the template run is about to be executed, so that we can
-        inspect the experiment run directory.
-        """
-        pass
 
     @classmethod
     def from_tarball(cls):
@@ -101,6 +90,20 @@ class Benchmark(ABC):
             if not filepath.exists():
                 raise RuntimeError('Required input file %s not found!' % filepath)
 
+    def run(self, **kwargs):
+        """
+        Run the specified benchmark and validate against stored results.
+        """
+        if 'rundir' in kwargs:
+            if kwargs['rundir'] != self.rundir:
+                error('Stored run directory: %s' % self.rundir)
+                error('Given run directory:  %s' % kwargs['rundir'])
+                raise RuntimeError('Conflicting run directories provided!')
+        else:
+            kwargs['rundir'] = self.rundir
+
+        self.ifs.run(**kwargs)
+
 
 class FCBenchmark(Benchmark):
     """
@@ -114,17 +117,4 @@ class T21FC(FCBenchmark):
     """
     Example configuration of a T21 forceast benchmark.
     """
-
-
-if __name__ == "__main__":
-
-    # Example of how to create and run one of the above...
-    ifs = IFSExecutable(build_dir='...', install_dir='...')
-
-    # benchmark = T21FC.from_tarball('path_to_tarball', run_dir='./')
-
-    namelist = IFSNamelist('path_to_default_namelist')
-    benchmark = T21FC.from_files('path_to_glob_for_input', namelist=namelist)
-
-    benchmark.check_input()  # <= check that all required input data is found
-    benchmark.run(ifs=ifs, env=Workstation())
+    pass

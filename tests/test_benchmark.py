@@ -1,8 +1,14 @@
 import pytest
 import shutil
-
-from ifsbench import FCBenchmark
+from conftest import Watcher
 from pathlib import Path
+
+from ifsbench import logger, FCBenchmark, IFS, IFSNamelist, Workstation
+
+
+@pytest.fixture
+def watcher():
+    return Watcher(logger=logger, silent=True)
 
 
 @pytest.fixture
@@ -50,3 +56,28 @@ def test_benchmark_from_files(here, rundir, copy):
     assert (rundir/'inputA').exists()
     assert (rundir/'someplace/inputB').exists()
     assert (rundir/'inputC').exists()
+
+
+@pytest.mark.skip(reason='Tarball packing not yet implemented')
+def test_benchmark_from_tarball():
+    """
+    Test input file verification for a simple benchmark setup.
+    """
+    raise NotImplementedError('Tarball packaging not yet tested')
+
+
+def test_benchmark_execute(here, rundir, watcher):
+    """
+    Test the basic benchmark execution mechanism.
+    """
+    # Example of how to create and run one of the above...
+    ifs = IFS(builddir=here)
+    namelist = IFSNamelist(here/'default.nml')
+    benchmark = T21FC.from_files(ifs=ifs, namelist=namelist,
+                                 srcdir=here/'inidata', rundir=rundir)
+
+    benchmark.check_input()
+    with watcher:
+        benchmark.run(dryrun=True, arch=Workstation)
+
+    assert 'Executing: ifsMASTER.DP' in watcher.output

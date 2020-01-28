@@ -1,16 +1,17 @@
 import contextlib
 import shutil
 import timeit
+from pathlib import Path
 from os import environ, getcwd
 from subprocess import run, STDOUT, CalledProcessError
 
-from ifsbench.logging import debug, info, error
+from ifsbench.logging import debug, info, warning, error
 
 
 __all__ = ['execute', 'symlink_data', 'copy_data', 'Timer']
 
 
-def execute(args, cwd=None, env=None, **kwargs):
+def execute(args, cwd=None, env=None, dryrun=False, logfile=None, **kwargs):
     """
     Execute a single command with a given director or envrionment.
     """
@@ -36,7 +37,15 @@ def execute(args, cwd=None, env=None, **kwargs):
     stdout = kwargs.pop('stdout', None)
     stderr = kwargs.pop('stderr', STDOUT)
     try:
-        run(args, check=True, cwd=cwd, env=run_env, stdout=stdout, stderr=stderr, **kwargs)
+        if not dryrun:
+            if logfile is None:
+                run(args, check=True, cwd=cwd, env=run_env,
+                    stdout=stdout, stderr=stderr, **kwargs)
+            else:
+                with Path(logfile).open('w') as logfile:
+                    run(args, check=True, cwd=cwd, env=run_env,
+                        stdout=logfile, stderr=stderr, **kwargs)
+
     except CalledProcessError as e:
         error('Execution failed with return code: %s', e.returncode)
         raise e
