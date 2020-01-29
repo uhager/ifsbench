@@ -1,48 +1,78 @@
+from __future__ import absolute_import
+
 import logging
-try:
-    import coloredlogs
-except ImportError:
-    coloredlogs = None
+import sys
 
 
-__all__ = ['logger', 'debug', 'info', 'success', 'warning', 'error', 'log',
-           'set_log_level', 'DEBUG', 'INFO', 'WARNING', 'ERROR']
+__all__ = ['debug', 'info', 'warning', 'error', 'logger', 'colors',
+           'DEBUG', 'INFO', 'WARNING', 'ERROR']
 
-# Initialize central logging
-logging.basicConfig()
 
-# set success level
-logging.SUCCESS = 35
-logging.addLevelName(logging.SUCCESS, 'SUCCESS')
+class colors:
 
-# Wrap the usual log level flags
-DEBUG = logging.DEBUG
+    @staticmethod
+    def enable():
+        colors.HEADER = '\033[95m%s\033[0m'
+        colors.OKBLUE = '\033[94m%s\033[0m'
+        colors.OKGREEN = '\033[92m%s\033[0m'
+        colors.WARNING = '\033[93m%s\033[0m'
+        colors.FAIL = '\033[91m%s\033[0m'
+        colors.BOLD = '\033[1m%s\033[0m'
+        colors.UNDERLINE = '\033[4m%s\033[0m'
+
+    @staticmethod
+    def disable():
+        colors.HEADER = '%s'
+        colors.OKBLUE = '%s'
+        colors.OKGREEN = '%s'
+        colors.WARNING = '%s'
+        colors.FAIL = '%s'
+        colors.BOLD = '%s'
+        colors.UNDERLINE = '%s'
+
+
+# Set colours on true terminals
+if sys.stdout.isatty:
+    colors.enable()
+else:
+    colors.disable()
+
+
+logger = logging.getLogger('ecbundle')
+_ch = logging.StreamHandler()
+logger.addHandler(_ch)
+logger.setLevel(logging.INFO)
+
 INFO = logging.INFO
-SUCCESS = logging.SUCCESS
+DEBUG = logging.DEBUG
 WARNING = logging.WARNING
 ERROR = logging.ERROR
 
-# Create the default logger with color and timings
-default_level = INFO
-logger = logging.getLogger('ifsbench')
-
-if coloredlogs:
-    coloredlogs.install(level=default_level, logger=logger)
-else:
-    logger.setLevel(default_level)
+def debug(msg, *args, **kwargs):
+    msg = colors.OKBLUE % msg
+    logger.log(msg=msg, level=logging.DEBUG, *args, **kwargs)
 
 
-# Wrap the common invocation methods
-debug = logger.debug
-info = logger.info
-warning = logger.warning
-error = logger.error
-log = logger.log
-setattr(logger, 'success', lambda message, *args: logger._log(logging.SUCCESS, message, args))
-success = logger.success
+def header(msg, *args, **kwargs):
+    msg = colors.HEADER % msg
+    logger.log(msg=msg, level=logging.INFO, *args, **kwargs)
 
 
-def set_log_level(level):
-    logger.setLevel(level)
-    for handler in logger.handlers:
-        handler.setLevel(level)
+def info(msg, *args, **kwargs):
+    msg = colors.OKBLUE % msg
+    logger.log(msg=msg, level=logging.INFO, *args, **kwargs)
+
+
+def success(msg, *args, **kwargs):
+    msg = colors.OKGREEN % msg
+    logger.log(msg=msg, level=logging.INFO, *args, **kwargs)
+
+
+def warning(msg, *args, **kwargs):
+    msg = colors.WARNING % msg
+    logger.log(msg=msg, level=logging.WARNING, *args, **kwargs)
+
+
+def error(msg, *args, **kwargs):
+    msg = colors.FAIL % msg
+    logger.log(msg=msg, level=logging.ERROR, *args, **kwargs)
