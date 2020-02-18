@@ -23,15 +23,19 @@ class IFSNamelist(object):
             self.add(namelist)
 
     def __getitem__(self, key):
+        key = key.lower()
         return self.nml[key]
 
     def __setitem__(self, key, value):
+        key = key.lower()
         self.nml[key] = value
 
     def __delitem__(self, key):
+        key = key.lower()
         del self.nml[key]
 
     def __contains__(self, key):
+        key = key.lower()
         return key in self.nml
 
     def __len__(self):

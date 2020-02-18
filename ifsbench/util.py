@@ -47,7 +47,7 @@ def execute(args, cwd=None, env=None, dryrun=False, logfile=None, **kwargs):
                         stdout=logfile, stderr=stderr, **kwargs)
 
     except CalledProcessError as e:
-        error('Execution failed with return code: %s', e.returncode)
+        error('Execution failed with return code: %s' % e.returncode)
         raise e
 
 
