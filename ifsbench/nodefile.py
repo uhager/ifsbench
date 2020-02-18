@@ -55,3 +55,11 @@ class NODEFile(object):
         for c in data.columns:
             data[c] = to_numeric(data[c])
         return data
+
+    @property
+    def norms(self):
+        """
+        `pandas.Dataframe` object containing all norms extracted from this NODE file.
+        """
+        # TODO: Add more norms and concatenate DataFrames
+        return self.spectral_norms

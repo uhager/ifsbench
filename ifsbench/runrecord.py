@@ -35,8 +35,7 @@ class RunRecord(object):
     an individual test or benchmark run.
     """
 
-    def __init__(self, name, timestamp, norms, drhook=None, comment=None):
-        self.name = name
+    def __init__(self, timestamp, norms, drhook=None, comment=None):
         self.timestamp = timestamp
         self.comment = comment
 
@@ -44,17 +43,36 @@ class RunRecord(object):
         self.drhook = drhook
 
     def __repr__(self):
-        s = 'RunRecord: %s  :: %s\n' % (self.name, self.timestamp)
+        s = 'RunRecord::\n'
+        s += '    timestamp: %s\n%s' % (self.timestamp)
         s += '    comment: %s\n%s' % (self.comment, self.norms)
         return s
 
     @property
     def metadata(self):
         return {
-            'name': self.name,
             'timestamp': str(self.timestamp),
             'comment': str(self.comment),
         }
+
+    @classmethod
+    def from_run(cls, nodefile, comment=None, drhook=None):
+        """
+        Create a `RunRecord` object from the output of a benchamrk run.
+
+        :param nodefile: Path to "NODE_xxx" file to read norms and metadata from.
+        :param Comment: (Optional) comment to store with this record
+        :param drhook: (Optional) basepath (glob expression) for DrHook output files
+        """
+
+        # Currently we assume we always get some NODE file output
+        nodefile = NODEFile(Path(nodefile))
+
+        if drhook is not None:
+            drhook = DrHookRecord.from_raw(drhook)
+
+        return RunRecord(timestamp=nodefile.timestamp, norms=nodefile.norms,
+                         drhook=drhook, comment=comment)
 
     @classmethod
     def from_file(cls, filepath, mode='csv'):
@@ -66,7 +84,7 @@ class RunRecord(object):
             filepath = filepath.with_suffix('.h5')
             with pd.HDFStore(filepath) as store:
                 norms, metadata = _h5load(store, 'norms')
-            return RunRecord(name=metadata['name'], timestamp=metadata['timestamp'],
+            return RunRecord(timestamp=metadata['timestamp'],
                              comment=metadata['comment'], norms=norms)
 
         if mode == 'csv':
@@ -77,7 +95,7 @@ class RunRecord(object):
             norms = pd.read_csv(filepath.with_suffix('.norms.csv'), float_precision='round_trip')
             with filepath.with_suffix('.meta.json').open('r') as f:
                 metadata = json.loads(f.read())
-            return RunRecord(name=metadata['name'], timestamp=metadata['timestamp'],
+            return RunRecord(timestamp=metadata['timestamp'],
                              comment=metadata['comment'], norms=norms, drhook=drhook)
 
     def write(self, filepath, mode='csv'):
@@ -101,9 +119,9 @@ class RunRecord(object):
         Validate nodefile against stored result based on norms-checking
         """
         if not isinstance(nodefile, NODEFile):
-            raise NotImplementedError('Can currently only validate against NODEFile objects')
+            nodefile = NODEFile(nodefile)
 
-        debug('%s: Validating results in %s', self.name, nodefile.filepath)
+        debug('Validating results in %s', nodefile.filepath)
 
         for field in ['log_prehyds', 'vorticity', 'divergence', 'temperature', 'kinetic_energy']:
             equal = (nodefile.spectral_norms[field] == self.norms[field]).all()
