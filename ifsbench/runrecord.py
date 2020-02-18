@@ -2,7 +2,7 @@ from pathlib import Path
 import pandas as pd
 import json
 
-from ifsbench.logging import debug, info, error
+from ifsbench.logging import debug, info, warning, success, error
 from ifsbench.nodefile import NODEFile
 from ifsbench.drhook import DrHookRecord
 
@@ -98,10 +98,13 @@ class RunRecord(object):
             return RunRecord(timestamp=metadata['timestamp'],
                              comment=metadata['comment'], norms=norms, drhook=drhook)
 
-    def write(self, filepath, mode='csv'):
+    def write(self, filepath, comment=None, mode='csv'):
         """
         Write a benchmark result to file
         """
+        if comment is not None:
+            self.comment = comment
+
         filepath = Path(filepath)
         if mode == 'hdf5':
             _h5store(filepath.with_suffix('.h5'), 'norms', df=self.norms, **self.metadata)
@@ -114,25 +117,47 @@ class RunRecord(object):
         if self.drhook is not None:
             self.drhook.write(filepath)
 
-    def validate(self, nodefile):
+    def compare_fields(self, reference):
         """
-        Validate nodefile against stored result based on norms-checking
+        Compare fields against reference record.
+
+        :param reference: A second `RunRecord` object to compare against
         """
-        if not isinstance(nodefile, NODEFile):
-            nodefile = NODEFile(nodefile)
-
-        debug('Validating results in %s', nodefile.filepath)
-
         for field in ['log_prehyds', 'vorticity', 'divergence', 'temperature', 'kinetic_energy']:
-            equal = (nodefile.spectral_norms[field] == self.norms[field]).all()
+            equal = (reference.norms[field] == self.norms[field]).all()
             if not equal:
                 error('FAILURE: Norm of field "%s" deviates from reference:' % field)
                 analysis = pd.DataFrame({
-                    'Result': nodefile.spectral_norms[field],
+                    'Result': reference.norms[field],
                     'Reference': self.norms[field],
-                    'Difference': nodefile.spectral_norms[field] - self.norms[field],
+                    'Difference': reference.norms[field] - self.norms[field],
                 })
                 info('\nField: %s\n%s' % (field, analysis))
                 return False
 
         return True
+
+    def validate(self, refpath, exit_on_error=False):
+        """
+        Validate record against stored reference result based on norms-checking
+
+        :param refpath: Path to reference record
+        :param exit_on_error: Fail script with `exit(-1)` if records don't match
+        """
+
+        try:
+            debug('Validating results against reference in %s' % refpath)
+            reference = self.from_file(filepath=refpath)
+            is_valid = self.compare_fields(reference)
+
+            if is_valid:
+                success('VALIDATED: Result matches reference in %s' % (refpath))
+                return True
+            else:
+                if exit_on_error:
+                    exit(-1)
+                else:
+                    return False
+
+        except FileNotFoundError:
+            warning('Reference not found: %s Skipping validation...' % refpath)

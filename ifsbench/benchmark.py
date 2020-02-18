@@ -1,11 +1,13 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
+from subprocess import CalledProcessError
 
 from .logging import warning, error
 from .util import copy_data, symlink_data
+from .runrecord import RunRecord
 
 
-__all__ = ['Benchmark', 'FCBenchmark']
+__all__ = ['Benchmark']
 
 
 class Benchmark(ABC):
@@ -102,19 +104,12 @@ class Benchmark(ABC):
         else:
             kwargs['rundir'] = self.rundir
 
-        self.ifs.run(**kwargs)
+        try:
+            self.ifs.run(**kwargs)
 
+        except CalledProcessError:
+            error('Benchmark run failed: %s' % kwargs)
+            exit(-1)
 
-class FCBenchmark(Benchmark):
-    """
-    Definition of a high-res forcecast benchmark.
-    """
-
-    pass
-
-
-class T21FC(FCBenchmark):
-    """
-    Example configuration of a T21 forceast benchmark.
-    """
-    pass
+        # TODO: Make DrHook Configurable
+        return RunRecord.from_run(nodefile=self.rundir/'NODE.001_01', drhook=self.rundir/'drhook.*')
