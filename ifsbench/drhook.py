@@ -1,4 +1,5 @@
 from pathlib import Path
+from collections import OrderedDict
 import re
 import pandas as pd
 import numpy as np
@@ -35,6 +36,15 @@ class DrHookRecord(object):
         self.data = data
         self.metadata = metadata
 
+    def to_dict(self, orient='index'):
+        """
+        Return content of this `RunRecord` as a single Python dictionary.
+        """
+        d = OrderedDict()
+        d['metadata'] = self.metadata.to_dict(orient=orient)
+        d['data'] = self.data.to_dict(orient=orient)
+        return d
+
     def pprint(self):
         """
         Pretty-print content of the merged DrHook results.
@@ -55,7 +65,7 @@ class DrHookRecord(object):
             )
         return s
 
-    def write(self, filepath):
+    def write(self, filepath, orient='index'):
         """
         Write an aggregated benchmark result to file
         """
@@ -66,6 +76,14 @@ class DrHookRecord(object):
         # Pretty print a total for human consumption
         with filepath.with_suffix('.drhook.txt').open('w') as f:
             f.write(self.pprint())
+
+    @classmethod
+    def from_dict(cls, data, metadata, orient='index'):
+        """
+        Load DrHook output from dumped dictionaries into `pd.DataFrame`s
+        """
+        return DrHookRecord(data=pd.DataFrame.from_dict(data, orient=orient),
+                            metadata=pd.DataFrame.from_dict(metadata, orient=orient))
 
     @classmethod
     def from_raw(cls, filepath):

@@ -1,4 +1,5 @@
 from pathlib import Path
+from collections import OrderedDict
 import pandas as pd
 import json
 
@@ -48,12 +49,21 @@ class RunRecord(object):
         s += '    comment: %s\n%s' % (self.comment, self.norms)
         return s
 
+    def to_dict(self, orient='index'):
+        """
+        Return content of this `RunRecord` as a single Python dictionary.
+        """
+        d = self.metadata.copy()
+        d['norms'] = self.norms.to_dict(orient=orient)
+        d['drhook'] = self.drhook.to_dict(orient=orient)
+        return d
+
     @property
     def metadata(self):
-        return {
-            'timestamp': str(self.timestamp),
-            'comment': str(self.comment),
-        }
+        return OrderedDict([
+            ('comment', str(self.comment)),
+            ('timestamp', str(self.timestamp)),
+        ])
 
     @classmethod
     def from_run(cls, nodefile, comment=None, drhook=None):
@@ -61,7 +71,7 @@ class RunRecord(object):
         Create a `RunRecord` object from the output of a benchamrk run.
 
         :param nodefile: Path to "NODE_xxx" file to read norms and metadata from.
-        :param Comment: (Optional) comment to store with this record
+        :param comment: (Optional) comment to store with this record
         :param drhook: (Optional) basepath (glob expression) for DrHook output files
         """
 
@@ -75,12 +85,31 @@ class RunRecord(object):
                          drhook=drhook, comment=comment)
 
     @classmethod
-    def from_file(cls, filepath, mode='csv'):
+    def from_file(cls, filepath, mode='json', orient='index'):
         """
         Load a stored benchmark result from file
         """
         filepath = Path(filepath)
+
+        if mode == 'json':
+            with filepath.with_suffix('.json').open('r') as f:
+                data = json.load(f)
+
+            # Read and normalize norms
+            norms = pd.DataFrame.from_dict(data['norms'], orient=orient)
+            for c in norms.columns:
+                norms[c] = pd.to_numeric(norms[c])
+            norms.set_index('step', inplace=True)
+
+            drhook = DrHookRecord.from_dict(data=data['drhook']['data'],
+                                            metadata=data['drhook']['metadata'],
+                                            orient=orient)
+
+            return RunRecord(timestamp=data['timestamp'], comment=data['comment'],
+                             norms=norms, drhook=drhook)
+
         if mode == 'hdf5':
+            # TODO: Warning untested!
             filepath = filepath.with_suffix('.h5')
             with pd.HDFStore(filepath) as store:
                 norms, metadata = _h5load(store, 'norms')
@@ -88,6 +117,7 @@ class RunRecord(object):
                              comment=metadata['comment'], norms=norms)
 
         if mode == 'csv':
+            # TODO: Warning untested!
             drhook = None
             if (filepath/'drhook.csv').exists():
                 drhook = DrHookRecord.from_file(filepath)
@@ -98,7 +128,7 @@ class RunRecord(object):
             return RunRecord(timestamp=metadata['timestamp'],
                              comment=metadata['comment'], norms=norms, drhook=drhook)
 
-    def write(self, filepath, comment=None, mode='csv'):
+    def write(self, filepath, comment=None, mode='json', orient='index'):
         """
         Write a benchmark result to file
         """
@@ -106,15 +136,22 @@ class RunRecord(object):
             self.comment = comment
 
         filepath = Path(filepath)
+
+        if mode == 'json':
+            with filepath.with_suffix('.json').open('w') as f:
+                json.dump(self.to_dict(orient=orient), f, indent=4)
+
         if mode == 'hdf5':
+            # TODO: Warning untested!
             _h5store(filepath.with_suffix('.h5'), 'norms', df=self.norms, **self.metadata)
 
         if mode == 'csv':
+            # TODO: Warning untested!
             self.norms.to_csv(filepath.with_suffix('.norms.csv'))
             with filepath.with_suffix('.meta.json').open('w') as f:
                 f.write(json.dumps(self.metadata))
 
-        if self.drhook is not None:
+        if self.drhook is not None and mode != 'json':
             self.drhook.write(filepath)
 
     def compare_fields(self, reference):
