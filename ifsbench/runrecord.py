@@ -55,7 +55,8 @@ class RunRecord(object):
         """
         d = self.metadata.copy()
         d['norms'] = self.norms.to_dict(orient=orient)
-        d['drhook'] = self.drhook.to_dict(orient=orient)
+        if self.drhook is not None:
+            d['drhook'] = self.drhook.to_dict(orient=orient)
         return d
 
     @property
@@ -101,9 +102,11 @@ class RunRecord(object):
                 norms[c] = pd.to_numeric(norms[c])
             norms.set_index('step', inplace=True)
 
-            drhook = DrHookRecord.from_dict(data=data['drhook']['data'],
-                                            metadata=data['drhook']['metadata'],
-                                            orient=orient)
+            drhook = None
+            if 'drhook' in data:
+                drhook = DrHookRecord.from_dict(data=data['drhook']['data'],
+                                                metadata=data['drhook']['metadata'],
+                                                orient=orient)
 
             return RunRecord(timestamp=data['timestamp'], comment=data['comment'],
                              norms=norms, drhook=drhook)

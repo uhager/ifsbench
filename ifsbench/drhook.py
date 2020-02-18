@@ -1,12 +1,38 @@
 from pathlib import Path
 from collections import OrderedDict
+from enum import Enum, unique
 import re
 import pandas as pd
 import numpy as np
 
 from ifsbench.logging import debug
 
-__all__ = ['DrHookRecord']
+__all__ = ['DrHook', 'DrHookRecord']
+
+
+@unique
+class DrHook(Enum):
+    """
+    Enum class to provide environment presets for different DrHook modes.
+    """
+
+    OFF = 0
+    PROF = 1
+
+    __env_map__ = {
+        OFF : {
+            'DR_HOOK': '0',
+        },
+        PROF : {
+            'DR_HOOK': '1',
+            'DR_HOOK_IGNORE_SIGNALS': '0',
+            'DR_HOOK_OPT': 'prof',
+        }
+    }
+
+    @property
+    def env(self):
+        return self.__class__.__env_map__[self.value]
 
 
 class DrHookRecord(object):

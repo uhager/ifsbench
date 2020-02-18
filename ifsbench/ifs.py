@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from .arch import Workstation
+from .drhook import DrHook
 from .namelist import IFSNamelist
 
 __all__ = ['IFS']
@@ -45,6 +46,10 @@ class IFS(object):
 
         arch = kwargs.pop('arch', None)
         arch = Workstation if arch is None else arch
+
+        # Set up DrHook according to preset
+        drhook = kwargs.pop('drhook', DrHook.PROF)
+        env.update(drhook.env)
 
         # Define the run directory to the IFS
         env['DATA'] = rundir

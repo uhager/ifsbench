@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from subprocess import CalledProcessError
 
+from .drhook import DrHook
 from .logging import warning, error
 from .util import copy_data, symlink_data
 from .runrecord import RunRecord
@@ -111,5 +112,8 @@ class Benchmark(ABC):
             error('Benchmark run failed: %s' % kwargs)
             exit(-1)
 
-        # TODO: Make DrHook Configurable
-        return RunRecord.from_run(nodefile=self.rundir/'NODE.001_01', drhook=self.rundir/'drhook.*')
+        # Provide DrHook output path only if DrHook is active
+        drhook = kwargs.get('drhook', DrHook.OFF)
+        drhook_path = None if drhook == DrHook.OFF else self.rundir/'drhook.*'
+
+        return RunRecord.from_run(nodefile=self.rundir/'NODE.001_01', drhook=drhook_path)
