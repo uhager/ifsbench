@@ -1,5 +1,5 @@
 import re
-from pandas import DataFrame, to_numeric
+import pandas as pd
 from pathlib import Path
 from datetime import datetime
 
@@ -25,10 +25,14 @@ class NODEFile(object):
     sre_sp_norms += r')\s*(?P<temperature>' + sre_number + r')\s*(?P<kinetic_energy>' + sre_number + r')'
     re_sp_norms = re.compile(sre_header_norms + sre_sp_norms, re.MULTILINE)
 
-    # TODO: Extend to capture GP norms.
-    # sre_gp_norms = r'GPNORM\s*\w+\s*AVERAGE\s*MINIMUM\s*MAXIMUM\s*AVE\s*[\w-+.]+\s*[\w-+.]+\s*[\w-+.]+'
-    # sre_all_norms = r'NORMS AT NSTEP CNT4\s*(?P<tstep>[\d]+)\s*' + sre_sp_norms
-    # re_all_norms = re.compile(sre_all_norms, re.MULTILINE)
+    # Captures generic block of field norms per timestep
+    sre_tstep_norms = sre_header_norms + r'(?P<norms>.*?)NSTEP.*?STEPO'
+    re_tstep_norms = re.compile(sre_tstep_norms, re.MULTILINE | re.DOTALL)
+
+    # Individual gridpoint norm entries (per field)
+    sre_gp_norms = r'GPNORM\s*(?P<field>{name})\s*AVERAGE\s*MINIMUM\s*MAXIMUM\s*AVE\s*'.format(name=sre_name)
+    sre_gp_norms += r'(?P<avg>{number})\s*(?P<min>{number})\s*(?P<max>{number})'.format(number=sre_number)
+    re_gp_norms = re.compile(sre_gp_norms, re.MULTILINE)
 
     def __init__(self, filepath):
         self.filepath = Path(filepath)
@@ -49,11 +53,34 @@ class NODEFile(object):
         Timeseries of spectral norms as recorded in the logfile
         """
         entries = [m.groupdict() for m in self.re_sp_norms.finditer(self.content)]
-        data = DataFrame(entries)
+        data = pd.DataFrame(entries)
 
         # Ensure numeric values in data
         for c in data.columns:
-            data[c] = to_numeric(data[c])
+            data[c] = pd.to_numeric(data[c])
+        return data
+
+    @property
+    def gridpoint_norms(self):
+        """
+        Timeseries of spectral norms as recorded in the logfile
+        """
+
+        # Create a Dataframe for all fields per timestep from regexes
+        data_raw = []
+        for m in self.re_tstep_norms.finditer(self.content):
+            step_match = m.groupdict()
+            entries = [m.groupdict() for m in self.re_gp_norms.finditer(step_match['norms'])]
+            for e in entries:
+                e['step'] = step_match['step']
+            data_raw += [pd.DataFrame(entries)]
+
+        # Concatenate and sanitizes dataframes and create step-field mulit-index
+        data = pd.concat(data_raw)
+        data.set_index(['step', 'field'], inplace=True)
+        for c in data.columns:
+            data[c] = pd.to_numeric(data[c])
+
         return data
 
     @property
