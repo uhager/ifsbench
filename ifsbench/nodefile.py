@@ -54,6 +54,8 @@ class NODEFile(object):
         """
         entries = [m.groupdict() for m in self.re_sp_norms.finditer(self.content)]
         data = pd.DataFrame(entries)
+        data['step'] = pd.to_numeric(data['step'])
+        data.set_index('step', inplace=True)
 
         # Ensure numeric values in data
         for c in data.columns:
@@ -77,16 +79,9 @@ class NODEFile(object):
 
         # Concatenate and sanitizes dataframes and create step-field mulit-index
         data = pd.concat(data_raw)
-        data.set_index(['step', 'field'], inplace=True)
+        data['step'] = pd.to_numeric(data['step'])
+        data.set_index(['field', 'step'], inplace=True)
         for c in data.columns:
             data[c] = pd.to_numeric(data[c])
 
         return data
-
-    @property
-    def norms(self):
-        """
-        `pandas.Dataframe` object containing all norms extracted from this NODE file.
-        """
-        # TODO: Add more norms and concatenate DataFrames
-        return self.spectral_norms

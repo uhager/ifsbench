@@ -36,27 +36,37 @@ class RunRecord(object):
     an individual test or benchmark run.
     """
 
-    def __init__(self, timestamp, norms, drhook=None, comment=None):
+    def __init__(self, timestamp, spectral_norms=None, gridpoint_norms=None,
+                 drhook=None, comment=None):
         self.timestamp = timestamp
         self.comment = comment
 
-        self.norms = norms
+        self.spectral_norms = spectral_norms
+        self.gridpoint_norms = gridpoint_norms
         self.drhook = drhook
 
     def __repr__(self):
         s = 'RunRecord::\n'
         s += '    timestamp: %s\n%s' % (self.timestamp)
-        s += '    comment: %s\n%s' % (self.comment, self.norms)
+        s += '    comment: %s\n%s' % (self.comment, self.sp_norms)
         return s
 
-    def to_dict(self, orient='index'):
+    def to_dict(self, orient='list'):
         """
         Return content of this `RunRecord` as a single Python dictionary.
         """
         d = self.metadata.copy()
-        d['norms'] = self.norms.to_dict(orient=orient)
+        d['spectral_norms'] = self.spectral_norms.to_dict(orient=orient)
+
+        # Encode gridpoint norms by taking cross-sections of each field
+        fields = self.gridpoint_norms.index.unique(level=0)
+        d['gridpoint_norms'] = OrderedDict({
+            field: self.gridpoint_norms.xs(field).to_dict(orient=orient) for field in fields
+        })
+
         if self.drhook is not None:
             d['drhook'] = self.drhook.to_dict(orient=orient)
+
         return d
 
     @property
@@ -82,56 +92,90 @@ class RunRecord(object):
         if drhook is not None:
             drhook = DrHookRecord.from_raw(drhook)
 
-        return RunRecord(timestamp=nodefile.timestamp, norms=nodefile.norms,
-                         drhook=drhook, comment=comment)
+        return RunRecord(timestamp=nodefile.timestamp, spectral_norms=nodefile.spectral_norms,
+                         gridpoint_norms=nodefile.gridpoint_norms, drhook=drhook, comment=comment)
 
     @classmethod
-    def from_file(cls, filepath, mode='json', orient='index'):
+    def from_file(cls, filepath, mode='json', orient='columns'):
         """
         Load a stored benchmark result from file
         """
         filepath = Path(filepath)
 
-        if mode == 'json':
-            with filepath.with_suffix('.json').open('r') as f:
-                data = json.load(f)
-
-            # Read and normalize norms
-            norms = pd.DataFrame.from_dict(data['norms'], orient=orient)
-            for c in norms.columns:
-                norms[c] = pd.to_numeric(norms[c])
-            norms.set_index('step', inplace=True)
-
-            drhook = None
-            if 'drhook' in data:
-                drhook = DrHookRecord.from_dict(data=data['drhook']['data'],
-                                                metadata=data['drhook']['metadata'],
-                                                orient=orient)
-
-            return RunRecord(timestamp=data['timestamp'], comment=data['comment'],
-                             norms=norms, drhook=drhook)
-
-        if mode == 'hdf5':
-            # TODO: Warning untested!
-            filepath = filepath.with_suffix('.h5')
-            with pd.HDFStore(filepath) as store:
-                norms, metadata = _h5load(store, 'norms')
-            return RunRecord(timestamp=metadata['timestamp'],
-                             comment=metadata['comment'], norms=norms)
-
         if mode == 'csv':
-            # TODO: Warning untested!
-            drhook = None
-            if (filepath/'drhook.csv').exists():
-                drhook = DrHookRecord.from_file(filepath)
+            return cls.from_hdf5(filepath=filepath)
+        if mode == 'json':
+            return cls.from_json(filepath=filepath.with_suffix('.json'), orient=orient)
+        if mode == 'hdf5':
+            return cls.from_hdf5(filepath=filepath.with_suffix('.hdf5'))
 
-            norms = pd.read_csv(filepath.with_suffix('.norms.csv'), float_precision='round_trip')
-            with filepath.with_suffix('.meta.json').open('r') as f:
-                metadata = json.loads(f.read())
-            return RunRecord(timestamp=metadata['timestamp'],
-                             comment=metadata['comment'], norms=norms, drhook=drhook)
+    @classmethod
+    def from_hdf5(cls, filepath):
+        """
+        Load a stored benchmark result from a .csv file
 
-    def write(self, filepath, comment=None, mode='json', orient='index'):
+        TODO: Warning this is currently untested!
+        """
+        with pd.HDFStore(filepath) as store:
+            norms, metadata = _h5load(store, 'norms')
+
+        return RunRecord(timestamp=metadata['timestamp'],
+                         comment=metadata['comment'], norms=norms)
+
+    @classmethod
+    def from_csv(cls, filepath):
+        """
+        Load a stored benchmark result from a .csv file
+
+        TODO: Warning this is currently untested!
+        """
+        drhook = None
+        if (filepath/'drhook.csv').exists():
+            drhook = DrHookRecord.from_file(filepath)
+
+        norms = pd.read_csv(filepath.with_suffix('.norms.csv'), float_precision='round_trip')
+        with filepath.with_suffix('.meta.json').open('r') as f:
+            metadata = json.loads(f.read())
+        return RunRecord(timestamp=metadata['timestamp'],
+                         comment=metadata['comment'], norms=norms, drhook=drhook)
+
+    @classmethod
+    def from_json(cls, filepath, orient='columns'):
+        """
+        Load a stored benchmark result from a JSON file
+        """
+        with filepath.with_suffix('.json').open('r') as f:
+            data = json.load(f)
+
+        # Read and normalize spectral norms
+        spectral_norms = pd.DataFrame.from_dict(data['spectral_norms'], orient=orient)
+        spectral_norms.index.rename('step', inplace=True)
+        for c in spectral_norms.columns:
+            spectral_norms[c] = pd.to_numeric(spectral_norms[c])
+
+        # Read and normalize gridpoint norms by field
+        gp_norms = []
+        for field, norms in data['gridpoint_norms'].items():
+            norms = pd.DataFrame().from_dict(norms, orient=orient)
+            norms.index.rename('step', inplace=True)
+            norms['field'] = field
+            gp_norms += [norms]
+
+        gridpoint_norms = pd.concat(gp_norms)
+        gridpoint_norms.set_index(['field', gridpoint_norms.index], inplace=True)
+        for c in gridpoint_norms.columns:
+            gridpoint_norms[c] = pd.to_numeric(gridpoint_norms[c])
+
+        drhook = None
+        if 'drhook' in data:
+            drhook = DrHookRecord.from_dict(data=data['drhook']['data'],
+                                            metadata=data['drhook']['metadata'],
+                                            orient=orient)
+
+        return RunRecord(timestamp=data['timestamp'], comment=data['comment'], drhook=drhook,
+                         spectral_norms=spectral_norms, gridpoint_norms=gridpoint_norms)
+
+    def write(self, filepath, comment=None, mode='json', orient='list'):
         """
         Write a benchmark result to file
         """
@@ -157,24 +201,39 @@ class RunRecord(object):
         if self.drhook is not None and mode != 'json':
             self.drhook.write(filepath)
 
-    def compare_fields(self, reference):
+    def compare_spectral(self, reference):
         """
         Compare fields against reference record.
 
         :param reference: A second `RunRecord` object to compare against
         """
-        for field in ['log_prehyds', 'vorticity', 'divergence', 'temperature', 'kinetic_energy']:
-            equal = (reference.norms[field] == self.norms[field]).all()
+        for field in self.spectral_norms.columns:
+            equal = (reference.spectral_norms[field] == self.spectral_norms[field]).all()
             if not equal:
                 error('FAILURE: Norm of field "%s" deviates from reference:' % field)
                 analysis = pd.DataFrame({
-                    'Result': reference.norms[field],
-                    'Reference': self.norms[field],
-                    'Difference': reference.norms[field] - self.norms[field],
+                    'Result': self.spectral_norms[field],
+                    'Reference': reference.spectral_norms[field],
+                    'Difference': reference.spectral_norms[field] - self.spectral_norms[field],
                 })
                 info('\nField: %s\n%s' % (field, analysis))
                 return False
 
+        return True
+
+    def compare_gridpoint(self, reference):
+        for field in self.gridpoint_norms.index.unique(level=0):
+            for norm in ['avg', 'min', 'max']:
+                equal = (reference.gridpoint_norms.loc[(field, norm)] == self.gridpoint_norms.loc[(field, norm)]).all()
+                if not equal:
+                    error('FAILURE: Norm "%s" of field "%s" deviates from reference:' % (norm, field))
+                    analysis = pd.DataFrame({
+                        'Result': self.gridpoint_norms.loc[(field, norm)],
+                        'Reference': reference.gridpoint_norms.loc[(field, norm)],
+                        'Difference': reference.gridpoint_norms.loc[(field, norm)] - self.gridpoint_norms.loc[(field, norm)]
+                    })
+                    info('\nField: %s\n%s' % (field, analysis))
+                    return False
         return True
 
     def validate(self, refpath, exit_on_error=False):
@@ -188,9 +247,10 @@ class RunRecord(object):
         try:
             debug('Validating results against reference in %s' % refpath)
             reference = self.from_file(filepath=refpath)
-            is_valid = self.compare_fields(reference)
+            is_valid_sp = self.compare_spectral(reference)
+            is_valid_gp = self.compare_gridpoint(reference)
 
-            if is_valid:
+            if is_valid_sp and is_valid_gp:
                 success('VALIDATED: Result matches reference in %s' % (refpath))
                 return True
             else:
