@@ -35,9 +35,8 @@ class Workstation(Arch):
         # TODO: Ensure proper pinning
 
         if nproc > 1:
-            launcher = 'mpirun -np %{nproc}'.format(nproc=nproc)
-            cmd = [launcher, cmd]
-
+            cmd = ' '.join(cmd) if isinstance(cmd, list) else str(cmd)
+            cmd = 'mpirun -np {nproc} {cmd}'.format(nproc=nproc, cmd=cmd)
         execute(cmd, logfile=logfile, env=env, **kwargs)
 
 
