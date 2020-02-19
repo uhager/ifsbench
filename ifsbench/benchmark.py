@@ -4,7 +4,7 @@ from subprocess import CalledProcessError
 
 from .drhook import DrHook
 from .logging import warning, error
-from .util import copy_data, symlink_data
+from .util import copy_data, symlink_data, as_tuple, flatten
 from .runrecord import RunRecord
 
 
@@ -40,10 +40,11 @@ class Benchmark(ABC):
 
         :param paths: One or more paths in which the necessary input data can be found
         :param rundir: Run directory to copy/symlink input data into
+        :param srcdir: One or more soruce directories to search for input data
         :param copy: Copy files intp `rundir` instead of symlinking them
         :param force: Force delete existing input files and re-link/copy
         """
-        srcdir = kwargs.get('srcdir')
+        srcdir = as_tuple(kwargs.get('srcdir'))
         rundir = kwargs.get('rundir')
         copy = kwargs.pop('copy', False)
         force = kwargs.pop('force', False)
@@ -52,8 +53,7 @@ class Benchmark(ABC):
         for path in cls.input_files:
             path = Path(path)
             dest = Path(rundir) / path
-            srcdir = Path(srcdir)
-            candidates = list(srcdir.glob(path.name))
+            candidates = flatten([list(Path(s).glob(str(path))) for s in srcdir])
             if len(candidates) == 0:
                 warning('Input file %s not found in %s' % (path.name, srcdir))
                 continue

@@ -4,6 +4,7 @@ import timeit
 from pathlib import Path
 from os import environ, getcwd
 from subprocess import run, STDOUT, CalledProcessError
+from pprint import pformat
 
 from ifsbench.logging import debug, info, warning, error
 
@@ -20,7 +21,7 @@ def execute(args, cwd=None, env=None, dryrun=False, logfile=None, **kwargs):
         args = args.split(' ')
     args = [str(arg) for arg in args]
 
-    debug('User env: %s' % env)
+    debug('User env: %s' % pformat(env, indent=2))
     if env is not None:
         # Inject user-defined environment
         run_env = environ.copy()
@@ -115,3 +116,58 @@ def Timer(name=None):
     end_time = timeit.default_timer()
     time = end_time - start_time
     print('Timer::%s: %.3f s' % (name, time))
+
+
+def as_tuple(item, type=None, length=None):
+    """
+    Force item to a tuple.
+
+    Partly extracted from: https://github.com/OP2/PyOP2/.
+    """
+    # Empty list if we get passed None
+    if item is None:
+        t = ()
+    elif isinstance(item, str):
+        t = (item,)
+    else:
+        # Convert iterable to list...
+        try:
+            t = tuple(item)
+        # ... or create a list of a single item
+        except (TypeError, NotImplementedError):
+            t = (item,) * (length or 1)
+    if length and not len(t) == length:
+        raise ValueError("Tuple needs to be of length %d" % length)
+    if type and not all(isinstance(i, type) for i in t):
+        raise TypeError("Items need to be of type %s" % type)
+    return t
+
+
+def is_iterable(o):
+    """
+    Checks if an item is truly iterable using duck typing.
+
+    This was added because :class:`pymbolic.primitives.Expression` provide an ``__iter__`` method
+    that throws an exception to avoid being iterable. However, with that method defined it is
+    identified as a :class:`collections.Iterable` and thus this is a much more reliable test.
+    """
+    try:
+        iter(o)
+    except TypeError:
+        return False
+    else:
+        return True
+
+
+def flatten(l):
+    """
+    Flatten a hierarchy of nested lists into a plain list.
+    """
+    newlist = []
+    for el in l:
+        if is_iterable(el) and not isinstance(el, (str, bytes)):
+            for sub in flatten(el):
+                newlist.append(sub)
+        else:
+            newlist.append(el)
+    return newlist
