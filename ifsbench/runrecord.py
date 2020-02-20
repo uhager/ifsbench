@@ -201,39 +201,28 @@ class RunRecord(object):
         if self.drhook is not None and mode != 'json':
             self.drhook.write(filepath)
 
-    def compare_spectral(self, reference):
+    def compare_norms(self, result, reference, field='', norm='', exit_on_error=False):
         """
-        Compare fields against reference record.
+        Compare a single time series of norms
 
-        :param reference: A second `RunRecord` object to compare against
+        :param result: Time series of norms in result data
+        :param reference: Time series of norms in reference data
+        :param field: Name of field that is being compared
+        :param norm: Name of norm that is used for comparison
+        :param exit_on_error: Flag to force immediate termination
         """
-        for field in self.spectral_norms.columns:
-            equal = (reference.spectral_norms[field] == self.spectral_norms[field]).all()
-            if not equal:
-                error('FAILURE: Norm of field "%s" deviates from reference:' % field)
-                analysis = pd.DataFrame({
-                    'Result': self.spectral_norms[field],
-                    'Reference': reference.spectral_norms[field],
-                    'Difference': reference.spectral_norms[field] - self.spectral_norms[field],
-                })
-                info('\nField: %s\n%s' % (field, analysis))
+        if not (result == reference).all():
+            error('FAILURE: Norm %s of field %s deviates from reference:' % (norm, field))
+            analysis = pd.DataFrame({'Result': result, 'Reference': reference,
+                                     'Difference': reference - result})
+            info('\nField: %s\n%s' % (field, analysis))
+
+            # Either soft-fail or return false
+            if exit_on_error:
+                exit(-1)
+            else:
                 return False
 
-        return True
-
-    def compare_gridpoint(self, reference):
-        for field in self.gridpoint_norms.index.unique(level=0):
-            for norm in ['avg', 'min', 'max']:
-                equal = (reference.gridpoint_norms.loc[(field, norm)] == self.gridpoint_norms.loc[(field, norm)]).all()
-                if not equal:
-                    error('FAILURE: Norm "%s" of field "%s" deviates from reference:' % (norm, field))
-                    analysis = pd.DataFrame({
-                        'Result': self.gridpoint_norms.loc[(field, norm)],
-                        'Reference': reference.gridpoint_norms.loc[(field, norm)],
-                        'Difference': reference.gridpoint_norms.loc[(field, norm)] - self.gridpoint_norms.loc[(field, norm)]
-                    })
-                    info('\nField: %s\n%s' % (field, analysis))
-                    return False
         return True
 
     def validate(self, refpath, exit_on_error=False):
@@ -247,8 +236,27 @@ class RunRecord(object):
         try:
             debug('Validating results against reference in %s' % refpath)
             reference = self.from_file(filepath=refpath)
-            is_valid_sp = self.compare_spectral(reference)
-            is_valid_gp = self.compare_gridpoint(reference)
+
+            # Validate all recorded spectral norms
+            is_valid_sp = True
+            for field in self.spectral_norms.columns:
+                is_valid = self.compare_norms(
+                    result=self.spectral_norms[field],
+                    reference=reference.spectral_norms[field],
+                    field=field, exit_on_error=exit_on_error
+                )
+                is_valid_sp = is_valid_sp and is_valid
+
+            # Validate avg/min/max norms for all recorded gridpoint fields
+            is_valid_gp = True
+            for field in self.gridpoint_norms.index.unique(level=0):
+                for norm in ['avg', 'min', 'max']:
+                    is_valid = self.compare_norms(
+                        result=self.gridpoint_norms.loc[(field, norm)],
+                        reference=reference.gridpoint_norms.loc[(field, norm)],
+                        field=field, norm=norm, exit_on_error=exit_on_error
+                    )
+                    is_valid_gp = is_valid_gp and is_valid
 
             if is_valid_sp and is_valid_gp:
                 success('VALIDATED: Result matches reference in %s' % (refpath))
