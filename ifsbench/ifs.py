@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from .arch import Workstation
+from .arch import arch_registry, Workstation
 from .drhook import DrHook
 from .namelist import IFSNamelist
 
@@ -44,8 +44,9 @@ class IFS(object):
         env = kwargs.pop('env', None)
         env = {} if env is None else env
 
+        # Select architecture preset from registry
         arch = kwargs.pop('arch', None)
-        arch = Workstation if arch is None else arch
+        arch = arch_registry[arch]
 
         # Set up DrHook according to preset
         drhook = kwargs.pop('drhook', DrHook.PROF)

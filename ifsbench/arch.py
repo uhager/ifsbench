@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from .util import execute
 
 
-__all__ = ['Arch', 'Workstation', 'CrayXC40']
+__all__ = ['Arch', 'Workstation', 'CrayXC40', 'arch_registry']
 
 
 class Arch(ABC):
@@ -50,14 +50,22 @@ class CrayXC40(Arch):
             logfile=None, env=None, **kwargs):
 
         if nproc_node is None:
-            nproc_node = max(nproc, 24)
+            nproc_node = min(nproc, 24)
 
         env['OMP_NUM_THREADS'] = nthread
         # TODO: Ensure proper pinning
 
-        launcher = 'aprun -n %{nproc} -N %{nproc_node} -d %{nthread} -j %{hyperthread}'.format(
+        launcher = 'aprun -n {nproc} -N {nproc_node} -d {nthread} -j {hyperthread}'.format(
             nproc=nproc, nproc_node=nproc_node, nthread=nthread, hyperthread=hyperthread
         )
-        cmd = [launcher, cmd]
+        cmd = ' '.join(cmd) if isinstance(cmd, list) else str(cmd)
+        cmd = '{launcher} {cmd}'.format(launcher=launcher, cmd=cmd)
 
         execute(cmd, logfile=logfile, env=env, **kwargs)
+
+
+arch_registry = {
+    None: Workstation,
+    'xc40': CrayXC40,
+    'cray': CrayXC40,
+}
