@@ -45,9 +45,13 @@ class Benchmark(ABC):
         :param force: Force delete existing input files and re-link/copy
         """
         srcdir = as_tuple(kwargs.get('srcdir'))
-        rundir = kwargs.get('rundir')
+        rundir = Path(kwargs.get('rundir'))
         copy = kwargs.pop('copy', False)
         force = kwargs.pop('force', False)
+        ifsdata = kwargs.get('ifsdata', None)
+
+        if ifsdata is not None:
+            symlink_data(Path(ifsdata), rundir/'ifsdata', force=force)
 
         # Copy / symlink input files into rundir
         for path in cls.input_files:
