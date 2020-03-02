@@ -30,13 +30,17 @@ class Workstation(Arch):
     """
 
     @classmethod
-    def run(cls, cmd, nproc=1, nthread=1, hyperthread=1, logfile=None, env=None, **kwargs):
+    def run(cls, cmd, nproc=1, nthread=1, hyperthread=1, logfile=None,
+            env=None, launch=None, **kwargs):
         env['OMP_NUM_THREADS'] = nthread
         # TODO: Ensure proper pinning
 
-        if nproc > 1:
-            cmd = ' '.join(cmd) if isinstance(cmd, list) else str(cmd)
-            cmd = 'mpirun -np {nproc} {cmd}'.format(nproc=nproc, cmd=cmd)
+        if launch is None:
+            if nproc > 1:
+                launch = 'mpirun -np {nproc}'.format(nproc=nproc)
+
+        cmd = ' '.join(cmd) if isinstance(cmd, list) else str(cmd)
+        cmd = '{launch}{cmd}'.format(cmd=cmd, launch='' if launch is None else ('%s ' % launch), )
         execute(cmd, logfile=logfile, env=env, **kwargs)
 
 
@@ -47,7 +51,7 @@ class CrayXC40(Arch):
 
     @classmethod
     def run(cls, cmd, nproc=1, nproc_node=None, nthread=1, hyperthread=1,
-            logfile=None, env=None, **kwargs):
+            logfile=None, env=None, launch=None, **kwargs):
 
         if nproc_node is None:
             nproc_node = min(nproc, 24)
