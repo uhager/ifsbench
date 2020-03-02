@@ -21,7 +21,7 @@ def execute(args, cwd=None, env=None, dryrun=False, logfile=None, **kwargs):
         args = args.split(' ')
     args = [str(arg) for arg in args]
 
-    debug('User env: %s' % pformat(env, indent=2))
+    debug('User env:\n%s' % pformat(env, indent=2))
     if env is not None:
         # Inject user-defined environment
         run_env = environ.copy()

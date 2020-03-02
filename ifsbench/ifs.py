@@ -49,8 +49,9 @@ class IFS(object):
         arch = arch_registry[arch]
 
         # Set up DrHook according to preset
-        drhook = kwargs.pop('drhook', DrHook.PROF)
-        env.update(drhook.env)
+        drhook = kwargs.pop('drhook', None)
+        if drhook is not None:
+            env.update(drhook.env)
 
         # Define the run directory to the IFS
         env['DATA'] = rundir
