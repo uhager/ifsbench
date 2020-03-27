@@ -187,6 +187,7 @@ class RunRecord(object):
         if mode == 'json':
             with filepath.with_suffix('.json').open('w') as f:
                 json.dump(self.to_dict(orient=orient), f, indent=4)
+            debug('Writing %s' % filepath.with_suffix('.json'))
 
         if mode == 'hdf5':
             # TODO: Warning untested!

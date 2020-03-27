@@ -59,8 +59,13 @@ class CrayXC40(Arch):
         env['OMP_NUM_THREADS'] = nthread
         # TODO: Ensure proper pinning
 
-        launcher = 'aprun -n {nproc} -N {nproc_node} -d {nthread} -j {hyperthread}'.format(
-            nproc=nproc, nproc_node=nproc_node, nthread=nthread, hyperthread=hyperthread
+        # The example invocation line for a Tco399 exp:
+        # aprun -cc cpu -m8000h -n 72 -N 12 -S 6 -j 2 -d 6
+
+        launcher = 'aprun -cc cpu -n {nproc} -N {nproc_node} -S {nproc_numa} '\
+        '-d {nthread} -j {hyperthread} -ss'.format(
+            nproc=nproc, nproc_node=nproc_node, nproc_numa=int(nproc_node/2),
+            nthread=nthread, hyperthread=hyperthread
         )
         cmd = ' '.join(cmd) if isinstance(cmd, list) else str(cmd)
         cmd = '{launcher} {cmd}'.format(launcher=launcher, cmd=cmd)
