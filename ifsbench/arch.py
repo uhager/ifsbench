@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from .util import execute
 
 
-__all__ = ['Arch', 'Workstation', 'CrayXC40', 'arch_registry']
+__all__ = ['Arch', 'Workstation', 'XC40Cray', 'XC40Cray', 'arch_registry']
 
 
 class Arch(ABC):
@@ -44,9 +44,9 @@ class Workstation(Arch):
         execute(cmd, logfile=logfile, env=env, **kwargs)
 
 
-class CrayXC40(Arch):
+class XC40Cray(Arch):
     """
-    Default setup for ECMWF's Cray XC40 system.
+    Default setup for ECMWF's Cray XC40 system with Cray compiler toolchain.
     """
 
     @classmethod
@@ -57,10 +57,10 @@ class CrayXC40(Arch):
             nproc_node = min(nproc, 24)
 
         env['OMP_NUM_THREADS'] = nthread
-        # TODO: Ensure proper pinning
 
-        # The example invocation line for a Tco399 exp:
-        # aprun -cc cpu -m8000h -n 72 -N 12 -S 6 -j 2 -d 6
+        # From Paddy:
+        # Cray: aprun -m8000h -cc cpu -n 72 -N 12 -S 6 -j 2 -d 6 -ss
+        # TODO: Try again with `-m8000h` (for some reason get OOM-killed)
 
         launcher = 'aprun -cc cpu -n {nproc} -N {nproc_node} -S {nproc_numa} '\
         '-d {nthread} -j {hyperthread} -ss'.format(
@@ -73,8 +73,40 @@ class CrayXC40(Arch):
         execute(cmd, logfile=logfile, env=env, **kwargs)
 
 
+class XC40Intel(Arch):
+    """
+    Default setup for ECMWF's Cray XC40 system with Intel toolchain
+    """
+
+    @classmethod
+    def run(cls, cmd, nproc=1, nproc_node=None, nthread=1, hyperthread=1,
+            logfile=None, env=None, launch=None, **kwargs):
+
+        if nproc_node is None:
+            nproc_node = min(nproc, 24)
+
+        # Ensure correct pinning on Intel
+        env['OMP_NUM_THREADS'] = nthread
+        env['OMP_PLACES'] = 'threads'
+        env['OMP_PROC_BIND'] = 'close'
+
+        # env['LD_PRELOAD'] = '/opt/cray/cce/8.5.8/craylibs/x86-64/libtcmalloc_minimal.so'
+
+        launcher = 'aprun -cc depth -n {nproc} -N {nproc_node} -S {nproc_numa} '\
+        '-d {nthread} -j {hyperthread}'.format(
+            nproc=nproc, nproc_node=nproc_node, nproc_numa=int(nproc_node/2),
+            nthread=nthread, hyperthread=hyperthread
+        )
+        cmd = ' '.join(cmd) if isinstance(cmd, list) else str(cmd)
+        cmd = '{launcher} {cmd}'.format(launcher=launcher, cmd=cmd)
+
+        execute(cmd, logfile=logfile, env=env, **kwargs)
+
+
 arch_registry = {
     None: Workstation,
-    'xc40': CrayXC40,
-    'cray': CrayXC40,
+    'workstation': Workstation,
+    'xc40': XC40Cray,
+    'xc40cray': XC40Cray,
+    'xc40intel': XC40Intel,
 }

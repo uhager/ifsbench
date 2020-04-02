@@ -61,7 +61,8 @@ class IFS(object):
         env['GRIB_SAMPLES_PATH'] = self.builddir/'share/eccodes/ifs_samples/grib1_mlgrib2'
 
         # Add additional lib location so that we can pick up libblack.so
-        env['LD_LIBRARY_PATH'] = self.builddir/'ifs-source'
+        # TODO: Suspended for Cray run... :( Needs proper fix!
+        # env['LD_LIBRARY_PATH'] = self.builddir/'ifs-source'
 
         # Set number of MPI processes and OpenMP threads
         env['NPROC'] = nproc - nproc_io
