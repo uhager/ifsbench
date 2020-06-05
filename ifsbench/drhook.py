@@ -26,6 +26,7 @@ class DrHook(Enum):
         PROF : {
             'DR_HOOK': '1',
             'DR_HOOK_IGNORE_SIGNALS': '0',
+            # 'DR_HOOK_USE_LOCKFILE': '0',
             'DR_HOOK_OPT': 'prof',
         }
     }
