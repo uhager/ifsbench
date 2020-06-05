@@ -57,7 +57,7 @@ class Benchmark(ABC):
         for path in cls.input_files:
             path = Path(path)
             dest = Path(rundir) / path
-            candidates = flatten([list(Path(s).glob(str(path.name))) for s in srcdir])
+            candidates = flatten([list(Path(s).glob('**/%s' % path.name)) for s in srcdir])
             if len(candidates) == 0:
                 warning('Input file %s not found in %s' % (path.name, srcdir))
                 continue
