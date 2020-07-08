@@ -3,7 +3,7 @@ import shutil
 from conftest import Watcher
 from pathlib import Path
 
-from ifsbench import logger, FCBenchmark, IFS, IFSNamelist, Workstation
+from ifsbench import logger, Benchmark, IFS, IFSNamelist, Workstation
 
 
 @pytest.fixture
@@ -30,9 +30,9 @@ def rundir(here):
         shutil.rmtree(rundir)
 
 
-class T21FC(FCBenchmark):
+class SimpleBenchmark(Benchmark):
     """
-    Example configuration of a T21 forceast benchmark.
+    Example configuration of simple benchmark.
     """
 
     input_files = [
@@ -47,7 +47,7 @@ def test_benchmark_from_files(here, rundir, copy):
     """
     Test input file verification for a simple benchmark setup.
     """
-    benchmark = T21FC.from_files(rundir=rundir, srcdir=here/'inidata', copy=copy)
+    benchmark = SimpleBenchmark.from_files(rundir=rundir, srcdir=here/'inidata', copy=copy)
 
     # Let benchmark test itself
     benchmark.check_input()
@@ -72,12 +72,18 @@ def test_benchmark_execute(here, rundir, watcher):
     """
     # Example of how to create and run one of the above...
     ifs = IFS(builddir=here)
-    namelist = IFSNamelist(here/'default.nml')
-    benchmark = T21FC.from_files(ifs=ifs, namelist=namelist,
-                                 srcdir=here/'inidata', rundir=rundir)
+    benchmark = SimpleBenchmark.from_files(ifs=ifs, srcdir=here/'inidata', rundir=rundir)
 
     benchmark.check_input()
     with watcher:
-        benchmark.run(dryrun=True, arch=Workstation)
+        benchmark.run(dryrun=True, namelist=here/'t21_fc.nml')
 
-    assert 'Executing: ifsMASTER.DP' in watcher.output
+    ifscmd = str(rundir.parent/'bin/ifsMASTER.DP')
+    assert ifscmd in watcher.output
+
+    # Ensure fort.4 config file was generated
+    config = here.parent/'fort.4'
+    assert config.exists()
+
+    # Clean up config file
+    config.unlink()

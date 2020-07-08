@@ -38,9 +38,8 @@ class Benchmark(ABC):
         Create instance of ``Benchmark`` object by globbing a set of
         input paths for the ncessary input data and copying it into rundir.
 
-        :param paths: One or more paths in which the necessary input data can be found
         :param rundir: Run directory to copy/symlink input data into
-        :param srcdir: One or more soruce directories to search for input data
+        :param srcdir: One or more source directories to search for input data
         :param copy: Copy files intp `rundir` instead of symlinking them
         :param force: Force delete existing input files and re-link/copy
         """
@@ -120,4 +119,6 @@ class Benchmark(ABC):
         drhook = kwargs.get('drhook', DrHook.OFF)
         drhook_path = None if drhook == DrHook.OFF else self.rundir/'drhook.*'
 
-        return RunRecord.from_run(nodefile=self.rundir/'NODE.001_01', drhook=drhook_path)
+        dryrun = kwargs.get('dryrun', False)
+        if not dryrun:
+            return RunRecord.from_run(nodefile=self.rundir/'NODE.001_01', drhook=drhook_path)
