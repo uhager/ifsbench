@@ -12,16 +12,26 @@ from ifsbench.logging import debug, info, warning, error
 __all__ = ['execute', 'symlink_data', 'copy_data', 'Timer']
 
 
-def execute(args, cwd=None, env=None, dryrun=False, logfile=None, **kwargs):
+def execute(command, **kwargs):
     """
     Execute a single command with a given director or envrionment.
-    """
-    # Normalize args to a list of strings
-    if isinstance(args, str):
-        args = args.split(' ')
-    args = [str(arg) for arg in args]
 
-    debug('User env:\n%s' % pformat(env, indent=2))
+    :param command: String or list of strings with the command to execute
+    :param cwd: Directory in which to execute command
+    :param dryrun: Does not actually run command but log it
+    """
+    cwd = kwargs.pop('cwd', None)
+    env = kwargs.pop('env', None)
+    dryrun = kwargs.pop('dryrun', False)
+    logfile = kwargs.pop('logfile', None)
+
+    # Some string mangling to support lists and strings
+    if isinstance(command, list):
+        command = ' '.join(command)
+    if isinstance(command, str):
+        command = command.split(' ')
+
+    debug('[ifsbench] User env:\n%s' % pformat(env, indent=2))
     if env is not None:
         # Inject user-defined environment
         run_env = environ.copy()
@@ -32,19 +42,22 @@ def execute(args, cwd=None, env=None, dryrun=False, logfile=None, **kwargs):
     # Ensure all env variables are strings
     run_env = {k: str(v) for k, v in run_env.items()}
 
-    debug('Run directory: %s' % cwd)
-    info('Executing: %s' % ' '.join(args))
-    cwd = getcwd() if cwd is None else str(cwd)
     stdout = kwargs.pop('stdout', None)
     stderr = kwargs.pop('stderr', STDOUT)
+
+    # Log the command we're about to execute
+    cwd = getcwd() if cwd is None else str(cwd)
+    debug('[ifsbench] Run directory: ' + cwd)
+    info('[ifsbench] Executing: ' + ' '.join(command))
+
     try:
         if not dryrun:
             if logfile is None:
-                run(args, check=True, cwd=cwd, env=run_env,
+                run(command, check=True, env=run_env,
                     stdout=stdout, stderr=stderr, **kwargs)
             else:
                 with Path(logfile).open('w') as logfile:
-                    run(args, check=True, cwd=cwd, env=run_env,
+                    run(command, check=True, cwd=cwd, env=run_env,
                         stdout=logfile, stderr=stderr, **kwargs)
 
     except CalledProcessError as e:
