@@ -1,2 +1,4 @@
 *~
 *.pyc
+
+ifsbench.egg-info/*
