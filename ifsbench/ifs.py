@@ -1,4 +1,5 @@
 from pathlib import Path
+from os import getenv
 
 from .arch import arch_registry, Workstation, XC40Cray, XC40Intel
 from .drhook import DrHook
@@ -63,7 +64,8 @@ class IFS(object):
         # Add additional lib location so that we can pick up libblack.so
         # TODO: Suspended for Cray runs... :( Needs proper fix!
         if arch is not XC40Cray and arch is not XC40Intel:
-            env['LD_LIBRARY_PATH'] = self.builddir/'ifs-source'
+            new_path = str(self.builddir/'ifs-source') + ':' + getenv('LD_LIBRARY_PATH') 
+            env['LD_LIBRARY_PATH'] = new_path
 
         # Set number of MPI processes and OpenMP threads
         env['NPROC'] = nproc - nproc_io
