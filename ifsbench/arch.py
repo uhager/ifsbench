@@ -1,9 +1,10 @@
 from abc import ABC, abstractmethod
+from math import ceil
 
 from .util import execute
 
 
-__all__ = ['Arch', 'Workstation', 'XC40Cray', 'XC40Cray', 'arch_registry']
+__all__ = ['Arch', 'Workstation', 'TEMS', 'XC40Cray', 'XC40Cray', 'arch_registry']
 
 
 class Arch(ABC):
@@ -41,6 +42,36 @@ class Workstation(Arch):
 
         cmd = ' '.join(cmd) if isinstance(cmd, list) else str(cmd)
         cmd = '{launch}{cmd}'.format(cmd=cmd, launch='' if launch is None else ('%s ' % launch), )
+        execute(cmd, logfile=logfile, env=env, **kwargs)
+
+
+class TEMS(Arch):
+    """
+    Default setup for ECMWF's TEMS system using SLURM
+    """
+ 
+    @classmethod
+    def run(cls, cmd, nproc=1, nproc_node=None, nthread=1, hyperthread=1,
+            logfile=None, env=None, launch=None, **kwargs):
+ 
+        if nproc_node is None:
+            nproc_node = min(nproc, 128)
+ 
+        env['OMP_NUM_THREADS'] = nthread
+ 
+        if hyperthread == 1:
+            cpupertask = nthread*2
+        else:
+            cpupertask = nthread
+        
+        nnode = ceil(nproc*nthread/nproc_node)
+ 
+        launcher = 'srun -p compute -q np -N {nnode} -n {nproc} --cpu-bind=cores '\
+                '--cpus-per-task={cpupertask}'.format(nnode=nnode,nproc=nproc,cpupertask=cpupertask)
+        cmd = ' '.join(cmd) if isinstance(cmd, list) else str(cmd)
+        cmd = '{launcher} {cmd}'.format(launcher=launcher, cmd=cmd)
+        #cmd = 'ldd ' + cmd
+ 
         execute(cmd, logfile=logfile, env=env, **kwargs)
 
 
@@ -106,6 +137,7 @@ class XC40Intel(Arch):
 arch_registry = {
     None: Workstation,
     'workstation': Workstation,
+    'tems': TEMS,
     'xc40': XC40Cray,
     'xc40cray': XC40Cray,
     'xc40intel': XC40Intel,
