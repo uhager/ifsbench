@@ -1,4 +1,4 @@
-# For library
+# For the library itself
 pandas
 f90nml
 
