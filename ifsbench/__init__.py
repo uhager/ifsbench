@@ -13,6 +13,7 @@ del get_versions
 
 from .arch import * # noqa
 from .benchmark import * # noqa
+from .darshanreport import * # noqa
 from .drhook import * # noqa
 from .ifs import * # noqa
 from .logging import * # noqa
