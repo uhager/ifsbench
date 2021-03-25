@@ -12,7 +12,7 @@ def fixture_here():
 
 def test_darshanreport_from_parser_log(here):
     """Verify that darshan-parser log is read correctly."""
-    report = DarshanReport(parser_log=here/'darshan.log')
+    report = DarshanReport(here/'darshan.log')
 
     # Records loaded and available?
     assert len(report.records) == 3

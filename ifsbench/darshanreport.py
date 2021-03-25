@@ -4,11 +4,37 @@ Darshan report parsing utilities.
 import io
 import mmap
 import subprocess
+from contextlib import contextmanager
 from pathlib import Path
 import pandas as pd
 
 
 __all__ = ['DarshanReport']
+
+
+@contextmanager
+def open_darshan_logfile(filepath):
+    """
+    Utility context manager to run darshan-parser on the fly if the given file
+    path does not point to a darshan log text file.
+    """
+    filepath = Path(filepath)
+    with filepath.open('r') as logfile:
+        is_parser_log = logfile.readline().find('darshan log version:') != -1
+    if is_parser_log:
+        try:
+            logfile = filepath.open('r')
+            report = mmap.mmap(logfile.fileno(), 0, prot=mmap.PROT_READ)
+            yield report
+        finally:
+            logfile.close()
+    else:
+        try:
+            cmd = 'darshan-parser'
+            result = subprocess.run([cmd, str(filepath)], capture_output=True, check=True)
+            yield result.stdout
+        finally:
+            pass
 
 
 class DarshanReport:
@@ -18,36 +44,18 @@ class DarshanReport:
     This exists for compatibility reasons to emulate the behaviour of
     pydarshan's `DarshanReport` for Darshan versions prior to 3.3.
 
-    Either :attr:`parser_log` or :attr:`darshan_log` have to be provided.
-
     Parameters
     ----------
-    parser_log : str or :any:`pathlib.Path`
-        The file name of the log file with the output from `darshan-parser`.
-    darshan_log : str or :any:`pathlib.Path`
-        The file name of the runtime logfile produced by Darshan. When given,
-        `darshan-parser` will be used to parse this and create the
-        :attr:`parser_log` on the fly. If :attr:`parser_log` is given this
-        will be ignored.
+    filepath : str or :any:`pathlib.Path`
+        The file name of the log file with the output from `darshan-parser` or
+        the runtime logfile produced by Darshan. If the latter is given,
+        `darshan-parser` will be called to parse this and create the text
+        output before reading.
     """
 
-    def __init__(self, parser_log=None, darshan_log=None):
-        if parser_log is None:
-            if darshan_log is None:
-                raise ValueError('darshan_log or parser_log must be provided.')
-            self._parse_report(self._from_darshan_parser(darshan_log))
-        else:
-            parser_log = Path(parser_log)
-            with parser_log.open('r') as logfile:
-                report = mmap.mmap(logfile.fileno(), 0, prot=mmap.PROT_READ)
-                self._parse_report(report)
-
-    @staticmethod
-    def _from_darshan_parser(darshan_log):
-        path = Path(darshan_log)
-        cmd = 'darshan-parser'
-        result = subprocess.run([cmd, str(path)], capture_output=True, check=True)
-        return result.stdout
+    def __init__(self, filepath):
+        with open_darshan_logfile(filepath) as report:
+            self._parse_report(report)
 
     @staticmethod
     def _parse_key_values(report, start, end):
