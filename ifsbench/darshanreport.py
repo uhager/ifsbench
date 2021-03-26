@@ -3,10 +3,11 @@ Darshan report parsing utilities.
 """
 import io
 import mmap
-import subprocess
 from contextlib import contextmanager
 from pathlib import Path
 import pandas as pd
+
+from ifsbench.util import gettempdir, execute
 
 
 __all__ = ['DarshanReport']
@@ -19,22 +20,18 @@ def open_darshan_logfile(filepath):
     path does not point to a darshan log text file.
     """
     filepath = Path(filepath)
-    with filepath.open('r') as logfile:
-        is_parser_log = logfile.readline().find('darshan log version:') != -1
-    if is_parser_log:
-        try:
-            logfile = filepath.open('r')
-            report = mmap.mmap(logfile.fileno(), 0, prot=mmap.PROT_READ)
-            yield report
-        finally:
-            logfile.close()
-    else:
-        try:
-            cmd = 'darshan-parser'
-            result = subprocess.run([cmd, str(filepath)], capture_output=True, check=True)
-            yield result.stdout
-        finally:
-            pass
+    with filepath.open('rb') as logfile:
+        is_parser_log = logfile.read(32).find(b'darshan log version:') != -1
+    if not is_parser_log:
+        logpath = gettempdir()/filepath.stem + '.log'
+        execute(['darshan-parser', str(filepath)], logfile=str(logpath))
+        filepath = Path(logpath)
+    try:
+        logfile = filepath.open('r')
+        report = mmap.mmap(logfile.fileno(), 0, prot=mmap.PROT_READ)
+        yield report
+    finally:
+        logfile.close()
 
 
 class DarshanReport:
