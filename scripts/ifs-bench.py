@@ -2,10 +2,9 @@
 
 from logging import FileHandler
 from pathlib import Path
-import tarfile
 import click
 
-from ifsbench import logger, DEBUG, DarshanReport
+from ifsbench import logger, DEBUG, DarshanReport, execute
 
 @click.group()
 @click.option('--debug/--no-debug', default=False, show_default=True,
@@ -67,32 +66,25 @@ def pack_experiment(ctx, darshan_log, exp_id, output_dir):  # pylint: disable=un
     print('output_files:')
     print('  ' + '\n  '.join(output_files) + '\n')
 
-    class RelativePath:
-        def __init__(self, relative_to):
-            self.relative_to = relative_to
-
-        def __call__(self, tarinfo):
-            start = tarinfo.name.find(self.relative_to)
-            tarinfo.name = tarinfo.name[start+1:]
-            return tarinfo
-
-    def strip_path(tarinfo):
-        tarinfo.name = Path(tarinfo.name).name
-        return tarinfo
-
     output_dir = Path(output_dir)
-    with tarfile.open(output_dir/'ifsdata.tar.gz', 'w:gz', dereference=True) as tar:
-        for f in ifsdata_files:
-            tar.add(f, filter=RelativePath('/ifsdata/'))
-    with tarfile.open(output_dir/'{}.tar.gz'.format(exp_id), 'w:gz', dereference=True) as tar:
-        for f in exp_files:
-            tar.add(f, filter=RelativePath('/{}/'.format(exp_id)))
-    with tarfile.open(output_dir/'other.tar.gz', 'w:gz', dereference=True) as tar:
-        for f in other_files:
-            tar.add(f, filter=RelativePath('/rdxdata/'))
-    with tarfile.open(output_dir/'output.tar.gz', 'w:gz', dereference=True) as tar:
-        for f in output_files:
-            tar.add(f, filter=strip_path)
+
+    def tar_files(files, basedir_identifier, output_basename):
+        files = list(files)
+        basedir_pos = files[0].find(basedir_identifier)
+        basedir = files[0][:basedir_pos]
+        files = [f[basedir_pos+1:] for f in files]
+        cmd = ['tar', 'cvzf', str(output_dir/'{}.tar.gz'.format(output_basename)),
+               '-C', str(basedir), *files]
+        execute(cmd)
+
+    if exp_files:
+        tar_files(exp_files, '/{}/'.format(exp_id), exp_id)
+    if ifsdata_files:
+        tar_files(ifsdata_files, '/ifsdata/', 'ifsdata')
+    if other_files:
+        tar_files(other_files, '/rdxdata/', 'other')
+    if output_files:
+        tar_files(output_files, '/{}/'.format(exp_id), 'output_{}'.format(exp_id))
 
 
 if __name__ == "__main__":
