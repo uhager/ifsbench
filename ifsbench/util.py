@@ -1,6 +1,10 @@
+"""
+Collection of utility routines
+"""
 import contextlib
 import shutil
 import timeit
+import tempfile
 from pathlib import Path
 from os import environ, getcwd
 from subprocess import run, STDOUT, CalledProcessError
@@ -9,16 +13,40 @@ from pprint import pformat
 from ifsbench.logging import debug, info, warning, error
 
 
-__all__ = ['execute', 'symlink_data', 'copy_data', 'Timer']
+__all__ = ['gettempdir', 'execute', 'symlink_data', 'copy_data', 'Timer']
+
+
+def gettempdir():
+    """
+    Create an ifsbench-specific tempdir in the systems temporary directory.
+    """
+    tmpdir = Path(tempfile.gettempdir())/'ifsbench'
+
+    if not tmpdir.exists():
+        tmpdir.mkdir()
+
+    return tmpdir
 
 
 def execute(command, **kwargs):
     """
-    Execute a single command with a given director or envrionment.
+    Execute a single command with a given directory or environment.
 
-    :param command: String or list of strings with the command to execute
-    :param cwd: Directory in which to execute command
-    :param dryrun: Does not actually run command but log it
+    Parameters
+    ----------
+    command : str or list of str
+        The (components of the) command to execute.
+    cwd : str, optional
+        Directory in which to execute command.
+    dryrun : bool, optional
+        Do not actually run the command but log it (default: `False`).
+    logfile : str, optional
+        Write stdout to this file (default: `None`).
+    stdout : optional
+        Overwrite `stdout` attribute of :any:`subprocess.run`. Ignored if
+        :attr:`logfile` is given (default: `None`).
+    stderr : optional
+        Overwrite `stderr` attribute of :any:`subprocess.run` (default: `None`).
     """
     cwd = kwargs.pop('cwd', None)
     env = kwargs.pop('env', None)
@@ -36,11 +64,11 @@ def execute(command, **kwargs):
         # Inject user-defined environment
         run_env = environ.copy()
         run_env.update(env)
+
+        # Ensure all env variables are strings
+        run_env = {k: str(v) for k, v in run_env.items()}
     else:
         run_env = None
-
-    # Ensure all env variables are strings
-    run_env = {k: str(v) for k, v in run_env.items()}
 
     stdout = kwargs.pop('stdout', None)
     stderr = kwargs.pop('stderr', STDOUT)
