@@ -16,25 +16,22 @@ class ExperimentFiles:
     """
 
     file_categories = {
-        'namelist': 'namelistfc',
-        '{exp_id}': '/{exp_id}/',
-        'ifsdata': '/ifsdata/',
+        'namelist': 'namelistfc',  # The input namelist
+        '{exp_id}': '/{exp_id}/',  # The experiment-specific files
+        'rdxdata': '/rdxdata/',    # The static files from rdxdata (e.g., ifsdata, chem, etc.)
     }
+    """
+    Pairs of `(category, path-identifier)` to specify categories into which
+    experiment files are sorted (and packed separately)
+    """
 
     def __init__(self, exp_id):
         self.exp_id = exp_id
         self.files = {}
 
-    @classmethod
-    def from_summary(cls, summary):
-        assert isinstance(summary, dict) and len(summary) == 1
-        exp_id, categorized_files = summary.popitem()
-        assert not summary
-        obj = cls(exp_id)
-        return obj
-
     @staticmethod
     def _sha256sum(filepath):
+        """Create SHA-256 checksum for the file at the given path"""
         filepath = Path(filepath)
         logfile = gettempdir()/'checksum.sha256'
         cmd = ['sha256sum', str(filepath)]
@@ -46,6 +43,7 @@ class ExperimentFiles:
 
     @staticmethod
     def _size(filepath):
+        """Obtain file size in byte for the file at the given path"""
         filepath = Path(filepath)
         return filepath.stat().st_size
 
@@ -181,77 +179,34 @@ def cli(ctx, debug, log):  # pylint:disable=redefined-outer-name
               help='The <exp_id>.yml file for which to pack files.')
 @click.option('--output-dir', default=Path.cwd(), type=click.Path(file_okay=False, dir_okay=True, writable=True),
               help='Output directory for packed files (default: current working directy)')
-@click.option('--with-ifsdata/--without-ifsdata', default=True, type=bool,
-              help='Pack ifsdata input files.')
-@click.option('--with-other/--without-other', default=True, type=bool,
-              help='Pack other input files (not located in ifsdata).')
 @click.pass_context
-def pack_data(ctx, include, output_dir, with_ifsdata, with_other):  # pylint: disable=unused-argument
-    exp_files = ExperimentFiles('static_data')
+def pack_rdxdata(ctx, include, output_dir):  # pylint: disable=unused-argument
+    """Read yaml-files from pack-experiment and pack all listed rdxdata into a single archive"""
+    exp_files = ExperimentFiles('rdxdata')
     for summary_file in include:
         with Path(summary_file).open() as f:
             summary = yaml.safe_load(f)
         exp_id, categorized_files = summary.popitem()
-        if with_ifsdata:
-            for file in categorized_files.get('ifsdata', {}).values():
-                exp_files.add_file(file['path'])
-        if with_other:
-            for file in categorized_files.get('other', {}).values():
-                exp_files.add_file(file['path'])
+        for file in categorized_files.get('rdxdata', {}).values():
+            exp_files.add_file(file['path'])
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
     exp_files.pack_files(output_dir)
 
 
 @cli.command()
-@click.option('--exp-id', required=True, type=str, help='The ID of the experiment')
+@click.option('--exp-id', required=True, type=str, help='the ID of the experiment')
 @click.option('--darshan-log', required=True,
               type=click.Path(exists=True, file_okay=True, dir_okay=False, readable=True),
-              help='The log file containing Darshan output')
+              help='the Darshan logfile')
 @click.option('--output-dir', default=Path.cwd(), type=click.Path(file_okay=False, dir_okay=True, writable=True),
               help='Output directory for packed files (default: current working directy)')
-@click.option('--with-ifsdata', default=False, type=bool,
-               help='Pack ifsdata files (default: only captured for later packaging with pack_data)')
-@click.option('--with-other', default=False, type=bool,
-               help='Pack other data files (default: only captured for later packaging with pack_data)')
+@click.option('--with-rdxdata/--without-rdxdata', default=False, type=bool,
+               help=('pack rdxdata files, such as ifsdata '
+                     '(default: capture only in <exp_id>.yml for later packaging with pack-rdxdata)'))
 @click.pass_context
-def pack_experiment(ctx, exp_id, darshan_log, output_dir, with_ifsdata, with_other):  # pylint: disable=unused-argument
+def pack_experiment(ctx, exp_id, darshan_log, output_dir, with_rdxdata):  # pylint: disable=unused-argument
     """Pack input data of an experiment for standalone use"""
-
-    # Output helpers
-    def relative_paths(files, basedir_identifier):
-        """Convert filenames to relative paths, relative to a base directory
-        identified by :attr:`basedir_identifier`."""
-        files = list(files)
-        basedir_pos = files[0].find(basedir_identifier)
-        basedir = files[0][:basedir_pos]
-        files = [f[basedir_pos+1:] for f in files]
-        return basedir, files
-
-    def tar_filename(basedir, stem):
-        """Generate filename for output archive."""
-        return (basedir/stem).with_suffix('.tar.gz')
-
-    def tar_files(files, basedir, output_file):
-        """Create an archive containining :attr:`files` relative to a base
-        directory :attr:`basedir`. Base name of the output file (without
-        suffix) is given by :attr:`output_basename`.""" 
-        cmd = ['tar', 'cvzhf', str(output_file), '-C', str(basedir), *files]
-        execute(cmd)
-
-    def metadata_files(files, basedir):
-        """Create meta data (such as checksum, original path etc.) for
-         a set of files."""
-        metadata = {}
-        with logfile.open() as f:
-            for l in f.readlines():
-                checksum, name = l.split()
-                filepath = Path(basedir)/name
-                stat = filepath.stat()
-                metadata[name] = {
-                    'sha256sum': checksum,
-                    'path': str(filepath),
-                    'size': stat.st_size,
-                }
-        return metadata
 
     # Parse the darshan report
     report = DarshanReport(darshan_log)
@@ -285,71 +240,9 @@ def pack_experiment(ctx, exp_id, darshan_log, output_dir, with_ifsdata, with_oth
 
     # Pack experiment files
     exclude = []
-    if not with_ifsdata:
-        exclude += ['ifsdata']
-    if not with_other:
-        exclude += ['other']
+    if not with_rdxdata:
+        exclude += ['rdxdata']
     exp_files.pack_files(output_dir, exclude)
-    return
-
-    # Categorize input files
-    namelist_files = set(f for f in input_files if Path(f).name == 'namelistfc')
-    ifsdata_files = set(f for f in input_files if '/ifsdata/' in f) - namelist_files
-    exp_files = set(f for f in input_files if '/{}/'.format(exp_id) in f) - namelist_files
-    rdxdata_files = input_files - ifsdata_files - namelist_files - exp_files
-
-    # Select output files (files that are written but never read)
-    output_files = set(f for f in write_files - read_files if '/log/' in f)
-
-    # Some meta-data
-    summary = {}
-
-    # Collect summary for all files
-    if namelist_files:
-        summary[exp_id]
-        for namelist in namelist_files:
-            filepath = Path(namelist)
-            metadata = metadata_files([filepath.name], filepath.parent)
-            summary[exp_id][filepath.name] = metadata[filepath.name]
-            copy(namelist, output_dir/filepath.name)
-
-    if exp_files:
-        exp_basedir, exp_files = relative_paths(exp_files, '/{}/'.format(exp_id))
-        exp_tarfile = tar_filename(output_dir, exp_id) 
-        summary[exp_id][exp_tarfile.name] = metadata_files(exp_files, exp_basedir)
-        tar_files(exp_files, exp_basedir, exp_tarfile)
-
-    if output_files:
-        output_basedir, output_files = relative_paths(output_files, '/{}/'.format(exp_id))
-        output_tarfile = tar_filename(output_dir, 'output_{}'.format(exp_id))
-        summary[exp_id][output_tarfile.name] = metadata_files(output_files, output_basedir)
-        tar_files(output_files, output_basedir, output_tarfile)
-
-    if rdxdata_files:
-        rdxdata_basedir, rdxdata_files = relative_paths(rdxdata_files, '/rdxdata/')
-        rdxdata_tarfile = tar_filename(output_dir, 'rdxdata')
-        summary[exp_id][rdxdata_tarfile.name] = metadata_files(rdxdata_files, rdxdata_basedir)
-        if with_rdxdata:
-            tar_files(rdxdata_files, rdxdata_basedir, rdxdata_tarfile)
-
-    if ifsdata_files:
-        ifsdata_basedir, ifsdata_files = relative_paths(ifsdata_files, '/ifsdata/')
-        ifsdata_tarfile = tar_filename(output_dir, 'ifsdata')
-        summary[exp_id][ifsdata_tarfile.name] = metadata_files(ifsdata_files, ifsdata_basedir)
-        if with_ifsdata:
-            tar_files(ifsdata_files, ifsdata_basedir, ifsdata_tarfile)
-
-    # Setup output directory
-    output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    # Write input files summary
-    summary_yml = output_dir/'{}.yml'.format(exp_id)
-    with summary_yml.open('w') as f:
-        yaml.dump(summary, f, sort_keys=False) 
-
-    # Create input file archives
-    pack_files(summary)
 
 
 if __name__ == "__main__":
