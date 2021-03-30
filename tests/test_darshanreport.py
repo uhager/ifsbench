@@ -2,11 +2,12 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from ifsbench import DarshanReport
+from ifsbench import DarshanReport, read_files_from_darshan, write_files_from_darshan
 
 
 @pytest.fixture(scope='module', name='here')
 def fixture_here():
+    """Parent directory for tests"""
     return Path(__file__).parent
 
 
@@ -26,3 +27,21 @@ def test_darshanreport_from_parser_log(here):
         _ = report.records['foo']
     with pytest.raises(KeyError):
         _ = report.name_records['foo']
+
+
+def test_darshanreport_read_files(here):
+    """Verify that list of read files is obtained correctly from
+    Darshan report."""
+    report = DarshanReport(here/'darshan.log')
+    read_files = read_files_from_darshan(report)
+    assert isinstance(read_files, set)
+    assert len(read_files) == 33
+
+
+def test_darshanreport_write_files(here):
+    """Verify that list of write files is obtained correctly from
+    Darshan report."""
+    report = DarshanReport(here/'darshan.log')
+    write_files = write_files_from_darshan(report)
+    assert isinstance(write_files, set)
+    assert len(write_files) == 38

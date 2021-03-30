@@ -10,7 +10,30 @@ import pandas as pd
 from ifsbench.util import gettempdir, execute
 
 
-__all__ = ['DarshanReport']
+__all__ = ['read_files_from_darshan', 'write_files_from_darshan', 'DarshanReport']
+
+
+def read_files_from_darshan(report):
+    """Obtain set of file names that are read according to POSIX and STDIO
+    modules in the Darshan report"""
+    prec = report.records['POSIX']
+    preads = prec[(prec['<counter>'] == 'POSIX_READS') & (prec['<value>'] > 0)]
+    srec = report.records['STDIO']
+    sreads = srec[(srec['<counter>'] == 'STDIO_READS') & (srec['<value>'] > 0)]
+    read_files = set(preads['<file name>']) | set(sreads['<file name>'])
+    return read_files
+
+
+def write_files_from_darshan(report):
+    """Obtain set of file names that are written according to POSIX and STDIO
+    modules in the Darshan report"""
+    # Find all writes from modules POSIX and STDIO
+    prec = report.records['POSIX']
+    pwrites = prec[(prec['<counter>'] == 'POSIX_WRITES') & (prec['<value>'] > 0)]
+    srec = report.records['STDIO']
+    swrites = srec[(srec['<counter>'] == 'STDIO_WRITES') & (srec['<value>'] > 0)]
+    write_files = set(pwrites['<file name>']) | set(swrites['<file name>'])
+    return write_files
 
 
 @contextmanager
