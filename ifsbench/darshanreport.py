@@ -23,7 +23,7 @@ def open_darshan_logfile(filepath):
     with filepath.open('rb') as logfile:
         is_parser_log = logfile.read(32).find(b'darshan log version:') != -1
     if not is_parser_log:
-        logpath = gettempdir()/filepath.stem + '.log'
+        logpath = gettempdir()/(filepath.stem + '.log')
         execute(['darshan-parser', str(filepath)], logfile=str(logpath))
         filepath = Path(logpath)
     try:
