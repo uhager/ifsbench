@@ -50,29 +50,29 @@ ERROR = logging.ERROR
 
 def debug(msg, *args, **kwargs):
     msg = colors.OKBLUE % msg
-    logger.log(msg=msg, level=logging.DEBUG, *args, **kwargs)
+    logger.log(logging.DEBUG, msg, *args, **kwargs)
 
 
 def header(msg, *args, **kwargs):
     msg = colors.HEADER % msg
-    logger.log(msg=msg, level=logging.INFO, *args, **kwargs)
+    logger.log(logging.INFO, msg, *args, **kwargs)
 
 
 def info(msg, *args, **kwargs):
     msg = colors.OKBLUE % msg
-    logger.log(msg=msg, level=logging.INFO, *args, **kwargs)
+    logger.log(logging.INFO, msg, *args, **kwargs)
 
 
 def success(msg, *args, **kwargs):
     msg = colors.OKGREEN % msg
-    logger.log(msg=msg, level=logging.INFO, *args, **kwargs)
+    logger.log(logging.INFO, msg, *args, **kwargs)
 
 
 def warning(msg, *args, **kwargs):
     msg = colors.WARNING % msg
-    logger.log(msg=msg, level=logging.WARNING, *args, **kwargs)
+    logger.log(logging.WARNING, msg, *args, **kwargs)
 
 
 def error(msg, *args, **kwargs):
     msg = colors.FAIL % msg
-    logger.log(msg=msg, level=logging.ERROR, *args, **kwargs)
+    logger.log(logging.ERROR, msg, *args, **kwargs)
