@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from pathlib import Path
 from subprocess import CalledProcessError
+import glob
 import yaml
 
 from .drhook import DrHook
@@ -110,6 +111,26 @@ class InputFile:
         filepath = Path(filepath)
         return filepath.stat().st_size
 
+    def __hash__(self):
+        """
+        Custom hash function using :attr:`InputFile.checksum`, if
+        available, and :attr:`InputFile.fullpath` otherwise.
+        """
+        return hash(self.checksum or self.fullpath)
+
+    def __eq__(self, other):
+        """
+        Compare to another object
+
+        If available, compare :attr:`InputFile.checksum`, otherwise
+        rely on :attr:`InputFile.fullpath`.
+        """
+        if not isinstance(other, InputFile):
+            return False
+        if not self.checksum or not other.checksum:
+            return self.fullpath == other.fullpath
+        return self.checksum == other.checksum
+
 
 class ExperimentFiles:
     """
@@ -202,7 +223,7 @@ class ExperimentFiles:
         candidates = [
             (path, src_dir)
             for src_dir in self.src_dir
-            for path in src_dir.glob('**/{}'.format(input_file.path.name))
+            for path in glob.iglob(str(src_dir/'**'/input_file.path.name), recursive=True)
         ]
         for path, src_dir in candidates:
             candidate_file = InputFile(path, src_dir)
@@ -225,7 +246,7 @@ class ExperimentFiles:
             input_file = self._input_file_in_src_dir(input_file)
             self._files.add(input_file)
 
-    def add_input_file(self, *input_file):
+    def add_input_file(self, *input_file, verify_checksum=True):
         """
         Add one or more :any:`InputFile` to the list of input files
 
@@ -234,7 +255,9 @@ class ExperimentFiles:
         Input_file : (list of) :any:`InputFile`
             One or multiple input file instances to add.
         """
-        self._files += [*input_file]
+        for file in input_file:
+            new_file = self._input_file_in_src_dir(input_file)
+            self._files.update(new_file)
 
     @property
     def files(self):
@@ -294,7 +317,7 @@ class ExperimentFiles:
 
         exp_files = defaultdict(list)
         for f in self.exp_files:
-            exp_files[f.src_dir] += [f.path]
+            exp_files[f.src_dir] += [str(f.path)]
         for src_dir, files in exp_files.items():
             output_basename = output_dir/(src_dir.name or 'other')
             self._create_tarball(files, output_basename, basedir=src_dir)
@@ -303,7 +326,7 @@ class ExperimentFiles:
             ifsdata_files = list(self.ifsdata_files)
             if ifsdata_files:
                 basedir = ifsdata_files[0].src_dir
-                files = [f.path for f in ifsdata_files]
+                files = [str(f.path) for f in ifsdata_files]
                 output_basename = output_dir/'ifsdata'
                 self._create_tarball(files, output_basename, basedir=basedir)
 
