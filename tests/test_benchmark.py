@@ -79,6 +79,14 @@ def test_benchmark_input_file(here):
     assert extra_file.fullpath == here/'foo.bar'
     assert extra_file.src_dir == Path('/')
 
+    # Test equality of input files even with different paths
+    the_file = InputFile(path, src_dir=here)
+    also_the_file = InputFile(here/'..'/path.parent.name/path.name, src_dir=here.parent)
+    assert the_file.fullpath != also_the_file.fullpath
+    assert the_file.fullpath.resolve() == also_the_file.fullpath.resolve()
+    assert the_file.checksum == also_the_file.checksum
+    assert the_file == also_the_file
+
 
 def test_benchmark_experiment_files(here):
     """
