@@ -212,7 +212,7 @@ class ExperimentFiles:
             data[str(f.src_dir)].update(f.to_dict())
         return {self.exp_id: dict(data)}
 
-    def _input_file_in_src_dir(self, input_file):
+    def _input_file_in_src_dir(self, input_file, verify_checksum=False):
         """
         Find :attr:`input_file` in :attr:`ExperimentFiles.src_dir`
 
@@ -229,6 +229,8 @@ class ExperimentFiles:
             candidate_file = InputFile(path, src_dir)
             if candidate_file.checksum == input_file.checksum:
                 return candidate_file
+        if verify_checksum:
+            raise ValueError('Input file {} not found in source directories'.format(input_file.path.name))
         warning('Input file %s not found in source directories', input_file.path.name)
         return input_file
 
@@ -243,7 +245,7 @@ class ExperimentFiles:
         """
         for path in filepath:
             input_file = InputFile(path, compute_metadata=compute_metadata)
-            input_file = self._input_file_in_src_dir(input_file)
+            input_file = self._input_file_in_src_dir(input_file, verify_checksum=compute_metadata)
             self._files.add(input_file)
 
     def add_input_file(self, *input_file, verify_checksum=True):
@@ -256,7 +258,7 @@ class ExperimentFiles:
             One or multiple input file instances to add.
         """
         for f in input_file:
-            new_file = self._input_file_in_src_dir(f)
+            new_file = self._input_file_in_src_dir(f, verify_checksum=verify_checksum)
             self._files.add(new_file)
 
     def update_srcdir(self, src_dir, update_files=True, with_ifsdata=False):
@@ -269,7 +271,7 @@ class ExperimentFiles:
         src_dir : (list of) str or :any:`pathlib.Path`, optional
             One or more source directories.
         update_files : bool, optional
-            Update paths for stored files.
+            Update paths for stored files. This verifies checksums.
         with_ifsdata : bool, optional
             Include ifsdata files in the update.
         """
@@ -283,7 +285,7 @@ class ExperimentFiles:
                 old_files = self.exp_files.copy()
                 new_files = self.ifsdata_files.copy()
             while old_files:
-                new_file = self._input_file_in_src_dir(old_files.pop())
+                new_file = self._input_file_in_src_dir(old_files.pop(), verify_checksum=True)
                 new_files.add(new_file)
             self._files = new_files
 
