@@ -255,9 +255,37 @@ class ExperimentFiles:
         Input_file : (list of) :any:`InputFile`
             One or multiple input file instances to add.
         """
-        for file in input_file:
-            new_file = self._input_file_in_src_dir(input_file)
-            self._files.update(new_file)
+        for f in input_file:
+            new_file = self._input_file_in_src_dir(f)
+            self._files.add(new_file)
+
+    def update_srcdir(self, src_dir, update_files=True, with_ifsdata=False):
+        """
+        Change the :attr:`ExperimentFiles.src_dir` relative to which input
+        files are searched
+
+        Parameters
+        ----------
+        src_dir : (list of) str or :any:`pathlib.Path`, optional
+            One or more source directories.
+        update_files : bool, optional
+            Update paths for stored files.
+        with_ifsdata : bool, optional
+            Include ifsdata files in the update.
+        """
+        self.src_dir = as_tuple(src_dir)
+
+        if update_files:
+            if with_ifsdata:
+                old_files = self.files.copy()
+                new_files = set()
+            else:
+                old_files = self.exp_files.copy()
+                new_files = self.ifsdata_files.copy()
+            while old_files:
+                new_file = self._input_file_in_src_dir(old_files.pop())
+                new_files.add(new_file)
+            self._files = new_files
 
     @property
     def files(self):
@@ -303,7 +331,7 @@ class ExperimentFiles:
 
     def to_tarball(self, output_dir, with_ifsdata=False):
         """
-        Create tarballs containing all input files.
+        Create tarballs containing all input files
 
         Parameters
         ----------
@@ -329,6 +357,108 @@ class ExperimentFiles:
                 files = [str(f.path) for f in ifsdata_files]
                 output_basename = output_dir/'ifsdata'
                 self._create_tarball(files, output_basename, basedir=basedir)
+
+    @staticmethod
+    def _extract_tarball(filepath, output_dir):
+        """
+        Extract a tarball
+
+        Parameters
+        ----------
+        filepath : str or :any:`pathlib.Path`
+            The file path for the tarball
+        output_dir : str or :any:`pathlib.Path`
+            Output directory for extracted files.
+        """
+        filepath = Path(filepath).resolve()
+        cmd = ['tar', 'xvzf', str(filepath)]
+        execute(cmd, cwd=str(output_dir))
+
+    @classmethod
+    def from_tarball(cls, summary_file, input_dir, output_dir, ifsdata_dir=None,
+                     with_ifsdata=False, verify_checksum=True):
+        """
+        Create :any:`ExperimentFiles` from a summary file and unpack corresponding tarballs
+        containing the files
+
+        Parameters
+        ----------
+        summary_file : str or :any:`pathlib.Path`
+            The file path for the YAML file
+        input_dir : (list of) str or :any:`pathlib.Path`
+            One or multiple input directories to search recursively for tarballs.
+        output_dir : str or :any:`pathlib.Path`
+            Output directory for files after unpacking tarballs.
+        ifsdata_dir : str or :any:`pathlib.Path`, optional
+            Directory to look for ifsdata files (default: :data:`output_dir`).
+        with_ifsdata : bool, optional
+            Look for an `ifsdata.tar.gz` tarball in the same directories as the
+            experiment file tarballs and unpack it to :data:`ifsdata_dir` (default: disabled).
+        verify_checksum : bool, optional
+            Verify that all files exist and checksums match (default: enabled).
+        """
+        summary_file = Path(summary_file).resolve()
+        obj = cls.from_yaml(summary_file, verify_checksum=False)
+
+        # Find all tarballs for experiment files
+        input_dir = [Path(path).resolve() for path in as_tuple(input_dir)]
+        tarballs = set()
+        for f in obj.exp_files:
+            tarball_name = '{}.tar.gz'.format(f.src_dir.name)
+            candidates = [path for src_dir in input_dir
+                          for path in glob.iglob(str(src_dir/'**'/tarball_name), recursive=True)]
+            if not candidates:
+                raise ValueError('Archive {} not found in input directories'.format(tarball_name))
+            if len(candidates) > 1:
+                warning('Found multiple candidates for %s, using the first: %s',
+                        tarball_name, ', '.join(candidates))
+            tarballs.add(candidates[0])
+
+        # Add ifsdata tarball
+        ifsdata_tarball = None
+        if with_ifsdata:
+            if tarballs:
+                candidates = list({Path(path).with_name('ifsdata.tar.gz') for path in tarballs})
+            else:
+                candidates = [Path(path)/'ifsdata.tar.gz' for path in input_dir]
+            candidates = [str(path) for path in candidates if path.exists()]
+            if not candidates:
+                raise ValueError('ifsdata.tar.gz not found in any experiment tarball directory')
+            if len(candidates) > 1:
+                warning('Found multiple candidates for ifsdata.tar.gz, using the first: %s',
+                        ', '.join(candidates))
+            ifsdata_tarball = candidates[0]
+
+        # Extract all tarballs
+        output_dir = (Path(output_dir)/obj.exp_id).resolve()
+        if tarballs:
+            output_dir.mkdir(exist_ok=True)
+            for tarball in tarballs:
+                cls._extract_tarball(tarball, output_dir)
+
+        if ifsdata_dir is None:
+            ifsdata_dir = output_dir
+        else:
+            ifsdata_dir = Path(ifsdata_dir).resolve()
+        if ifsdata_tarball is not None:
+            ifsdata_dir.mkdir(exist_ok=True)
+            cls._extract_tarball(ifsdata_tarball, ifsdata_dir)
+
+        # Update paths (which automatically verifies checksums)
+        if verify_checksum:
+            src_dir = [output_dir]
+            if ifsdata_dir is not None:
+                src_dir += [ifsdata_dir]
+            obj.update_srcdir(src_dir, update_files=True,
+                              with_ifsdata=with_ifsdata or ifsdata_dir is not None)
+
+        # Save (updated) YAML file in output_dir
+        if tarballs:
+            obj.to_yaml(output_dir/summary_file.name)
+        elif ifsdata_tarball is not None:
+            obj.to_yaml(ifsdata_dir/summary_file.name)
+
+        return obj
 
 
 class Benchmark(ABC):

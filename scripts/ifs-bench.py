@@ -5,7 +5,7 @@ from pathlib import Path
 import click
 
 from ifsbench import (
-    logger, DEBUG, ExperimentFiles,
+    logger, DEBUG, gettempdir, ExperimentFiles,
     DarshanReport, read_files_from_darshan, write_files_from_darshan
 )
 
@@ -50,34 +50,37 @@ def pack_ifsdata(output_dir, inputs):
     ifsdata_files.to_tarball(output_dir, with_ifsdata=True)
 
 
-# @cli.command()
-# @click.option('--input-dir', default=Path.cwd(),
-#               type=click.Path(file_okay=False, dir_okay=True, writable=True),
-#               help='Input directory for packed files (default: current working directory)')
-# @click.option('--output-dir', default=Path.cwd(),
-#               type=click.Path(file_okay=False, dir_okay=True, writable=True),
-#               help='Output directory for unpacked files (default: current working directory)')
-# @click.option('--verify-checksum/--no-verify-checksum', type=bool, default=True,
-#               help='Verify checksum of unpacked files (default: enabled)')
-# @click.argument('inputs', required=True, nargs=-1,
-#                 type=click.Path(exists=True, file_okay=True, dir_okay=True, readable=True))
-# @click.pass_context
-# def unpack_rdxdata(ctx, input_dir, output_dir, verify_checksum, inputs):  # pylint: disable=unused-argument
-#     """
-#     Read yaml-files produced by pack-experiment and unpack and verify
-#     corresponding rdxdata files
-#
-#     INPUTS can be one or multiple <exp_id>.yml.
-#     """
-#     rdxdata_files = ExperimentFiles('rdxdata')
-#     for summary_file in inputs:
-#         with Path(summary_file).open() as f:
-#             exp_files = ExperimentFiles.from_summary(yaml.safe_load(f), verify_checksums=False)
-#         rdxdata_files.update(exp_files)
-#     output_dir = Path(output_dir)/'rdxdata'
-#     output_dir.mkdir(parents=True, exist_ok=True)
-#     rdxdata_files.unpack_files(input_dir, output_dir, include=['rdxdata'],
-#                                verify_checksums=verify_checksum)
+@cli.command()
+@click.option('--input-dir', default=Path.cwd(),
+              type=click.Path(exists=True, file_okay=False, dir_okay=True, readable=True),
+              help='Input directory for ifsdata tarball (default: current working directory)')
+@click.option('--output-dir', default=Path.cwd(), type=click.Path(file_okay=False, dir_okay=True),
+              help='Output directory for unpacked files (default: current working directory)')
+@click.option('--verify-checksum/--no-verify-checksum', type=bool, default=True,
+              help='Verify checksum of unpacked files (default: enabled)')
+@click.argument('inputs', required=True, nargs=-1,
+                type=click.Path(exists=True, file_okay=True, dir_okay=False, readable=True))
+def unpack_ifsdata(input_dir, output_dir, verify_checksum, inputs):
+    """
+    Read YAML files produced by pack-experiment and unpack and verify
+    corresponding ifsdata files
+
+    INPUTS can be one or multiple <exp_id>.yml.
+    """
+    # Build ifsdata YAML file
+    ifsdata_files = ExperimentFiles('ifsdata')
+    for summary_file in inputs:
+        exp_files = ExperimentFiles.from_yaml(summary_file, verify_checksum=False)
+        ifsdata_files.add_input_file(*exp_files.ifsdata_files)
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    ifsdata_yaml = gettempdir()/'ifsdata.yml'
+    ifsdata_files.to_yaml(ifsdata_yaml)
+
+    # Extract all ifsdata files
+    ExperimentFiles.from_tarball(ifsdata_yaml, input_dir, output_dir, ifsdata_dir=output_dir,
+                                 with_ifsdata=True, verify_checksum=verify_checksum)
 
 
 @cli.command()
@@ -119,48 +122,52 @@ def pack_experiment(exp_id, darshan_log, input_dir, output_dir, with_ifsdata):
     exp_files.to_tarball(output_dir, with_ifsdata=with_ifsdata)
 
 
-# @cli.command()
-# @click.option('--output-dir', default=Path.cwd(), type=click.Path(file_okay=False, dir_okay=True, writable=True),
-#               help='Output directory for unpacked files (default: current working directy).')
-# @click.option('--verify-checksum/--no-verify-checksum', type=bool, default=True,
-#               help='Verify checksum of unpacked files (default: enabled)')
-# @click.option('--with-rdxdata/--without-rdxdata', type=bool, default=False,
-#               help='Unpack also rdxdata archives (default: disabled)')
-# @click.argument('inputs', required=True, nargs=-1,
-#                 type=click.Path(exists=True, file_okay=True, dir_okay=True, readable=True))
-# @click.pass_context
-# def unpack_experiment(ctx, output_dir, verify_checksum, with_rdxdata, inputs):  # pylint: disable=unused-argument
-#     """
-#     Read yaml-files produced by pack-experiment and unpack all
-#     corresponding archives
-#
-#     INPUTS can be one or multiple <exp_id>.yml, each optionally followed by a
-#     directory in which the archives corresponding to that experiment are
-#     stored. For yml-files with no directory specified, the current working
-#     directory is assumed.
-#     """
-#     # Match input files and input directories
-#     summary_files = {}
-#     inputs = list(reversed(inputs)) # reverse and use list as stack
-#     while inputs:
-#         summary_file = Path(inputs.pop())
-#         if inputs and not inputs[-1].endswith('.yml'):
-#             summary_files[summary_file] = Path(inputs.pop())
-#         else:
-#             summary_files[summary_file] = Path.cwd()
-#     # Set-up output directory
-#     output_dir = Path(output_dir)
-#     output_dir.mkdir(parents=True, exist_ok=True)
-#     # Unpack all files
-#     for summary_file, input_dir in summary_files.items():
-#         with Path(summary_file).open() as f:
-#             exp_files = ExperimentFiles.from_summary(yaml.safe_load(f), verify_checksums=False)
-#         exclude = []
-#         if not with_rdxdata:
-#             exclude += ['rdxdata']
-#         output_path = output_dir/exp_files.exp_id
-#         output_path.mkdir(exist_ok=True)
-#         exp_files.unpack_files(input_dir, output_path, verify_checksums=verify_checksum, exclude=exclude)
+@cli.command()
+@click.option('--input-dir', default=Path.cwd(), multiple=True,
+              type=click.Path(file_okay=False, dir_okay=True, writable=True),
+              help=('Input directory for tarballs (default: current working directory). '
+                    'Can be given multiple times.'))
+@click.option('--output-dir', default=Path.cwd(),
+              type=click.Path(file_okay=False, dir_okay=True, writable=True),
+              help='Output directory for unpacked files (default: current working directory).')
+@click.option('--verify-checksum/--no-verify-checksum', type=bool, default=True,
+              help='Verify checksum of unpacked files (default: enabled)')
+@click.option('--with-ifsdata/--without-ifsdata', type=bool, default=False,
+              help='Unpack ifsdata archives (default: disabled)')
+@click.option('--ifsdata-input-dir', default=None, type=click.Path(file_okay=False, dir_okay=True),
+              help='Use a different input directory for joint ifsdata tarball.')
+@click.option('--ifsdata-output-dir', default=None, type=click.Path(file_okay=False, dir_okay=True),
+              help='Use a different joint output directory for ifsdata files.')
+@click.argument('inputs', required=True, nargs=-1,
+                type=click.Path(exists=True, file_okay=True, dir_okay=False, readable=True))
+@click.pass_context
+def unpack_experiment(ctx, input_dir, output_dir, verify_checksum, with_ifsdata,
+                      ifsdata_input_dir, ifsdata_output_dir, inputs):
+    """
+    Read yaml-files produced by pack-experiment and unpack all
+    corresponding archives
+
+    INPUTS can be one or multiple <exp_id>.yml files.
+    """
+    # Set-up output directory
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    if ifsdata_output_dir is None:
+        ifsdata_output_dir = output_dir
+    else:
+        ifsdata_output_dir = Path(ifsdata_output_dir)
+        ifsdata_output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Unpack ifsdata files if asked for different directory
+    if with_ifsdata and ifsdata_input_dir is not None:
+        ctx.invoke(unpack_ifsdata, input_dir=ifsdata_input_dir, output_dir=ifsdata_output_dir,
+                   verify_checksum=verify_checksum, inputs=inputs)
+
+    # Unpack all files
+    inplace_ifsdata = with_ifsdata and ifsdata_input_dir is None
+    for summary_file in inputs:
+        ExperimentFiles.from_tarball(summary_file, input_dir, output_dir, ifsdata_dir=ifsdata_output_dir,
+                                     with_ifsdata=inplace_ifsdata, verify_checksum=verify_checksum)
 
 
 if __name__ == "__main__":
