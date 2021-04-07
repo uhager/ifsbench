@@ -3,9 +3,11 @@ Classes to set-up a benchmark
 """
 from abc import ABC, abstractmethod
 from collections import defaultdict
+from enum import Enum, auto
 from pathlib import Path
 from subprocess import CalledProcessError
 import glob
+import re
 import yaml
 
 from .drhook import DrHook
@@ -14,7 +16,146 @@ from .util import copy_data, symlink_data, as_tuple, flatten, gettempdir, execut
 from .runrecord import RunRecord
 
 
-__all__ = ['InputFile', 'ExperimentFiles', 'Benchmark']
+__all__ = ['Benchmark', 'InputFile', 'ExperimentFiles', 'SpecialRelativePath', 'ExperimentFilesBenchmark']
+
+
+class Benchmark(ABC):
+    """
+    Definition of a general benchmark setup
+
+    Parameters
+    ----------
+    expid : str
+        The experiment id corresponding to the input data set.
+    ifs : :any:`IFS`
+        The IFS configuration object.
+    rundir : str or :any:`pathlib.Path`, optional
+        The default working directory to be used for :meth:`run`.
+    """
+
+    def __init__(self, **kwargs):
+        self.expid = kwargs.get('expid')
+        self.rundir = kwargs.get('rundir', None)
+
+        self.ifs = kwargs.get('ifs')
+
+    @property
+    @classmethod
+    @abstractmethod
+    def input_files(cls):
+        """
+        List of relative paths that define all necessary input data files to
+        run this benchmark
+
+        Returns
+        -------
+        list of str or :any:`pathlib.Path`
+            Relative paths for all input files required to run this benchmark.
+            The relative paths will be reproduced in :attr:`Benchmark.rundir`.
+        """
+
+    @classmethod
+    def from_files(cls, **kwargs):
+        """
+        Create instance of :class:`Benchmark` by globbing a set of input paths
+        for the necessary input data and copying or linking it into rundir
+
+        Parameters
+        ----------
+        rundir : str or :any:`pathlib.Path`
+            Run directory to copy/symlink input data into
+        srcdir : (list of) str or :any:`pathlib.Path`
+            One or more source directories to search for input data
+        ifsdata : str or :any:`pathlib.Path`, optional
+            `ifsdata` directory to link as a whole
+            (default: :attr:`Benchmark.input_data`)
+        input_files : list of str, optional
+            Relative paths of necessary input files
+        copy : bool, optional
+            Copy files into :data:`rundir` instead of symlinking them (default: False)
+        force : bool, optional
+            Overwrite existing input files and re-link/copy (default: False)
+        """
+        srcdir = as_tuple(kwargs.get('srcdir'))
+        rundir = Path(kwargs.get('rundir'))
+        copy = kwargs.pop('copy', False)
+        force = kwargs.pop('force', False)
+        ifsdata = kwargs.get('ifsdata', None)
+        input_files = kwargs.get('input_files', cls.input_files)
+
+        if ifsdata is not None:
+            symlink_data(Path(ifsdata), rundir/'ifsdata', force=force)
+
+        # Copy / symlink input files into rundir
+        for path in input_files:
+            path = Path(path)
+            dest = Path(rundir) / path
+            candidates = flatten([list(Path(s).glob('**/%s' % path.name)) for s in srcdir])
+            if len(candidates) == 0:
+                warning('Input file %s not found in %s' % (path.name, srcdir))
+                continue
+            if len(candidates) == 1:
+                source = candidates[0]
+            else:
+                warning('More than one input file %s found in %s' % (path.name, srcdir))
+                source = candidates[0]
+
+            if copy:
+                copy_data(source, dest, force=force)
+            else:
+                symlink_data(source, dest, force=force)
+
+        return cls(**kwargs)
+
+    @classmethod
+    def from_tarball(cls):
+        """
+        Create instance of ``Benchmark`` object from given tarball
+        """
+        pass
+
+    def to_tarball(self, filepath):
+        """
+        Dump input files and configuration to a tarball for off-line
+        benchmarking.
+        """
+        pass
+
+    def check_input(self):
+        """
+        Check input file list matches benchmark configuration.
+        """
+        for path in self.input_files:
+            filepath = self.rundir / path
+            if not filepath.exists():
+                raise RuntimeError('Required input file %s not found!' % filepath)
+
+    def run(self, **kwargs):
+        """
+        Run the specified benchmark and validate against stored results.
+        """
+        if 'rundir' in kwargs:
+            if kwargs['rundir'] != self.rundir:
+                error('Stored run directory: %s' % self.rundir)
+                error('Given run directory:  %s' % kwargs['rundir'])
+                raise RuntimeError('Conflicting run directories provided!')
+        else:
+            kwargs['rundir'] = self.rundir
+
+        try:
+            self.ifs.run(**kwargs)
+
+        except CalledProcessError:
+            error('Benchmark run failed: %s' % kwargs)
+            exit(-1)
+
+        # Provide DrHook output path only if DrHook is active
+        drhook = kwargs.get('drhook', DrHook.OFF)
+        drhook_path = None if drhook == DrHook.OFF else self.rundir/'drhook.*'
+
+        dryrun = kwargs.get('dryrun', False)
+        if not dryrun:
+            return RunRecord.from_run(nodefile=self.rundir/'NODE.001_01', drhook=drhook_path)
 
 
 class InputFile:
@@ -279,11 +420,11 @@ class ExperimentFiles:
 
         if update_files:
             if with_ifsdata:
-                old_files = self.files.copy()
+                old_files = self.files
                 new_files = set()
             else:
-                old_files = self.exp_files.copy()
-                new_files = self.ifsdata_files.copy()
+                old_files = self.exp_files
+                new_files = self.ifsdata_files
             while old_files:
                 new_file = self._input_file_in_src_dir(old_files.pop(), verify_checksum=True)
                 new_files.add(new_file)
@@ -294,21 +435,21 @@ class ExperimentFiles:
         """
         The set of :any:`InputFile` for the experiment
         """
-        return self._files
+        return self._files.copy()
 
     @property
     def exp_files(self):
         """
         The set of experiment-specific :any:`InputFile`
         """
-        return {f for f in self.files if '/ifsdata/' not in str(f.fullpath)}
+        return {f for f in self._files if '/ifsdata/' not in str(f.fullpath)}
 
     @property
     def ifsdata_files(self):
         """
         The set of static ifsdata files used by the experiment
         """
-        return {f for f in self.files if '/ifsdata/' in str(f.fullpath)}
+        return {f for f in self._files if '/ifsdata/' in str(f.fullpath)}
 
     @staticmethod
     def _create_tarball(files, output_basename, basedir=None):
@@ -463,40 +604,120 @@ class ExperimentFiles:
         return obj
 
 
-class Benchmark(ABC):
+class SpecialRelativePath:
     """
-    Definition of a general benchmark setup.
+    Define a search and replacement pattern for special input files
+    that need to have a particular name or relative path
+
+    It is essentially a wrapper for :any:`re.sub`.
+
+    Parameters
+    ----------
+    pattern : str or :any:`re.Pattern`
+        The search pattern to match a path against
+    repl : str
+        The replacement string to apply
+    """
+
+    def __init__(self, pattern, repl):
+        if isinstance(pattern, str):
+            self.pattern = re.compile(pattern)
+        self.repl = repl
+
+    class NameMatch(Enum):
+        """
+        Enumeration of available types of name matches
+
+        Attributes
+        ----------
+        EXACT :
+            Match the name exactly as is
+        LEFT_ALIGNED :
+            Match the name from the start but it can be followed
+            by other characters
+        RIGHT_ALIGNED :
+            Match the name from the end but it can be preceded by
+            other characters
+        FREE :
+            Match the name but allow for other characters before
+            and after
+        """
+        EXACT = auto()
+        LEFT_ALIGNED = auto()
+        RIGHT_ALIGNED = auto()
+        FREE = auto()
+
+    @classmethod
+    def from_filename(cls, filename, repl, match=NameMatch.FREE):
+        r"""
+        Create a :class:`SpecialRelativePath` object that matches
+        a specific file name
+
+        Parameters
+        ----------
+        filename : str
+            The filename (or part of it) that should match
+        repl : str
+            The relative path to retrun. :data:`repl` can reference components
+            of the matched path: original filename as ``\g<name>``, path
+            without filename as ``\g<parent>``, matched part of the filename
+            as ``\g<match>`` and parts of the filename before/after the
+            matched section as ``\g<pre>``/``\g<post>``, respectively.
+        match : :any:`SpecialRelativePath.NameMatch`, optional
+            Determines if the file name should be matched exactly
+        """
+        pattern = r"^(?P<parent>.*?\/)?(?P<name>"
+        if match in (cls.NameMatch.RIGHT_ALIGNED, cls.NameMatch.FREE):
+            pattern += r"(?P<pre>[^\/]*?)"
+        pattern += r"(?P<match>{})".format(filename)
+        if match in (cls.NameMatch.LEFT_ALIGNED, cls.NameMatch.FREE):
+            pattern += r"(?P<post>[^\/]*?)"
+        pattern += r")$"
+        return cls(pattern, repl)
+
+    def __call__(self, path):
+        """
+        Apply :any:`re.sub` with :attr:`SpecialRelativePath.pattern`
+        and :attr:`SpecialRelativePath.repl` to :data:`path`
+        """
+        return self.pattern.sub(self.repl, str(path))
+
+
+class ExperimentFilesBenchmark(Benchmark):
+    """
+    General :class:`Benchmark` setup created from input file description
+    provided by :class:`ExperimentFiles`
+
     """
 
     def __init__(self, **kwargs):
-        self.expid = kwargs.get('expid')
-        self.rundir = kwargs.get('rundir', None)
-
-        self.ifs = kwargs.get('ifs')
+        self._input_files = kwargs.pop('input_files')
+        super().__init__(**kwargs)
 
     @property
     @classmethod
-    @abstractmethod
+    def special_paths(cls):
+        """
+        List of :class:`SpecialRelativePath` patterns that define transformations
+        for converting a file path to a particular relative path object.
+
+        Returns
+        -------
+        list of :any:`SpecialRelativePath`
+        """
+
+    @property
     def input_files(self):
-        """
-        List of relative paths (strings or ``Path`` objects) that
-        define all necessary input data files to run this benchmark.
-        """
-        pass
+        return self._input_files
 
     @classmethod
-    def from_files(cls, **kwargs):
+    def from_experiment_files(cls, **kwargs):
         """
-        Create instance of ``Benchmark`` object by globbing a set of
-        input paths for the ncessary input data and copying it into rundir.
-
-        :param rundir: Run directory to copy/symlink input data into
-        :param srcdir: One or more source directories to search for input data
-        :param copy: Copy files intp `rundir` instead of symlinking them
-        :param force: Force delete existing input files and re-link/copy
+        Instantiate :class:`Benchmark` using input file lists captured in an
+        :class:`ExperimentFiles` object
         """
-        srcdir = as_tuple(kwargs.get('srcdir'))
         rundir = Path(kwargs.get('rundir'))
+        exp_files = kwargs.pop('exp_files')
         copy = kwargs.pop('copy', False)
         force = kwargs.pop('force', False)
         ifsdata = kwargs.get('ifsdata', None)
@@ -504,73 +725,23 @@ class Benchmark(ABC):
         if ifsdata is not None:
             symlink_data(Path(ifsdata), rundir/'ifsdata', force=force)
 
-        # Copy / symlink input files into rundir
-        for path in cls.input_files:
-            path = Path(path)
-            dest = Path(rundir) / path
-            candidates = flatten([list(Path(s).glob('**/%s' % path.name)) for s in srcdir])
-            if len(candidates) == 0:
-                warning('Input file %s not found in %s' % (path.name, srcdir))
-                continue
-            elif len(candidates) == 1:
-                source = candidates[0]
+        special_paths = cls.special_paths if isinstance(cls.special_paths, (list, tuple)) else ()
+        input_files = []
+        for f in exp_files.files:
+            dest, source = str(f.fullpath), str(f.fullpath)
+            for pattern in special_paths:
+                dest = pattern(dest)
+                if dest != source:
+                    break
             else:
-                warning('More than one input file %s found in %s' % (path.name, srcdir))
-                source = candidates[0]
+                dest = str(Path(dest).name)
 
+            input_files += [dest]
+            source, dest = Path(source), rundir/dest
             if copy:
                 copy_data(source, dest, force=force)
             else:
                 symlink_data(source, dest, force=force)
 
-        return cls(**kwargs)
-
-    @classmethod
-    def from_tarball(cls):
-        """
-        Create instance of ``Benchmark`` object from given tarball
-        """
-        pass
-
-    def to_tarball(self, filepath):
-        """
-        Dump input files and configuration to a tarball for off-line
-        benchmarking.
-        """
-        pass
-
-    def check_input(self):
-        """
-        Check input file list matches benchmarjmk configuration.
-        """
-        for path in self.input_files:
-            filepath = self.rundir / path
-            if not filepath.exists():
-                raise RuntimeError('Required input file %s not found!' % filepath)
-
-    def run(self, **kwargs):
-        """
-        Run the specified benchmark and validate against stored results.
-        """
-        if 'rundir' in kwargs:
-            if kwargs['rundir'] != self.rundir:
-                error('Stored run directory: %s' % self.rundir)
-                error('Given run directory:  %s' % kwargs['rundir'])
-                raise RuntimeError('Conflicting run directories provided!')
-        else:
-            kwargs['rundir'] = self.rundir
-
-        try:
-            self.ifs.run(**kwargs)
-
-        except CalledProcessError:
-            error('Benchmark run failed: %s' % kwargs)
-            exit(-1)
-
-        # Provide DrHook output path only if DrHook is active
-        drhook = kwargs.get('drhook', DrHook.OFF)
-        drhook_path = None if drhook == DrHook.OFF else self.rundir/'drhook.*'
-
-        dryrun = kwargs.get('dryrun', False)
-        if not dryrun:
-            return RunRecord.from_run(nodefile=self.rundir/'NODE.001_01', drhook=drhook_path)
+        obj = cls(input_files=input_files, **kwargs)
+        return obj

@@ -1,43 +1,38 @@
+"""
+Tests for all classes that define a benchmark and its input files
+"""
 import shutil
 from pathlib import Path
+from contextlib import contextmanager
 
 import pytest
 from conftest import Watcher
 from ifsbench import (
-    logger, Benchmark, IFS, InputFile, ExperimentFiles,
+    logger, Benchmark, IFS,
+    InputFile, ExperimentFiles, ExperimentFilesBenchmark, SpecialRelativePath,
     DarshanReport, read_files_from_darshan, write_files_from_darshan, gettempdir
 )
 
 @pytest.fixture(name='watcher')
 def fixture_watcher():
+    """Return a :any:`Watcher` to check test output"""
     return Watcher(logger=logger, silent=True)
 
 
 @pytest.fixture(name='here')
 def fixture_here():
+    """Return the full path of the test directory"""
     return Path(__file__).parent.resolve()
 
 
-@pytest.fixture(name='rundir')
-def fixture_rundir(here):
-    """
-    Remove any created ``source`` directories
-    """
-    rundir = here/'rundir'
-    rundir.mkdir(parents=True, exist_ok=True)
-    yield rundir
-
-    # Clean up after us
-    if rundir.exists():
-        shutil.rmtree(rundir)
-
-
-@pytest.fixture(name='tarballdir')
-def fixture_tarballdir(here):
+@contextmanager
+def temporary_tarballdir(basedir):
     """
     Create a temporary tarball directory
     """
-    tarballdir = here/'tarballdir'
+    tarballdir = basedir/'tarballdir'
+    if tarballdir.exists():
+        shutil.rmtree(tarballdir)
     tarballdir.mkdir(parents=True, exist_ok=True)
     yield tarballdir
 
@@ -46,9 +41,53 @@ def fixture_tarballdir(here):
         shutil.rmtree(tarballdir)
 
 
+@contextmanager
+def temporary_rundir(basedir):
+    """
+    Create a temporary `rundir` and clean it up afterwards
+    """
+    rundir = basedir/'rundir'
+    if rundir.exists():
+        shutil.rmtree(rundir)
+    rundir.mkdir(parents=True, exist_ok=True)
+    yield rundir
+
+    # Clean up after us
+    if rundir.exists():
+        shutil.rmtree(rundir)
+
+
+experiment_files_dict = {
+    'my-exp-id': {
+        '/some/path/to/some/source/dir': {
+            'sub/directory/inputA': {
+                'fullpath': '/some/path/to/some/source/dir/sub/directory/inputA',
+                'sha256sum': 'b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c'
+            },
+            'sub/directory/inputC': {
+                'fullpath': '/some/path/to/some/source/dir/sub/directory/inputC',
+                'sha256sum': 'bf07a7fbb825fc0aae7bf4a1177b2b31fcf8a3feeaf7092761e18c859ee52a9c'
+            },
+        },
+        '/some/other/path/to/some/input/dir': {
+            'subsub/dir/inputB': {
+                'fullpath': '/some/other/path/to/some/input/dir/subsub/dir/inputB',
+                'sha256sum': '7d865e959b2466918c9863afca942d0fb89d7c9ac0c99bafc3749504ded97730'
+            },
+        },
+        '/the/path/to/ifsdata': {
+            'some/inputD': {
+                'fullpath': '/the/path/to/ifsdata/some/inputD',
+                'sha256sum': 'aec070645fe53ee3b3763059376134f058cc337247c978add178b6ccdfb0019f'
+            },
+        },
+    },
+}
+
+
 class SimpleBenchmark(Benchmark):
     """
-    Example configuration of simple benchmark.
+    Example configuration of simple :any:`Benchmark`
     """
 
     input_files = [
@@ -58,7 +97,58 @@ class SimpleBenchmark(Benchmark):
     ]
 
 
-def test_benchmark_input_file(here):
+class SimpleExperimentFilesBenchmark(ExperimentFilesBenchmark):
+    """
+    Example configuration of simple :any:`ExperimentFilesBenchmark`
+    """
+
+    special_paths = [
+        SpecialRelativePath.from_filename('inputB', './someplace/inputB'),
+    ]
+
+
+@pytest.mark.parametrize('copy', [True, False])
+def test_benchmark_from_files(here, copy):
+    """
+    Test input file verification for a simple benchmark setup.
+    """
+    with temporary_rundir(here) as rundir:
+        benchmark = SimpleBenchmark.from_files(rundir=rundir, srcdir=here/'inidata', copy=copy)
+
+        # Let benchmark test itself
+        benchmark.check_input()
+
+        # And then we just make sure
+        assert (rundir/'inputA').exists()
+        assert (rundir/'someplace/inputB').exists()
+        assert (rundir/'inputC').exists()
+
+
+def test_benchmark_execute(here, watcher):
+    """
+    Test the basic benchmark execution mechanism.
+    """
+    # Example of how to create and run one of the above...
+    ifs = IFS(builddir=here)
+    with temporary_rundir(here) as rundir:
+        benchmark = SimpleBenchmark.from_files(ifs=ifs, srcdir=here/'inidata', rundir=rundir)
+
+        benchmark.check_input()
+        with watcher:
+            benchmark.run(dryrun=True, namelist=here/'t21_fc.nml')
+
+        ifscmd = str(rundir.parent/'bin/ifsMASTER.DP')
+        assert ifscmd in watcher.output
+
+        # Ensure fort.4 config file was generated
+        config = here.parent/'fort.4'
+        assert config.exists()
+
+        # Clean up config file
+        config.unlink()
+
+
+def test_input_file(here):
     """
     Test representation of a single input file
     """
@@ -102,37 +192,15 @@ def test_benchmark_input_file(here):
     assert the_file == also_the_file
 
 
-def test_benchmark_experiment_files(here, tarballdir):
+def test_experiment_files(here):
     """
     Test discovery of files in src_dir
     """
-    exp_setup = {
-        'my-exp-id': {
-            '/some/path/to/some/source/dir': {
-                'sub/directory/inputA': {
-                    'fullpath': '/some/path/to/some/source/dir/sub/directory/inputA',
-                    'sha256sum': 'b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c'
-                },
-                'sub/directory/inputC': {
-                    'fullpath': '/some/path/to/some/source/dir/sub/directory/inputC',
-                    'sha256sum': 'bf07a7fbb825fc0aae7bf4a1177b2b31fcf8a3feeaf7092761e18c859ee52a9c'
-                },
-            },
-            '/some/other/path/to/some/input/dir': {
-                'subsub/dir/inputB': {
-                    'fullpath': '/some/other/path/to/some/input/dir/subsub/dir/inputB',
-                    'sha256sum': '7d865e959b2466918c9863afca942d0fb89d7c9ac0c99bafc3749504ded97730'
-                },
-            },
-            '/the/path/to/ifsdata': {
-                'some/inputD': {
-                    'fullpath': '/the/path/to/ifsdata/some/inputD',
-                    'sha256sum': 'aec070645fe53ee3b3763059376134f058cc337247c978add178b6ccdfb0019'
-                    # Note: missing last letter 'f' in checksum (see test below)!
-                },
-            },
-        },
-    }
+    exp_setup = experiment_files_dict.copy()
+
+    # Intentionally void the checksum for one file
+    exp_setup['my-exp-id']['/the/path/to/ifsdata']['some/inputD']['sha256sum'] = \
+        exp_setup['my-exp-id']['/the/path/to/ifsdata']['some/inputD']['sha256sum'][:-1]
 
     # Create ExperimentFiles object from the dict
     exp_files = ExperimentFiles.from_dict(exp_setup.copy(), verify_checksum=False)
@@ -145,7 +213,7 @@ def test_benchmark_experiment_files(here, tarballdir):
     with pytest.raises(ValueError):
         exp_files.update_srcdir(here, with_ifsdata=True)
 
-    # Do the same with correct checksum
+    # Do the same but now with correct checksum
     exp_setup['my-exp-id']['/the/path/to/ifsdata']['some/inputD']['sha256sum'] += 'f'
     exp_files = ExperimentFiles.from_dict(exp_setup, verify_checksum=False)
 
@@ -166,22 +234,24 @@ def test_benchmark_experiment_files(here, tarballdir):
     assert len(reloaded_exp_files.ifsdata_files) == 1
 
     # Pack experiment files to tarballs
-    exp_files.to_tarball(tarballdir, with_ifsdata=True)
-    assert Path(tarballdir/here.name).with_suffix('.tar.gz').exists()
-    assert Path(tarballdir/'ifsdata.tar.gz').exists()
-    yaml_file = tarballdir/(exp_files.exp_id+'.yml')
-    exp_files.to_yaml(yaml_file)
+    with temporary_tarballdir(here) as tarballdir:
+        exp_files.to_tarball(tarballdir, with_ifsdata=True)
+        assert Path(tarballdir/here.name).with_suffix('.tar.gz').exists()
+        assert Path(tarballdir/'ifsdata.tar.gz').exists()
+        yaml_file = tarballdir/(exp_files.exp_id+'.yml')
+        exp_files.to_yaml(yaml_file)
 
-    # Unpack experiments
-    reloaded_exp_files = ExperimentFiles.from_tarball(
-        yaml_file, input_dir=tarballdir, output_dir=tarballdir, with_ifsdata=True)
-    assert len(reloaded_exp_files.files) == 4
-    assert len(reloaded_exp_files.exp_files) == 3
-    assert len(reloaded_exp_files.ifsdata_files) == 1
-    assert all(str(f.fullpath.parent).startswith(str(tarballdir)) for f in reloaded_exp_files.files)
+        # Unpack experiments
+        reloaded_exp_files = ExperimentFiles.from_tarball(
+            yaml_file, input_dir=tarballdir, output_dir=tarballdir, with_ifsdata=True)
+        assert len(reloaded_exp_files.files) == 4
+        assert len(reloaded_exp_files.exp_files) == 3
+        assert len(reloaded_exp_files.ifsdata_files) == 1
+        assert all(str(f.fullpath.parent).startswith(str(tarballdir))
+                   for f in reloaded_exp_files.files)
 
 
-def test_benchmark_experiment_files_from_darshan(here):
+def test_experiment_files_from_darshan(here):
     """
     Test representation of darshan report in `ExperimentFiles`
     """
@@ -199,55 +269,122 @@ def test_benchmark_experiment_files_from_darshan(here):
 
     # Test dumping and loading
     other_files = ExperimentFiles.from_dict(exp_files.to_dict(), verify_checksum=False)
-    assert {str(f.fullpath) for f in exp_files.files} == {str(f.fullpath) for f in other_files.files}
+    assert {str(f.fullpath) for f in exp_files.files}=={str(f.fullpath) for f in other_files.files}
 
     yaml_file = gettempdir()/'experiment_files.yml'
     exp_files.to_yaml(yaml_file)
     other_files = ExperimentFiles.from_yaml(yaml_file, verify_checksum=False)
 
 
+def test_special_relative_path():
+    """
+    Test correct mapping of paths with :any:`SpecialRelativePath`
+    """
+    mapper = SpecialRelativePath(r"^(?:.*?\/)?(?P<name>[^\/]+)$", r"relative/to/\g<name>")
+
+    assert mapper('/this/is/some/path') == 'relative/to/path'
+    assert mapper('relative/path') == 'relative/to/path'
+    assert mapper('path') == 'relative/to/path'
+    assert mapper('/invalid/path/') == '/invalid/path/'
+
+    mapper = SpecialRelativePath.from_filename(
+        'wam_', r'\g<post>', match=SpecialRelativePath.NameMatch.LEFT_ALIGNED)
+
+    assert mapper('/this/is/some/path') == '/this/is/some/path'
+    assert mapper('/path/to/wam_sfcwindin') == 'sfcwindin'
+    assert mapper('relative/path/to/wam_cdwavein') == 'cdwavein'
+    assert mapper('wam_specwavein') == 'specwavein'
+    assert mapper('/some/wam_specwavein/file') == '/some/wam_specwavein/file'
+
+    mapper = SpecialRelativePath.from_filename(
+        'rtablel', r'ifs/\g<name>', match=SpecialRelativePath.NameMatch.FREE)
+
+    assert mapper('/absolute/path/to/rtablel_2063') == 'ifs/rtablel_2063'
+    assert mapper('relative/to/rtablel_2063') == 'ifs/rtablel_2063'
+    assert mapper('rtablel_2063') == 'ifs/rtablel_2063'
+    assert mapper('rtablel_2063/abc') == 'rtablel_2063/abc'
+
+
 @pytest.mark.parametrize('copy', [True, False])
-def test_benchmark_from_files(here, rundir, copy):
+def test_benchmark_from_experiment_files(here, copy):
     """
-    Test input file verification for a simple benchmark setup.
+    Test input file verification for a simple benchmark setup
     """
-    benchmark = SimpleBenchmark.from_files(rundir=rundir, srcdir=here/'inidata', copy=copy)
+    exp_files = ExperimentFiles.from_dict(experiment_files_dict.copy(), verify_checksum=False)
+    exp_files.update_srcdir(here, with_ifsdata=True)
 
-    # Let benchmark test itself
-    benchmark.check_input()
+    with temporary_rundir(here) as rundir:
+        benchmark = SimpleExperimentFilesBenchmark.from_experiment_files(
+            rundir=rundir, exp_files=exp_files, copy=copy)
 
-    # And then we just make sure
-    assert (rundir/'inputA').exists()
-    assert (rundir/'someplace/inputB').exists()
-    assert (rundir/'inputC').exists()
+        # Let benchmark test itself
+        benchmark.check_input()
 
-
-@pytest.mark.skip(reason='Tarball packing not yet implemented')
-def test_benchmark_from_tarball():
-    """
-    Test input file verification for a simple benchmark setup.
-    """
-    raise NotImplementedError('Tarball packaging not yet tested')
+        # And then we just make sure
+        assert (rundir/'inputA').exists()
+        assert (rundir/'someplace/inputB').exists()
+        assert (rundir/'inputC').exists()
+        assert (rundir/'inputD').exists()
 
 
-def test_benchmark_execute(here, rundir, watcher):
+def test_benchmark_from_experiment_files_execute(here, watcher):
     """
     Test the basic benchmark execution mechanism.
     """
-    # Example of how to create and run one of the above...
+    exp_files = ExperimentFiles.from_dict(experiment_files_dict.copy(), verify_checksum=False)
+    exp_files.update_srcdir(here, with_ifsdata=True)
     ifs = IFS(builddir=here)
-    benchmark = SimpleBenchmark.from_files(ifs=ifs, srcdir=here/'inidata', rundir=rundir)
 
-    benchmark.check_input()
-    with watcher:
-        benchmark.run(dryrun=True, namelist=here/'t21_fc.nml')
+    with temporary_rundir(here) as rundir:
+        benchmark = SimpleExperimentFilesBenchmark.from_experiment_files(
+            rundir=rundir, exp_files=exp_files, ifs=ifs)
 
-    ifscmd = str(rundir.parent/'bin/ifsMASTER.DP')
-    assert ifscmd in watcher.output
+        benchmark.check_input()
+        with watcher:
+            benchmark.run(dryrun=True, namelist=here/'t21_fc.nml')
 
-    # Ensure fort.4 config file was generated
-    config = here.parent/'fort.4'
-    assert config.exists()
+        ifscmd = str(rundir.parent/'bin/ifsMASTER.DP')
+        assert ifscmd in watcher.output
 
-    # Clean up config file
-    config.unlink()
+        # Ensure fort.4 config file was generated
+        config = here.parent/'fort.4'
+        assert config.exists()
+
+        # Clean up config file
+        config.unlink()
+
+
+def test_benchmark_from_tarball(here, watcher):
+    """
+    Test running a benchmark from a tarball
+    """
+    with temporary_tarballdir(here) as tarballdir:
+        # Pack experiment files to tarballs
+        exp_files = ExperimentFiles.from_dict(experiment_files_dict.copy(), verify_checksum=False)
+        exp_files.update_srcdir(here, with_ifsdata=True)
+        exp_files.to_tarball(tarballdir, with_ifsdata=True)
+        yaml_file = tarballdir/(exp_files.exp_id+'.yml')
+        exp_files.to_yaml(yaml_file)
+
+        # Unpack experiments
+        reloaded_exp_files = ExperimentFiles.from_tarball(
+            yaml_file, input_dir=tarballdir, output_dir=tarballdir, with_ifsdata=True)
+
+        with temporary_rundir(here) as rundir:
+            ifs = IFS(builddir=here)
+            benchmark = SimpleExperimentFilesBenchmark.from_experiment_files(
+                rundir=rundir, exp_files=reloaded_exp_files, ifs=ifs)
+
+            benchmark.check_input()
+            with watcher:
+                benchmark.run(dryrun=True, namelist=here/'t21_fc.nml')
+
+            ifscmd = str(rundir.parent/'bin/ifsMASTER.DP')
+            assert ifscmd in watcher.output
+
+            # Ensure fort.4 config file was generated
+            config = here.parent/'fort.4'
+            assert config.exists()
+
+            # Clean up config file
+            config.unlink()
