@@ -5,7 +5,7 @@ from pathlib import Path
 __all__ = ['IFSNamelist']
 
 
-class IFSNamelist(object):
+class IFSNamelist:
     """
     Class to manage construction and validation of IFS-specific namelists.
     """
@@ -46,6 +46,12 @@ class IFSNamelist(object):
         Add contents of another namelist from file
         """
         self.nml.update(f90nml.read(filepath))
+        for key in self.nml:
+            if isinstance(self.nml[key], list):
+                nml = self.nml[key][0]
+                for other in self.nml[key][1:]:
+                    nml.update(other)
+                self.nml[key] = nml
 
     def write(self, filepath, force=True):
         self.nml.write(filepath, force=force)
