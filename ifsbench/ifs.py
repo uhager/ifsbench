@@ -74,6 +74,7 @@ class IFS(object):
         # Of course, we need to insert the number of MPI ranks into the config file
         nml = IFSNamelist(namelist=namelist, template=self.nml_template)
         nml['NAMPAR0']['NPROC'] = nproc - nproc_io
+        nml['NAMIO_SERV']['NPROC_IO'] = nproc_io
         nml.write('fort.4', force=True)
 
         cmd = ['%s' % self.executable]
