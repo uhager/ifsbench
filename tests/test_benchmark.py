@@ -297,12 +297,21 @@ def test_special_relative_path():
     assert mapper('/some/wam_specwavein/file') == '/some/wam_specwavein/file'
 
     mapper = SpecialRelativePath.from_filename(
-        'rtablel', r'ifs/\g<name>', match=SpecialRelativePath.NameMatch.FREE)
+        r'rtablel_\d+', r'ifs/\g<name>', match=SpecialRelativePath.NameMatch.EXACT)
 
     assert mapper('/absolute/path/to/rtablel_2063') == 'ifs/rtablel_2063'
     assert mapper('relative/to/rtablel_2063') == 'ifs/rtablel_2063'
     assert mapper('rtablel_2063') == 'ifs/rtablel_2063'
+    assert mapper('/some/rtablel_a2063') == '/some/rtablel_a2063'
     assert mapper('rtablel_2063/abc') == 'rtablel_2063/abc'
+    assert mapper('tl159/hjpa/install_SP/share/odb/rtablel_2063') == 'ifs/rtablel_2063'
+
+    mapper = SpecialRelativePath.from_dirname(
+        'ifsdata', r'ifsdata\g<child>', match=SpecialRelativePath.NameMatch.EXACT)
+
+    assert mapper('data/ifsdata/greenhouse_gas_climatology_46r1.nc') == \
+        'ifsdata/greenhouse_gas_climatology_46r1.nc'
+    assert mapper('/perm/rd/nabr/ifsbench-setups/v2/data/ifsdata/RADRRTM') == 'ifsdata/RADRRTM'
 
 
 @pytest.mark.parametrize('copy', [True, False])
