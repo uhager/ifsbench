@@ -675,6 +675,36 @@ class SpecialRelativePath:
         pattern += r")$"
         return cls(pattern, repl)
 
+    @classmethod
+    def from_dirname(cls, dirname, repl, match=NameMatch.FREE):
+        r"""
+        Create a :class:`SpecialRelativePath` object that matches
+        paths that have a certain subdirectory in their path
+
+        Parameters
+        ----------
+        dirname : str
+            The directory name (or part of it) that should match
+        repl : str
+            The relative path to retrun. :data:`repl` can reference components
+            of the matched path: original dirname as ``\g<name>``, path
+            without matched directory as ``\g<parent>``, matched part of the
+            directory name as ``\g<match>``, path following the matched
+            directory as ``\g<child>``, and parts of the directory name
+            before/after the matched section as ``\g<pre>``/``\g<post>``,
+            respectively.
+        match : :any:`SpecialRelativePath.NameMatch`, optional
+            Determines if the directory name should be matched exactly
+        """
+        pattern = r"^(?P<parent>.*?\/)?(?P<name>"
+        if match in (cls.NameMatch.RIGHT_ALIGNED, cls.NameMatch.FREE):
+            pattern += r"(?P<pre>[^\/]*?)"
+        pattern += r"(?P<match>{})".format(dirname)
+        if match in (cls.NameMatch.LEFT_ALIGNED, cls.NameMatch.FREE):
+            pattern += r"(?P<post>[^\/]*?)"
+        pattern += r")(?P<child>\/.*?)$"
+        return cls(pattern, repl)
+
     def __call__(self, path):
         """
         Apply :any:`re.sub` with :attr:`SpecialRelativePath.pattern`
