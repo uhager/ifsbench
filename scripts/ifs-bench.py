@@ -15,9 +15,12 @@ from ifsbench import (
 @click.option('--log', type=click.Path(writable=True),
               help='Write more detailed information to a log file.')
 @click.pass_context
-def cli(ctx, debug, log):  # pylint:disable=redefined-outer-name
+def cli(ctx, debug, log):
     """
-    Define and store the generic options available to all commands.
+    Command-line interface for IFSbench
+
+    This provides a number of commands to pack and unpack input
+    files for IFS experiments.
     """
     ctx.obj['DEBUG'] = debug
     if debug:
