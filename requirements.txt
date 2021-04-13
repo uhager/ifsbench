@@ -1,5 +1,10 @@
+# For library
 pandas
 f90nml
 
-pytest
+# For tests and code hygiene
 pylint
+pytest
+pytest-pylint
+pytest-cov
+coverage2clover
