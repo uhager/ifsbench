@@ -35,18 +35,24 @@ def cli(ctx, debug, log):
 @click.option('--output-dir', default=Path.cwd(),
               type=click.Path(file_okay=False, dir_okay=True, writable=True),
               help='Output directory for packed files (default: current working directy)')
+@click.option('--verify-checksum/--no-verify-checksum', type=bool, default=False,
+              help='Verify checksum of files listed in YAML files (default: disabled)')
 @click.argument('inputs', required=True, nargs=-1,
                 type=click.Path(exists=True, file_okay=True, dir_okay=False, readable=True))
-def pack_ifsdata(output_dir, inputs):
+def pack_ifsdata(output_dir, verify_checksum, inputs):
     """
     Create a tarball with ifsdata files for (multiple) YAML files from
     pack-experiment
 
     INPUTS is one or multiple <exp_id>.yml files.
+
+    Note that checksum verification is disabled by default for this command
+    because experiment-specific files mentioned in YAML files are possibly
+    already cleaned up.
     """
     ifsdata_files = ExperimentFiles('ifsdata')
     for summary_file in inputs:
-        exp_files = ExperimentFiles.from_yaml(summary_file)
+        exp_files = ExperimentFiles.from_yaml(summary_file, verify_checksum=verify_checksum)
         ifsdata_files.add_input_file(*exp_files.ifsdata_files)
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
