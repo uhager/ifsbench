@@ -99,7 +99,8 @@ def unpack_ifsdata(input_dir, output_dir, verify_checksum, inputs):
               help='Darshan logfile (produced by Darshan during execution)')
 @click.option('--input-dir', required=True, multiple=True,
               type=click.Path(file_okay=False, dir_okay=True, readable=True),
-              help='Data directory relative to which input files are searched. Can be given multiple times.')
+              help=('Data directory relative to which input files are searched. '
+                    'To use files from different directories this can be given more than once.'))
 @click.option('--output-dir', default=Path.cwd(),
               type=click.Path(file_okay=False, dir_okay=True, writable=True),
               help='Output directory for tarballs (default: current working directory)')
@@ -145,13 +146,14 @@ def pack_experiment(exp_id, darshan_log, input_dir, output_dir, with_ifsdata):
               help='Unpack ifsdata archives (default: disabled)')
 @click.option('--ifsdata-input-dir', default=None, type=click.Path(file_okay=False, dir_okay=True),
               help='Use a different input directory for joint ifsdata tarball.')
-@click.option('--ifsdata-output-dir', default=None, type=click.Path(file_okay=False, dir_okay=True),
-              help='Use a different joint output directory for ifsdata files.')
+@click.option('--ifsdata-dir', default=None, type=click.Path(file_okay=False, dir_okay=True),
+              help=('Directory for ifsdata files (pre-existing or when --with-ifsdata '
+                    'is enabled, it will extract files there). Defaults to --output-dir.'))
 @click.argument('inputs', required=True, nargs=-1,
                 type=click.Path(exists=True, file_okay=True, dir_okay=False, readable=True))
 @click.pass_context
 def unpack_experiment(ctx, input_dir, output_dir, verify_checksum, with_ifsdata,
-                      ifsdata_input_dir, ifsdata_output_dir, inputs):
+                      ifsdata_input_dir, ifsdata_dir, inputs):
     """
     Read yaml-files produced by pack-experiment and unpack all
     corresponding archives
@@ -161,21 +163,21 @@ def unpack_experiment(ctx, input_dir, output_dir, verify_checksum, with_ifsdata,
     # Set-up output directory
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    if ifsdata_output_dir is None:
-        ifsdata_output_dir = output_dir
+    if ifsdata_dir is None:
+        ifsdata_dir = output_dir
     else:
-        ifsdata_output_dir = Path(ifsdata_output_dir)
+        ifsdata_output_dir = Path(ifsdata_dir)
         ifsdata_output_dir.mkdir(parents=True, exist_ok=True)
 
     # Unpack ifsdata files if asked for different directory
     if with_ifsdata and ifsdata_input_dir is not None:
-        ctx.invoke(unpack_ifsdata, input_dir=ifsdata_input_dir, output_dir=ifsdata_output_dir,
+        ctx.invoke(unpack_ifsdata, input_dir=ifsdata_input_dir, output_dir=ifsdata_dir,
                    verify_checksum=verify_checksum, inputs=inputs)
 
     # Unpack all files
     inplace_ifsdata = with_ifsdata and ifsdata_input_dir is None
     for summary_file in inputs:
-        ExperimentFiles.from_tarball(summary_file, input_dir, output_dir, ifsdata_dir=ifsdata_output_dir,
+        ExperimentFiles.from_tarball(summary_file, input_dir, output_dir, ifsdata_dir=ifsdata_dir,
                                      with_ifsdata=inplace_ifsdata, verify_checksum=verify_checksum)
 
 
