@@ -6,12 +6,13 @@ from collections import defaultdict
 from enum import Enum, auto
 from pathlib import Path
 from subprocess import CalledProcessError
+import sys
 import glob
 import re
 import yaml
 
 from .drhook import DrHook
-from .logging import warning, error
+from .logging import warning, error, header, success
 from .util import copy_data, symlink_data, as_tuple, flatten, gettempdir, execute
 from .runrecord import RunRecord
 
@@ -147,7 +148,7 @@ class Benchmark(ABC):
 
         except CalledProcessError:
             error('Benchmark run failed: %s' % kwargs)
-            exit(-1)
+            sys.exit(-1)
 
         # Provide DrHook output path only if DrHook is active
         drhook = kwargs.get('drhook', DrHook.OFF)
@@ -156,6 +157,7 @@ class Benchmark(ABC):
         dryrun = kwargs.get('dryrun', False)
         if not dryrun:
             return RunRecord.from_run(nodefile=self.rundir/'NODE.001_01', drhook=drhook_path)
+        return None
 
 
 class InputFile:
@@ -466,11 +468,13 @@ class ExperimentFiles:
             If given, :attr:`files` are interpreted as relative to this.
         """
         output_file = Path(output_basename).with_suffix('.tar.gz')
+        header('Creating tarball %s...', str(output_file))
         cmd = ['tar', 'cvzhf', str(output_file)]
         if basedir:
             cmd += ['-C', str(basedir)]
         cmd += files
         execute(cmd)
+        success('Finished creating tarball')
 
     def to_tarball(self, output_dir, with_ifsdata=False):
         """
@@ -514,8 +518,10 @@ class ExperimentFiles:
             Output directory for extracted files.
         """
         filepath = Path(filepath).resolve()
+        header('Extracting tarball %s', str(filepath))
         cmd = ['tar', 'xvzf', str(filepath)]
         execute(cmd, cwd=str(output_dir))
+        success('Finished extracting tarball')
 
     @classmethod
     def from_tarball(cls, summary_file, input_dir, output_dir, ifsdata_dir=None,

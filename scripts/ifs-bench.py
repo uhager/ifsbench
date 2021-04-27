@@ -5,7 +5,7 @@ from pathlib import Path
 import click
 
 from ifsbench import (
-    logger, DEBUG, gettempdir, ExperimentFiles,
+    logger, DEBUG, header, gettempdir, ExperimentFiles,
     DarshanReport, read_files_from_darshan, write_files_from_darshan
 )
 
@@ -52,6 +52,7 @@ def pack_ifsdata(output_dir, verify_checksum, inputs):
     """
     ifsdata_files = ExperimentFiles('ifsdata')
     for summary_file in inputs:
+        header('Reading %s...', str(summary_file))
         exp_files = ExperimentFiles.from_yaml(summary_file, verify_checksum=verify_checksum)
         ifsdata_files.add_input_file(*exp_files.ifsdata_files)
     output_dir = Path(output_dir)
@@ -79,6 +80,7 @@ def unpack_ifsdata(input_dir, output_dir, verify_checksum, inputs):
     # Build ifsdata YAML file
     ifsdata_files = ExperimentFiles('ifsdata')
     for summary_file in inputs:
+        header('Reading %s...', str(summary_file))
         exp_files = ExperimentFiles.from_yaml(summary_file, verify_checksum=False)
         ifsdata_files.add_input_file(*exp_files.ifsdata_files)
     output_dir = Path(output_dir)
@@ -111,10 +113,12 @@ def pack_experiment(exp_id, darshan_log, input_dir, output_dir, with_ifsdata):
     """Pack input files of an experiment for standalone use"""
 
     # Parse the darshan report
+    header('Reading Darshan report %s', darshan_log)
     report = DarshanReport(darshan_log)
     read_files = read_files_from_darshan(report)
     write_files = write_files_from_darshan(report)
     input_files = read_files - write_files
+    header('Identified %d input files', len(input_files))
 
     # Create input files overview
     exp_files = ExperimentFiles(exp_id, src_dir=input_dir)
@@ -126,6 +130,7 @@ def pack_experiment(exp_id, darshan_log, input_dir, output_dir, with_ifsdata):
 
     # Write input files summary
     summary_yml = output_dir/'{}.yml'.format(exp_id)
+    header('Creating summary file %s', str(summary_yml))
     exp_files.to_yaml(summary_yml)
 
     # Pack experiment files
@@ -177,6 +182,7 @@ def unpack_experiment(ctx, input_dir, output_dir, verify_checksum, with_ifsdata,
     # Unpack all files
     inplace_ifsdata = with_ifsdata and ifsdata_input_dir is None
     for summary_file in inputs:
+        header('Reading %s...', summary_file)
         ExperimentFiles.from_tarball(summary_file, input_dir, output_dir, ifsdata_dir=ifsdata_dir,
                                      with_ifsdata=inplace_ifsdata, verify_checksum=verify_checksum)
 
