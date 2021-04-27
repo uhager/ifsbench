@@ -78,7 +78,7 @@ class IFS:
 
         # Modify forecast length
         if kwargs.get('fclen') is not None:
-            nml['NAMRIP']['CSTOP'] = kwargs['fclen']
+            nml['NAMRIP']['CSTOP'] = kwargs.pop('fclen')
 
         nml.write('fort.4', force=True)
 
