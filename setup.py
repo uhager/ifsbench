@@ -19,4 +19,5 @@ setup(
     description="IFS benchmark and testing utilities in Python",
     long_description=long_description,
     packages=find_packages(),
+    scripts=['scripts/nml-diff.py'],
 )

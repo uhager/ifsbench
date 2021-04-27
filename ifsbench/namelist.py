@@ -1,11 +1,12 @@
 """
 Handling and modifying of Fortran namelists for IFS
 """
-import f90nml
+from collections import OrderedDict
 from pathlib import Path
+import f90nml
 
 
-__all__ = ['IFSNamelist', 'sanitize_namelist']
+__all__ = ['IFSNamelist', 'sanitize_namelist', 'namelist_diff']
 
 
 class IFSNamelist:
@@ -103,3 +104,62 @@ def sanitize_namelist(nml, merge_strategy='first'):
             else:
                 raise ValueError('Invalid merge strategy: {}'.format(merge_strategy))
     return nml
+
+
+def namelist_diff(nml, other_nml):
+    """
+    Find differences between :any:`f90nml.Namelist` objects :attr:`nml` and
+    :attr:`other_nml`
+
+    Parameters
+    ----------
+    nml : :any:`f90nml.Namelist`
+        A namelist object
+    other_nml : :any:`f90nml.Namelist`
+        A namelist object to compare to the first
+
+    Returns
+    -------
+    :any:`OrderedDict`
+        Differences between the two namelists as 2-tuple with the corresponding
+        values from :attr:`nml` and :attr:`other_nml`. Values or groups that
+        are present only in one are reported as `None` for the other.
+
+        .. note::
+
+            In case an entire namelist group is present only in one, then it
+            is returned in the tuple as a `dict` with the other value `None`.
+            For example:
+
+            .. code-block::
+
+                {
+                    ...
+                    'group': (None, {'var1': 42, 'var2': 23}),
+                    ...
+                }
+    """
+    diff = OrderedDict()
+
+    # Run through groups present in nml
+    for group, values in nml.items():
+        other_values = other_nml.get(group)
+        if isinstance(values, f90nml.Namelist):
+            if isinstance(other_values, f90nml.Namelist):
+                group_diff = namelist_diff(values, other_values)
+                if group_diff:
+                    diff[group] = group_diff
+            else:
+                diff[group] = (values.todict(), other_values)
+        elif values != other_values:
+            diff[group] = (values, other_values)
+
+    # Add any groups present only in other_nml
+    for group, values in other_nml.items():
+        if group not in nml:
+            if isinstance(values, f90nml.Namelist):
+                diff[group] = (None, values.todict())
+            else:
+                diff[group] = (None, values)
+
+    return diff
