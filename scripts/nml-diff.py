@@ -36,8 +36,19 @@ def print_diff(diff, indent=0):
             print_diff(values, indent + 1)
             print_neutral(indent, '/')
         else:
-            print_value(group, values[0], indent, print_sub)
-            print_value(group, values[1], indent, print_add)
+            assert isinstance(values, tuple)
+
+            if values[0] is None:
+                print_group = print_add
+            elif values[1] is None:
+                print_group = print_sub
+            else:
+                print_group = print_neutral
+
+            print_group(indent, '&%s', group)
+            print_value(group, values[0], indent + 1, print_sub)
+            print_value(group, values[1], indent + 1, print_add)
+            print_group(indent, '/')
 
 
 @click.group(invoke_without_command=True)
