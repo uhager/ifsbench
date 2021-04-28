@@ -129,7 +129,7 @@ def test_benchmark_execute(here, watcher):
     Test the basic benchmark execution mechanism.
     """
     # Example of how to create and run one of the above...
-    ifs = IFS(builddir=here)
+    ifs = IFS.create_cycle('default', builddir=here)
     with temporary_rundir(here) as rundir:
         benchmark = SimpleBenchmark.from_files(ifs=ifs, srcdir=here/'inidata', rundir=rundir)
 
@@ -342,7 +342,7 @@ def test_benchmark_from_experiment_files_execute(here, watcher):
     """
     exp_files = ExperimentFiles.from_dict(experiment_files_dict.copy(), verify_checksum=False)
     exp_files.update_srcdir(here, with_ifsdata=True)
-    ifs = IFS(builddir=here)
+    ifs = IFS.create_cycle('default', builddir=here)
 
     with temporary_rundir(here) as rundir:
         benchmark = SimpleExperimentFilesBenchmark.from_experiment_files(
@@ -380,7 +380,7 @@ def test_benchmark_from_tarball(here, watcher):
             yaml_file, input_dir=tarballdir, output_dir=tarballdir, with_ifsdata=True)
 
         with temporary_rundir(here) as rundir:
-            ifs = IFS(builddir=here)
+            ifs = IFS.create_cycle('default', builddir=here)
             benchmark = SimpleExperimentFilesBenchmark.from_experiment_files(
                 rundir=rundir, exp_files=reloaded_exp_files, ifs=ifs)
 
