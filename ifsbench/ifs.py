@@ -249,7 +249,7 @@ class IFS_CY47R1(IFS):
 
         # TODO: Suspended for Cray runs... :( Needs proper fix!
         arch = kwargs.get('arch')
-        if arch is not None and not arch.startswith('xc40'):
+        if arch is None or not arch.startswith('xc40'):
             if 'LD_LIBRARY_PATH' not in env:
                 env['LD_LIBRARY_PATH'] = getenv('LD_LIBRARY_PATH', '')
             env['LD_LIBRARY_PATH'] = str(self.builddir/'ifs-source') + ':' + env['LD_LIBRARY_PATH']
@@ -288,10 +288,10 @@ class IFS_CY47R2(IFS):
 
         # TODO: Suspended for Cray runs... :( Needs proper fix!
         arch = kwargs.get('arch')
-        if arch is not None and not arch.startswith('xc40'):
+        if arch is None or not arch.startswith('xc40'):
             if 'LD_LIBRARY_PATH' not in env:
                 env['LD_LIBRARY_PATH'] = getenv('LD_LIBRARY_PATH', '')
-            env['LD_LIBRARY_PATH'] = str(self.builddir/('ifs-' + self.prec)) + ':' + env['LD_LIBRARY_PATH']
+            env['LD_LIBRARY_PATH'] = str(self.builddir/('ifs_' + self.prec)) + ':' + env['LD_LIBRARY_PATH']
 
         return env
 
