@@ -173,7 +173,8 @@ class IFS(ABC):
 
         return nml
 
-    def run(self, namelist, rundir, nproc=1, nproc_io=0, nthread=1, hyperthread=1, arch=None, **kwargs):
+    def run(self, namelist, rundir, nproc=1, nproc_io=0, nthread=1, hyperthread=1,
+            arch=None, run_kwargs=None, **kwargs):
         """
         Set-up environment and configuration file and launch an IFS execution
 
@@ -197,6 +198,9 @@ class IFS(ABC):
             The number of hyperthreads to use per physical core
         arch : :any:`Arch`, optional
             The architecture definition to use
+        run_kwargs : dict, optional
+            Additional parameters to be passed on to the call of
+            :any:`subprocess.run` that invokes the executable
         **kwargs :
             Further named parameters. See also :meth:`IFS.setup_env` and
             :meth:`IFS.setup_nml` for specific parameters used there.
@@ -217,7 +221,9 @@ class IFS(ABC):
         nml.write('fort.4', force=True)
 
         cmd = ['%s' % self.executable]
-        arch.run(cmd=cmd, nproc=nproc, nthread=nthread, hyperthread=hyperthread, env=env, **kwargs)
+        if run_kwargs is None:
+            run_kwargs = {}
+        arch.run(cmd=cmd, nproc=nproc, nthread=nthread, hyperthread=hyperthread, env=env, **run_kwargs)
 
 
 class IFS_CY47R1(IFS):
