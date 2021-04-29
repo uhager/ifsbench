@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from os import getenv
 
-from .arch import arch_registry
+from .arch import arch_registry, Arch, XC40Cray, XC40Intel
 from .drhook import DrHook
 from .namelist import IFSNamelist
 
@@ -86,38 +86,37 @@ class IFS(ABC):
         """
         raise NotImplementedError('Not yet done...')
 
-    def setup_env(self, **kwargs):
+    def setup_env(self, namelist, rundir, nproc, nproc_io, nthread, hyperthread, arch, **kwargs):
+        # pylint: disable=unused-argument
         """
         Define run environment
 
-        This should be overriden by cycle-specific classes when necessary to
-        add/modify the default environment defined here.
+        This is called by :meth:`IFS.run` and should be overriden by cycle-specific
+        classes where necessary to add/modify the default environment defined here.
 
-        :meth:`IFS.run` will call this method with all parameters provided to
-        itself. The parameter list given below gives further details about
-        parameters used in particular by this method.
+        See :meth:`IFS.run` for a description of parameters and below for
+        additional arguments used from :attr:`kwargs`.
 
         Parameters
         ----------
-        rundir : str or :any:`pathlib.Path`
-            The run directory for IFS execution
-        nproc : int
-            The total number of MPI ranks
-        nproc_io : int
-            The number of MPI ranks for the IO server
-        drhook : :any:`DrHook`, optional
-            DrHook-specific environment presets
         env : dict, optional
-            An existing environment definition to use as a starting point.
-        **kwargs :
-            Other named parameters provided to :meth:`IFS.run`.
+            An existing environment definition to use and complement
+        drhook : :any:`DrHook`, optional
+            Environment definitions for DrHook profiling
+
+        Returns
+        -------
+        (env, kwargs) : (dict, dict)
+            The run environment and the updated kwargs dict with env-specific
+            entries removed.
         """
         # Initialize environment
         env = kwargs.pop('env', None)
         env = {} if env is None else env
 
         # Define the run directory as data directory to the IFS
-        env['DATA'] = kwargs.pop('rundir')
+        assert rundir
+        env['DATA'] = '%s' % rundir
 
         # Set up DrHook according to preset
         drhook = kwargs.pop('drhook', None)
@@ -130,51 +129,50 @@ class IFS(ABC):
         env['GRIB_SAMPLES_PATH'] = str(self.builddir/'share/eccodes/ifs_samples/grib1_mlgrib2')
 
         # Set number of MPI processes and OpenMP threads
-        nproc = kwargs['nproc']
-        nproc_io = kwargs['nproc_io']
         assert isinstance(nproc, int) and isinstance(nproc_io, int)
         env['NPROC'] = nproc - nproc_io
         env['NPROC_IO'] = nproc_io
 
-        return env
+        return env, kwargs
 
-    def setup_nml(self, **kwargs):
+    def setup_nml(self, namelist, rundir, nproc, nproc_io, nthread, hyperthread, arch, **kwargs):
+        # pylint: disable=unused-argument
         """
         Setup the IFS namelist
 
         This should be overridden by cycle-specific classes where necessary to
         add/modify the namelist created here.
 
+        See :meth:`IFS.run` for a description of parameters and below for
+        additional arguments used from :attr:`kwargs`.
+
         Parameters
         ----------
-        namelist : :any:`f90nml.Namelist`
-            A namelist to use as a basis for the IFS run that will be further
-            modified by :meth:`IFS.setup_nml`
-        nproc : int
-            The total number of MPI ranks
-        nproc_io : int
-            The number of MPI ranks for the IO server
         fclen : str, optional
             Override the length of the forecast run (e.g., ``'h240'`` or
             ``'d10'``).
-        **kwargs :
-            Other named parameters provided to :meth:`IFS.run`.
+
+        Returns
+        -------
+        (nml, kwargs) : (:any:`IFSNamelist`, dict)
+            The config file and the updated kwargs dict with namelist-specific
+            entries removed.
         """
-        nml = IFSNamelist(namelist=kwargs['namelist'], template=self.nml_template)
+        nml = IFSNamelist(namelist=namelist, template=self.nml_template)
 
         # Insert the number of MPI ranks into the config file
-        nml['NAMPAR0']['NPROC'] = kwargs['nproc'] - kwargs['nproc_io']
-        nml['NAMIO_SERV']['NPROC_IO'] = kwargs['nproc_io']
+        assert isinstance(nproc, int) and isinstance(nproc_io, int)
+        nml['NAMPAR0']['NPROC'] = nproc - nproc_io
+        nml['NAMIO_SERV']['NPROC_IO'] = nproc_io
 
         # Modify forecast length
         fclen = kwargs.pop('fclen', None)
         if fclen is not None:
             nml['NAMRIP']['CSTOP'] = fclen
 
-        return nml
+        return nml, kwargs
 
-    def run(self, namelist, rundir, nproc=1, nproc_io=0, nthread=1, hyperthread=1,
-            arch=None, run_kwargs=None, **kwargs):
+    def run(self, namelist, rundir, nproc=1, nproc_io=0, nthread=1, hyperthread=1, arch=None, **kwargs):
         """
         Set-up environment and configuration file and launch an IFS execution
 
@@ -196,47 +194,42 @@ class IFS(ABC):
             The number of OpenMP threads to use per MPI rank
         hyperthread : int, optional
             The number of hyperthreads to use per physical core
-        arch : :any:`Arch`, optional
+        arch : str or :any:`Arch`, optional
             The architecture definition to use
-        run_kwargs : dict, optional
-            Additional parameters to be passed on to the call of
-            :any:`subprocess.run` that invokes the executable
         **kwargs :
-            Further named parameters. See also :meth:`IFS.setup_env` and
-            :meth:`IFS.setup_nml` for specific parameters used there.
+            Further named parameters that will be passed to
+            :meth:`IFS.setup_env`, :meth:`IFS.setup_nml` and :meth:`Arch.run`
         """
+        # Select architecture preset from registry
+        if not isinstance(arch, Arch):
+            arch = arch_registry[arch]
 
         # Setup the run environment
-        env = self.setup_env(namelist=namelist, rundir=rundir, nproc=nproc, nproc_io=nproc_io,
-                             nthread=nthread, hyperthread=hyperthread, **kwargs)
+        env, kwargs = self.setup_env(namelist=namelist, rundir=rundir, nproc=nproc, nproc_io=nproc_io,
+                                     nthread=nthread, hyperthread=hyperthread, arch=arch, **kwargs)
 
         # Setup the IFS namelist
-        nml = self.setup_nml(namelist=namelist, rundir=rundir, nproc=nproc, nproc_io=nproc_io,
-                             nthread=nthread, hyperthread=hyperthread, **kwargs)
-
-        # Select architecture preset from registry
-        arch = arch_registry[arch]
+        nml, kwargs = self.setup_nml(namelist=namelist, rundir=rundir, nproc=nproc, nproc_io=nproc_io,
+                                     nthread=nthread, hyperthread=hyperthread, arch=arch, **kwargs)
 
         # Write the input namelist
         nml.write('fort.4', force=True)
 
+        # Run it
         cmd = ['%s' % self.executable]
-        if run_kwargs is None:
-            run_kwargs = {}
-        arch.run(cmd=cmd, nproc=nproc, nthread=nthread, hyperthread=hyperthread, env=env, **run_kwargs)
+        arch.run(cmd=cmd, nproc=nproc, nthread=nthread, hyperthread=hyperthread, env=env, **kwargs)
 
 
-class IFS_CY47R1(IFS):
+class IFS_CY46R1(IFS):
 
-    def __init__(self, *args, **kwargs):
-        self.cycle = 'cy47r1'
-        super().__init__(*args, **kwargs)
+    cycle = 'cy46r1'
 
     @property
     def exec_name(self):
         return 'ifsMASTER.DP'
 
-    def setup_env(self, **kwargs):
+    def setup_env(self, namelist, rundir, nproc, nproc_io, nthread, hyperthread,
+                  arch, **kwargs):
         """
         CY47R1-specific environment setup.
 
@@ -245,19 +238,22 @@ class IFS_CY47R1(IFS):
         * Insert ``builddir/ifs-source`` into ``LD_LIBRARY_PATH`` so
           ``libblack.so`` is picked up.
         """
-        env = super().setup_env(**kwargs)
+        env, kwargs = super().setup_env(namelist=namelist, rundir=rundir, nproc=nproc,
+                                        nproc_io=nproc_io, nthread=nthread, hyperthread=hyperthread,
+                                        arch=arch, **kwargs)
 
         # TODO: Suspended for Cray runs... :( Needs proper fix!
-        arch = kwargs.get('arch')
-        if arch is None or not arch.startswith('xc40'):
+        if not isinstance(arch, (XC40Cray, XC40Intel)):
             if 'LD_LIBRARY_PATH' not in env:
                 env['LD_LIBRARY_PATH'] = getenv('LD_LIBRARY_PATH', '')
             env['LD_LIBRARY_PATH'] = str(self.builddir/'ifs-source') + ':' + env['LD_LIBRARY_PATH']
 
-        return env
+        return env, kwargs
 
 
-class IFS_CY47R2(IFS):
+class IFS_CY47R1(IFS):
+
+    cycle = 'cy47r1'
 
     def __init__(self, *args, prec='dp', **kwargs):
         self.cycle = 'cy47r2'
@@ -275,7 +271,8 @@ class IFS_CY47R2(IFS):
     def exec_name(self):
         return 'ifsMASTER.{}'.format(self.prec.upper())
 
-    def setup_env(self, **kwargs):
+    def setup_env(self, namelist, rundir, nproc, nproc_io, nthread, hyperthread,
+                  arch, **kwargs):
         """
         CY47R2-specific environment setup.
 
@@ -284,21 +281,27 @@ class IFS_CY47R2(IFS):
         * Insert ``builddir/ifs_sp`` or ``builddir/ifs_dp`` into
           ``LD_LIBRARY_PATH`` so ``libblack.so`` is picked up.
         """
-        env = super().setup_env(**kwargs)
+        env, kwargs = super().setup_env(namelist=namelist, rundir=rundir, nproc=nproc,
+                                        nproc_io=nproc_io, nthread=nthread, hyperthread=hyperthread,
+                                        arch=arch, **kwargs)
 
         # TODO: Suspended for Cray runs... :( Needs proper fix!
-        arch = kwargs.get('arch')
-        if arch is None or not arch.startswith('xc40'):
+        if not isinstance(arch, (XC40Cray, XC40Intel)):
             if 'LD_LIBRARY_PATH' not in env:
                 env['LD_LIBRARY_PATH'] = getenv('LD_LIBRARY_PATH', '')
             env['LD_LIBRARY_PATH'] = str(self.builddir/('ifs_' + self.prec)) + ':' + env['LD_LIBRARY_PATH']
 
-        return env
+        return env, kwargs
+
+
+class IFS_CY47R2(IFS_CY47R1):
+    cycle = 'cy47r2'
 
 
 cycle_registry = {
     'default': IFS_CY47R2,
 
+    'cy46r1': IFS_CY46R1,
     'cy47r1': IFS_CY47R1,
     'cy47r2': IFS_CY47R2,
 }

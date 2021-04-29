@@ -13,6 +13,8 @@ def fixture_here():
 
 
 @pytest.mark.parametrize('cycle,expected_type', [
+    ('CY46R1', ifs.IFS_CY46R1),
+    ('cy46r1', ifs.IFS_CY46R1),
     ('CY47R1', ifs.IFS_CY47R1),
     ('cy47r1', ifs.IFS_CY47R1),
     ('CY47R2', ifs.IFS_CY47R2),
@@ -50,10 +52,14 @@ def test_ifs_setup_env(cycle):
     default_keys = {'DATA', 'GRIB_DEFINITION_PATH', 'GRIB_SAMPLES_PATH', 'NPROC', 'NPROC_IO'}
 
     obj = ifs.IFS.create_cycle(cycle, builddir='build')
-    env = obj.setup_env(rundir='.', nproc=1337, nproc_io=42)
+    env, kwargs = obj.setup_env(rundir='.', nproc=1337, nproc_io=42, namelist=None, nthread=1,
+                                hyperthread=1, arch=None)
+    assert kwargs == {}
     assert default_keys <= set(env.keys())
 
-    env = obj.setup_env(rundir='../..', env={'abc': 123, 'foo': 666}, nproc=1, nproc_io=0)
+    env, kwargs = obj.setup_env(rundir='../..', env={'abc': 123, 'foo': 666}, nproc=1, nproc_io=0,
+                                namelist=None, nthread=1, hyperthread=1, arch=None, foobar='baz')
+    assert kwargs == {'foobar': 'baz'}
     assert (default_keys | {'abc', 'foo'}) <= set(env.keys())
 
 
@@ -69,11 +75,15 @@ def test_ifs_setup_nml(here, cycle):
     )
 
     obj = ifs.IFS.create_cycle(cycle, builddir='build')
-    nml = obj.setup_nml(namelist=(here/'t21_fc.nml'), nproc=12, nproc_io=5)
+    nml, kwargs = obj.setup_nml(namelist=(here/'t21_fc.nml'), rundir='.', nproc=12, nproc_io=5,
+                                nthread=1, hyperthread=1, arch=None, foobar='baz')
+    assert kwargs == {'foobar': 'baz'}
     groups = tuple(nml.nml.groups())
     assert all(param in groups for param in default_params)
 
-    nml = obj.setup_nml(namelist=(here/'t21_fc.nml'), nproc=12, nproc_io=5, fclen='d10')
+    nml, kwargs = obj.setup_nml(namelist=(here/'t21_fc.nml'), rundir='.', nproc=12, nproc_io=5,
+                                fclen='d10', nthread=1, hyperthread=1, arch=None)
+    assert kwargs == {}
     groups = tuple(nml.nml.groups())
     default_params += ((('namrip', 'cstop'), 'd10'),)
     assert all(param in groups for param in default_params)
