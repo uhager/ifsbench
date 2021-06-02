@@ -2,6 +2,9 @@
 pandas
 f90nml
 
+# For scripts (including ifs-test's ifs-run.py)
+click
+
 # For tests and code hygiene
 pylint
 pytest
