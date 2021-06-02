@@ -64,7 +64,7 @@ class IFS(object):
         # Add additional lib location so that we can pick up libblack.so
         # TODO: Suspended for Cray runs... :( Needs proper fix!
         if arch is not XC40Cray and arch is not XC40Intel:
-            new_path = str(self.builddir/'ifs-source') + ':' + getenv('LD_LIBRARY_PATH') 
+            new_path = str(self.builddir/'ifs-source') + ':' + getenv('LD_LIBRARY_PATH', '')
             env['LD_LIBRARY_PATH'] = new_path
 
         # Set number of MPI processes and OpenMP threads
@@ -74,6 +74,7 @@ class IFS(object):
         # Of course, we need to insert the number of MPI ranks into the config file
         nml = IFSNamelist(namelist=namelist, template=self.nml_template)
         nml['NAMPAR0']['NPROC'] = nproc - nproc_io
+        nml['NAMIO_SERV']['NPROC_IO'] = nproc_io
         nml.write('fort.4', force=True)
 
         cmd = ['%s' % self.executable]

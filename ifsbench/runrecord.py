@@ -1,7 +1,7 @@
 from pathlib import Path
 from collections import OrderedDict
-import pandas as pd
 import json
+import pandas as pd
 
 from ifsbench.logging import debug, info, warning, success, error
 from ifsbench.nodefile import NODEFile
@@ -30,7 +30,7 @@ def _h5load(store, key):
     return data, metadata
 
 
-class RunRecord(object):
+class RunRecord:
     """
     Class to encapsulate, store and load all metadata associated with
     an individual test or benchmark run.
@@ -48,7 +48,7 @@ class RunRecord(object):
     def __repr__(self):
         s = 'RunRecord::\n'
         s += '    timestamp: %s\n%s' % (self.timestamp)
-        s += '    comment: %s\n%s' % (self.comment, self.sp_norms)
+        s += '    comment: %s\n%s' % (self.comment, self.spectral_norms)
         return s
 
     def to_dict(self, orient='list'):
@@ -108,6 +108,7 @@ class RunRecord(object):
             return cls.from_json(filepath=filepath.with_suffix('.json'), orient=orient)
         if mode == 'hdf5':
             return cls.from_hdf5(filepath=filepath.with_suffix('.hdf5'))
+        raise ValueError('Invalid mode {}'.format(mode))
 
     @classmethod
     def from_hdf5(cls, filepath):
@@ -120,7 +121,7 @@ class RunRecord(object):
             norms, metadata = _h5load(store, 'norms')
 
         return RunRecord(timestamp=metadata['timestamp'],
-                         comment=metadata['comment'], norms=norms)
+                         comment=metadata['comment'], spectral_norms=norms)
 
     @classmethod
     def from_csv(cls, filepath):
@@ -137,7 +138,7 @@ class RunRecord(object):
         with filepath.with_suffix('.meta.json').open('r') as f:
             metadata = json.loads(f.read())
         return RunRecord(timestamp=metadata['timestamp'],
-                         comment=metadata['comment'], norms=norms, drhook=drhook)
+                         comment=metadata['comment'], spectral_norms=norms, drhook=drhook)
 
     @classmethod
     def from_json(cls, filepath, orient='columns'):
@@ -191,11 +192,11 @@ class RunRecord(object):
 
         if mode == 'hdf5':
             # TODO: Warning untested!
-            _h5store(filepath.with_suffix('.h5'), 'norms', df=self.norms, **self.metadata)
+            _h5store(filepath.with_suffix('.h5'), 'norms', df=self.spectral_norms, **self.metadata)
 
         if mode == 'csv':
             # TODO: Warning untested!
-            self.norms.to_csv(filepath.with_suffix('.norms.csv'))
+            self.spectral_norms.to_csv(filepath.with_suffix('.norms.csv'))
             with filepath.with_suffix('.meta.json').open('w') as f:
                 f.write(json.dumps(self.metadata))
 
@@ -262,11 +263,11 @@ class RunRecord(object):
             if is_valid_sp and is_valid_gp:
                 success('VALIDATED: Result matches reference in %s' % (refpath))
                 return True
+
+            if exit_on_error:
+                exit(-1)
             else:
-                if exit_on_error:
-                    exit(-1)
-                else:
-                    return False
+                return False
 
         except FileNotFoundError:
             warning('Reference not found: %s Skipping validation...' % refpath)
