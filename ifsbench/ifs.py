@@ -8,7 +8,7 @@ from .namelist import IFSNamelist
 __all__ = ['IFS']
 
 
-class IFS(object):
+class IFS:
     """
     A single instance of the IFS system that enables execution of
     individual binaries, as well as managing environment setup and
@@ -75,6 +75,11 @@ class IFS(object):
         nml = IFSNamelist(namelist=namelist, template=self.nml_template)
         nml['NAMPAR0']['NPROC'] = nproc - nproc_io
         nml['NAMIO_SERV']['NPROC_IO'] = nproc_io
+
+        # Modify forecast length
+        if kwargs.get('fclen') is not None:
+            nml['NAMRIP']['CSTOP'] = kwargs.pop('fclen')
+
         nml.write('fort.4', force=True)
 
         cmd = ['%s' % self.executable]

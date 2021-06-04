@@ -81,7 +81,7 @@ def execute(command, **kwargs):
     try:
         if not dryrun:
             if logfile is None:
-                run(command, check=True, env=run_env,
+                run(command, check=True, cwd=cwd, env=run_env,
                     stdout=stdout, stderr=stderr, **kwargs)
             else:
                 with Path(logfile).open('w') as logfile:

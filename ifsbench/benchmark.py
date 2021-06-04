@@ -1,6 +1,10 @@
+"""
+Classes to set-up a benchmark
+"""
 from abc import ABC, abstractmethod
 from pathlib import Path
 from subprocess import CalledProcessError
+import sys
 
 from .drhook import DrHook
 from .logging import warning, error
@@ -8,12 +12,21 @@ from .util import copy_data, symlink_data, as_tuple, flatten
 from .runrecord import RunRecord
 
 
-__all__ = ['Benchmark']
+__all__ = ['Benchmark', 'ExperimentFilesBenchmark']
 
 
 class Benchmark(ABC):
     """
-    Definition of a general benchmark setup.
+    Definition of a general benchmark setup
+
+    Parameters
+    ----------
+    expid : str
+        The experiment id corresponding to the input data set.
+    ifs : :any:`IFS`
+        The IFS configuration object.
+    rundir : str or :any:`pathlib.Path`, optional
+        The default working directory to be used for :meth:`run`.
     """
 
     def __init__(self, **kwargs):
@@ -25,42 +38,59 @@ class Benchmark(ABC):
     @property
     @classmethod
     @abstractmethod
-    def input_files(self):
+    def input_files(cls):
         """
-        List of relative paths (strings or ``Path`` objects) that
-        define all necessary input data files to run this benchmark.
+        List of relative paths that define all necessary input data files to
+        run this benchmark
+
+        Returns
+        -------
+        list of str or :any:`pathlib.Path`
+            Relative paths for all input files required to run this benchmark.
+            The relative paths will be reproduced in :attr:`Benchmark.rundir`.
         """
-        pass
 
     @classmethod
     def from_files(cls, **kwargs):
         """
-        Create instance of ``Benchmark`` object by globbing a set of
-        input paths for the ncessary input data and copying it into rundir.
+        Create instance of :class:`Benchmark` by globbing a set of input paths
+        for the necessary input data and copying or linking it into rundir
 
-        :param rundir: Run directory to copy/symlink input data into
-        :param srcdir: One or more source directories to search for input data
-        :param copy: Copy files intp `rundir` instead of symlinking them
-        :param force: Force delete existing input files and re-link/copy
+        Parameters
+        ----------
+        rundir : str or :any:`pathlib.Path`
+            Run directory to copy/symlink input data into
+        srcdir : (list of) str or :any:`pathlib.Path`
+            One or more source directories to search for input data
+        ifsdata : str or :any:`pathlib.Path`, optional
+            `ifsdata` directory to link as a whole
+            (default: :attr:`Benchmark.input_data`)
+        input_files : list of str, optional
+            Relative paths of necessary input files
+        copy : bool, optional
+            Copy files into :data:`rundir` instead of symlinking them (default: False)
+        force : bool, optional
+            Overwrite existing input files and re-link/copy (default: False)
         """
         srcdir = as_tuple(kwargs.get('srcdir'))
         rundir = Path(kwargs.get('rundir'))
         copy = kwargs.pop('copy', False)
         force = kwargs.pop('force', False)
         ifsdata = kwargs.get('ifsdata', None)
+        input_files = kwargs.get('input_files', cls.input_files)
 
         if ifsdata is not None:
             symlink_data(Path(ifsdata), rundir/'ifsdata', force=force)
 
         # Copy / symlink input files into rundir
-        for path in cls.input_files:
+        for path in input_files:
             path = Path(path)
             dest = Path(rundir) / path
             candidates = flatten([list(Path(s).glob('**/%s' % path.name)) for s in srcdir])
             if len(candidates) == 0:
                 warning('Input file %s not found in %s' % (path.name, srcdir))
                 continue
-            elif len(candidates) == 1:
+            if len(candidates) == 1:
                 source = candidates[0]
             else:
                 warning('More than one input file %s found in %s' % (path.name, srcdir))
@@ -89,7 +119,7 @@ class Benchmark(ABC):
 
     def check_input(self):
         """
-        Check input file list matches benchmarjmk configuration.
+        Check input file list matches benchmark configuration.
         """
         for path in self.input_files:
             filepath = self.rundir / path
@@ -113,7 +143,7 @@ class Benchmark(ABC):
 
         except CalledProcessError:
             error('Benchmark run failed: %s' % kwargs)
-            exit(-1)
+            sys.exit(-1)
 
         # Provide DrHook output path only if DrHook is active
         drhook = kwargs.get('drhook', DrHook.OFF)
@@ -122,3 +152,68 @@ class Benchmark(ABC):
         dryrun = kwargs.get('dryrun', False)
         if not dryrun:
             return RunRecord.from_run(nodefile=self.rundir/'NODE.001_01', drhook=drhook_path)
+        return None
+
+
+class ExperimentFilesBenchmark(Benchmark):
+    """
+    General :class:`Benchmark` setup created from input file description
+    provided by :any:`ExperimentFiles`
+
+    """
+
+    def __init__(self, **kwargs):
+        self._input_files = kwargs.pop('input_files')
+        super().__init__(**kwargs)
+
+    @property
+    @classmethod
+    def special_paths(cls):
+        """
+        List of :any:`SpecialRelativePath` patterns that define transformations
+        for converting a file path to a particular relative path object.
+
+        Returns
+        -------
+        list of :any:`SpecialRelativePath`
+        """
+
+    @property
+    def input_files(self):
+        return self._input_files
+
+    @classmethod
+    def from_experiment_files(cls, **kwargs):
+        """
+        Instantiate :class:`Benchmark` using input file lists captured in an
+        :any:`ExperimentFiles` object
+        """
+        rundir = Path(kwargs.get('rundir'))
+        exp_files = kwargs.pop('exp_files')
+        copy = kwargs.pop('copy', False)
+        force = kwargs.pop('force', False)
+        ifsdata = kwargs.get('ifsdata', None)
+
+        if ifsdata is not None:
+            symlink_data(Path(ifsdata), rundir/'ifsdata', force=force)
+
+        special_paths = cls.special_paths if isinstance(cls.special_paths, (list, tuple)) else ()
+        input_files = []
+        for f in exp_files.files:
+            dest, source = str(f.fullpath), str(f.fullpath)
+            for pattern in special_paths:
+                dest = pattern(dest)
+                if dest != source:
+                    break
+            else:
+                dest = str(Path(dest).name)
+
+            input_files += [dest]
+            source, dest = Path(source), rundir/dest
+            if copy:
+                copy_data(source, dest, force=force)
+            else:
+                symlink_data(source, dest, force=force)
+
+        obj = cls(input_files=input_files, **kwargs)
+        return obj
