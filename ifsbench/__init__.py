@@ -15,9 +15,11 @@ from .arch import * # noqa
 from .benchmark import * # noqa
 from .darshanreport import * # noqa
 from .drhook import * # noqa
+from .files import * # noqa
 from .ifs import * # noqa
 from .logging import * # noqa
 from .namelist import * # noqa
 from .nodefile import * # noqa
+from .paths import * # noqa
 from .runrecord import * # noqa
 from .util import * # noqa
