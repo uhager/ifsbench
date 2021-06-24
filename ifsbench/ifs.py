@@ -246,7 +246,7 @@ class IFS_CY46R1(IFS):
         if not isinstance(arch, (XC40Cray, XC40Intel)):
             if 'LD_LIBRARY_PATH' not in env:
                 env['LD_LIBRARY_PATH'] = getenv('LD_LIBRARY_PATH', '')
-            env['LD_LIBRARY_PATH'] = str(self.builddir/'ifs-source') + ':' + env['LD_LIBRARY_PATH']
+            env['LD_LIBRARY_PATH'] = str(self.builddir/'ifs_dp') + ':' + env['LD_LIBRARY_PATH']
 
         return env, kwargs
 
@@ -289,7 +289,7 @@ class IFS_CY47R1(IFS):
         if not isinstance(arch, (XC40Cray, XC40Intel)):
             if 'LD_LIBRARY_PATH' not in env:
                 env['LD_LIBRARY_PATH'] = getenv('LD_LIBRARY_PATH', '')
-            env['LD_LIBRARY_PATH'] = str(self.builddir/('ifs_' + self.prec)) + ':' + env['LD_LIBRARY_PATH']
+            env['LD_LIBRARY_PATH'] = str(self.builddir/'ifs_dp') + ':' + env['LD_LIBRARY_PATH']
 
         return env, kwargs
 
