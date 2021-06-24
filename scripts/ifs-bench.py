@@ -138,7 +138,7 @@ def pack_experiment(exp_id, darshan_log, input_dir, output_dir, with_ifsdata):
 
 
 @cli.command()
-@click.option('--input-dir', default=Path.cwd(), multiple=True,
+@click.option('--input-dir', default=[Path.cwd()], multiple=True,
               type=click.Path(file_okay=False, dir_okay=True, writable=True),
               help=('Input directory for tarballs (default: current working directory). '
                     'Can be given multiple times.'))
