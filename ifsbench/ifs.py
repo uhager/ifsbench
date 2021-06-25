@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from os import getenv
 
-from .arch import arch_registry, Arch, XC40Cray, XC40Intel
+from .arch import arch_registry, Arch
 from .drhook import DrHook
 from .namelist import IFSNamelist
 
@@ -79,6 +79,13 @@ class IFS(ABC):
             return (self.installdir/'bin')/self.exec_name
         return (self.builddir/'bin')/self.exec_name
 
+    @property
+    def ld_library_paths(self):
+        """
+        List of paths that need to be available in ``LD_LIBRARY_PATH``
+        """
+        return ()
+
     def verify_namelist(self, namelist):
         """
         Check correctness of namelist entries against compiled
@@ -132,6 +139,11 @@ class IFS(ABC):
         assert isinstance(nproc, int) and isinstance(nproc_io, int)
         env['NPROC'] = nproc - nproc_io
         env['NPROC_IO'] = nproc_io
+
+        # Make LD_LIBRARY_PATH entries available
+        if self.ld_library_paths:
+            env.setdefault('LD_LIBRARY_PATH', getenv('LD_LIBRARY_PATH', ''))
+            env['LD_LIBRARY_PATH'] = ':'.join([*self.ld_library_paths, env['LD_LIBRARY_PATH']])
 
         return env, kwargs
 
@@ -228,27 +240,15 @@ class IFS_CY46R1(IFS):
     def exec_name(self):
         return 'ifsMASTER.DP'
 
-    def setup_env(self, namelist, rundir, nproc, nproc_io, nthread, hyperthread,
-                  arch, **kwargs):
+    @property
+    def ld_library_paths(self):
         """
-        CY47R1-specific environment setup.
+        List of paths that need to be available in ``LD_LIBRARY_PATH``
 
-        This calls :meth:`IFS.setup_env` and additionally:
-
-        * Insert ``builddir/ifs-source`` into ``LD_LIBRARY_PATH`` so
+        Inserts ``builddir/ifs-source`` into ``LD_LIBRARY_PATH`` so
           ``libblack.so`` is picked up.
         """
-        env, kwargs = super().setup_env(namelist=namelist, rundir=rundir, nproc=nproc,
-                                        nproc_io=nproc_io, nthread=nthread, hyperthread=hyperthread,
-                                        arch=arch, **kwargs)
-
-        # TODO: Suspended for Cray runs... :( Needs proper fix!
-        if not isinstance(arch, (XC40Cray, XC40Intel)):
-            if 'LD_LIBRARY_PATH' not in env:
-                env['LD_LIBRARY_PATH'] = getenv('LD_LIBRARY_PATH', '')
-            env['LD_LIBRARY_PATH'] = str(self.builddir/'ifs_dp') + ':' + env['LD_LIBRARY_PATH']
-
-        return env, kwargs
+        return (str(self.builddir/'ifs-source'),)
 
 
 class IFS_CY47R1(IFS):
@@ -271,27 +271,15 @@ class IFS_CY47R1(IFS):
     def exec_name(self):
         return 'ifsMASTER.{}'.format(self.prec.upper())
 
-    def setup_env(self, namelist, rundir, nproc, nproc_io, nthread, hyperthread,
-                  arch, **kwargs):
+    @property
+    def ld_library_paths(self):
         """
-        CY47R2-specific environment setup.
+        List of paths that need to be available in ``LD_LIBRARY_PATH``
 
-        This calls :meth:`IFS.setup_env` and additionally:
-
-        * Insert ``builddir/ifs_sp`` or ``builddir/ifs_dp`` into
-          ``LD_LIBRARY_PATH`` so ``libblack.so`` is picked up.
+        Inserts ``builddir/ifs_dp`` into ``LD_LIBRARY_PATH`` so
+          ``libblack.so`` is picked up.
         """
-        env, kwargs = super().setup_env(namelist=namelist, rundir=rundir, nproc=nproc,
-                                        nproc_io=nproc_io, nthread=nthread, hyperthread=hyperthread,
-                                        arch=arch, **kwargs)
-
-        # TODO: Suspended for Cray runs... :( Needs proper fix!
-        if not isinstance(arch, (XC40Cray, XC40Intel)):
-            if 'LD_LIBRARY_PATH' not in env:
-                env['LD_LIBRARY_PATH'] = getenv('LD_LIBRARY_PATH', '')
-            env['LD_LIBRARY_PATH'] = str(self.builddir/'ifs_dp') + ':' + env['LD_LIBRARY_PATH']
-
-        return env, kwargs
+        return (str(self.builddir/'ifs_dp'),)
 
 
 class IFS_CY47R2(IFS_CY47R1):
