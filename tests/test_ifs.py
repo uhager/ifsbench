@@ -31,27 +31,45 @@ def test_ifs_construction(cycle, expected_type):
 
 
 @pytest.mark.parametrize('cycle', list(ifs.cycle_registry.keys()))
-def test_ifs(cycle):
+@pytest.mark.parametrize('prec', ('sp', 'dp'))
+def test_ifs(cycle, prec):
     """
     Verify that some of the default properties return sensible values
     """
-    obj_default = ifs.IFS.create_cycle(cycle, builddir='build')
-    assert obj_default.exec_name == 'ifsMASTER.DP'
-    assert str(obj_default.executable) == 'build/bin/ifsMASTER.DP'
+    if cycle == 'cy46r1':
+        # No Single Precision support
+        exec_name = 'ifsMASTER.DP'
+        ld_library_path = 'build/ifs-source'
+        obj_default = ifs.IFS.create_cycle(cycle, builddir='build')
+        obj_install = ifs.IFS.create_cycle(cycle, builddir='build', installdir='../prefix')
+    else:
+        exec_name = {'sp': 'ifsMASTER.SP', 'dp': 'ifsMASTER.DP'}[prec]
+        ld_library_path = 'build/ifs_dp'
+        obj_default = ifs.IFS.create_cycle(cycle, builddir='build', prec=prec)
+        obj_install = ifs.IFS.create_cycle(cycle, builddir='build', installdir='../prefix', prec=prec)
 
-    obj_install = ifs.IFS.create_cycle(cycle, builddir='build', installdir='../prefix')
-    assert obj_default.exec_name == 'ifsMASTER.DP'
-    assert str(obj_install.executable) == '../prefix/bin/ifsMASTER.DP'
+    assert obj_default.exec_name == exec_name
+    assert str(obj_default.executable) == 'build/bin/' + exec_name
+    assert any(ld_library_path in path for path in obj_default.ld_library_paths)
+
+    assert obj_default.exec_name == exec_name
+    assert str(obj_install.executable) == '../prefix/bin/' + exec_name
+    assert any(ld_library_path in path for path in obj_install.ld_library_paths)
 
 
 @pytest.mark.parametrize('cycle', list(ifs.cycle_registry.keys()))
-def test_ifs_setup_env(cycle):
+@pytest.mark.parametrize('prec', ('sp', 'dp'))
+def test_ifs_setup_env(cycle, prec):
     """
     Verify that a given number of default parameters is present in the env
     """
     default_keys = {'DATA', 'GRIB_DEFINITION_PATH', 'GRIB_SAMPLES_PATH', 'NPROC', 'NPROC_IO'}
 
-    obj = ifs.IFS.create_cycle(cycle, builddir='build')
+    if cycle == 'cy46r1':
+        # No Single Precision support
+        obj = ifs.IFS.create_cycle(cycle, builddir='build')
+    else:
+        obj = ifs.IFS.create_cycle(cycle, builddir='build', prec=prec)
     env, kwargs = obj.setup_env(rundir='.', nproc=1337, nproc_io=42, namelist=None, nthread=1,
                                 hyperthread=1, arch=None)
     assert kwargs == {}
@@ -61,6 +79,12 @@ def test_ifs_setup_env(cycle):
                                 namelist=None, nthread=1, hyperthread=1, arch=None, foobar='baz')
     assert kwargs == {'foobar': 'baz'}
     assert (default_keys | {'abc', 'foo'}) <= set(env.keys())
+
+    # make sure path for libblack.so is set
+    if cycle == 'cy46r1':
+        assert 'LD_LIBRARY_PATH' in env and 'build/ifs-source:' in env['LD_LIBRARY_PATH']
+    else:
+        assert 'LD_LIBRARY_PATH' in env and 'build/ifs_dp:' in env['LD_LIBRARY_PATH']
 
 
 @pytest.mark.parametrize('cycle', list(ifs.cycle_registry.keys()))
