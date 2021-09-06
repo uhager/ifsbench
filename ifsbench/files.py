@@ -90,6 +90,13 @@ class InputFile:
         """The base directory under which the file is located"""
         return self._src_dir
 
+    @src_dir.setter
+    def src_dir(self, src_dir):
+        """Update the base directory relative to which the file is located"""
+        path = Path(self.fullpath).relative_to(src_dir)
+        self._src_dir = Path(src_dir)
+        self._path = path
+
     @staticmethod
     def _sha256sum(filepath):
         """Create SHA-256 checksum for the file at the given path"""
@@ -215,8 +222,21 @@ class ExperimentFiles:
 
         The file is identified by comparing file name and checksum.
         """
+        # Nothing to do if we don't have a base relative to which to look
         if not self.src_dir:
             return input_file
+
+        # Let's see if the input_file is relative to one of the src directories
+        for src_dir in self.src_dir:
+            try:
+                path = Path(input_file.fullpath).relative_to(src_dir)
+            except ValueError:
+                continue
+            input_file.src_dir = src_dir
+            return input_file
+
+        # input_file is not relative to one of the src directories. Let's see if
+        # we can find something that matches
         candidates = [
             (path, src_dir)
             for src_dir in self.src_dir

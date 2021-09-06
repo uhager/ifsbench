@@ -117,6 +117,15 @@ def pack_experiment(exp_id, darshan_log, input_dir, output_dir, with_ifsdata):
     report = DarshanReport(darshan_log)
     read_files = read_files_from_darshan(report)
     write_files = write_files_from_darshan(report)
+    
+    # Hack: we need to remove namelists from write_files because for unknown reasons
+    # Darshan reports sometimes a single write on these files for ioserver ranks.
+    # Once this behaviour is resolved, this can be removed in the future
+    namelist_names = {'namelist', 'namelistfc', 'namelist_ice', 'wam_namelist',
+                      'namnemowamcoup.in', 'namnemocoup.in', 'fort.4'}
+    namelists_in_write_files = {f for f in write_files if Path(f).name in namelist_names}
+    write_files -= namelists_in_write_files
+
     input_files = read_files - write_files
     header('Identified %d input files', len(input_files))
 
