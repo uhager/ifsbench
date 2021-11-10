@@ -1,14 +1,1 @@
-# For the library itself
-pandas
-f90nml
-pyyaml
-
-# For scripts (including ifs-test's ifs-run.py)
-click
-
-# For tests and code hygiene
-pylint
-pytest
-pytest-pylint
-pytest-cov
-coverage2clover
+.
