@@ -73,6 +73,11 @@ add_executable( ifs-bench.py IMPORTED GLOBAL )
 set_property( TARGET ifs-bench.py PROPERTY IMPORTED_LOCATION ${Python3_VENV_BIN}/ifs-bench.py )
 add_dependencies( ifs-bench.py ifsbench )
 
+# Make certain variables available
+if( NOT PROJECT_NAME STREQUAL CMAKE_PROJECT_NAME )
+    set( IFSBENCH_Python3_EXECUTABLE ${Python3_EXECUTABLE} PARENT_SCOPE )
+endif()
+
 # Install the project so it can be used within the bundle
 ecbuild_install_project( NAME ifsbench )
 
