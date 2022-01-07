@@ -4,7 +4,7 @@ from math import ceil
 from .util import execute
 
 
-__all__ = ['Arch', 'Workstation', 'TEMS', 'XC40Cray', 'XC40Cray', 'arch_registry']
+__all__ = ['Arch', 'Workstation', 'TEMS', 'XC40Cray', 'XC40Cray', 'Atos_aa','arch_registry']
 
 
 class Arch(ABC):
@@ -134,6 +134,36 @@ class XC40Intel(Arch):
         execute(cmd, logfile=logfile, env=env, **kwargs)
 
 
+class Atos_aa(Arch):
+    """
+    Default setup for ECMWF's aa system in Bologna using SLURM.
+    Note : if underpopulating is not desired, should be called with nproc_node=256
+    """
+
+    @classmethod
+    def run(cls, cmd, nproc=1, nproc_node=None, nthread=1, hyperthread=1,
+            logfile=None, env=None, launch=None, **kwargs):
+
+        if nproc_node is None:
+            nproc_node = min(nproc, 256)
+
+        env['OMP_NUM_THREADS'] = nthread
+
+        if hyperthread == 1:
+            cpupertask = nthread*2
+        else:
+            cpupertask = nthread
+
+        nnode = ceil(nproc*nthread/nproc_node)
+
+        launcher = 'srun -p compute -q np -N {nnode} -n {nproc} --cpu-bind=cores '\
+                '--cpus-per-task={cpupertask}'.format(nnode=nnode,nproc=nproc,cpupertask=cpupertask)
+        cmd = ' '.join(cmd) if isinstance(cmd, list) else str(cmd)
+        cmd = '{launcher} {cmd}'.format(launcher=launcher, cmd=cmd)
+
+        execute(cmd, logfile=logfile, env=env, **kwargs)
+
+
 arch_registry = {
     None: Workstation,
     'workstation': Workstation,
@@ -141,4 +171,5 @@ arch_registry = {
     'xc40': XC40Cray,
     'xc40cray': XC40Cray,
     'xc40intel': XC40Intel,
+    'atos_aa': Atos_aa,
 }
