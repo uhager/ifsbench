@@ -90,9 +90,24 @@ class Job:
     * the number of nodes (:data:`nodes`) and the number of tasks per socket
       (:data:`tasks_per_socket`)
 
-    Optionally, multi-threading can be specified by providing a value larger than 1
-    (the default) for :data:`cpus_per_task`. Symmetric multi-threading (hyperthreading)
-    can be enabled with :data:`use_smt`.
+    this class specifies the resource requirements for a job.
+
+    The underlying idea is to specify as little as possible which is then passed on
+    to the relevant launch command but with the possibility to estimate those values
+    that can be derived unambigously from the specified values.
+
+    The relevant attributes (with the same names as the parameters to the constructor)
+    are only defined when the corresponding value has been specified explicitly (with
+    the exception of those that have a default value), i.e., accessing undefined
+    attributes will raise a :any:`AttributeError`. The corresponding ``get_`` methods
+    allow to derive the relevant values when it is unambigously possible, or raise an
+    :any:`AttributeError` otherwise.
+
+    Multi-threading can be specified by providing a value larger than 1 (the default)
+    for :data:`cpus_per_task`. Symmetric multi-threading (hyperthreading) can be
+    enabled with a value greater than 1 in :data:`threads_per_core`.
+
+    The desired pinning strategy can be specified with :data:`bind`.
 
     Parameters
     ----------
@@ -100,40 +115,45 @@ class Job:
         The description of the available CPUs in the target system
     tasks : int, optional
         The total number of MPI tasks to be used.
-        Default: :attr:`nodes` * :attr:`tasks_per_node`
     nodes : int, optional
         The total number of nodes to be used.
-        Default: ceil(:attr:`threads` / available_threads_per-node) with the number of
-        available threads dependent on the use of SMT.
     tasks_per_node : int, optional
         Launch a specific number of tasks per node. Can be derived from :attr:`tasks_per_socket`
         if that is specified
     tasks_per_socket : int, optional
         Launch a specific number of tasks per socket
     cpus_per_task : int, optional
-        The number of computing elements (threads) available to each task. Default: 1
-    smt : int, optional
-        Enable symmetric multi-threading (hyperthreading). Default: 1
+        The number of computing elements (threads) available to each task for hybrid jobs.
+    threads_per_core : int, optional
+        Enable symmetric multi-threading (hyperthreading).
     bind : :any:`Binding`, optional
-        Specify the binding strategy to use for pinning. Default: :any:`Binding.BIND_NONE`
+        Specify the binding strategy to use for pinning.
     """
 
     def __init__(self, cpu_config, tasks=None, nodes=None, tasks_per_node=None,
-                 tasks_per_socket=None, cpus_per_task=None, smt=None, bind=None):
+                 tasks_per_socket=None, cpus_per_task=None, threads_per_core=None, bind=None):
 
         self.cpu_config = cpu_config
-        self._tasks = tasks
-        self._nodes = nodes
-        self._tasks_per_node = tasks_per_node
-        self._tasks_per_socket = tasks_per_socket
-        self._cpus_per_task = cpus_per_task or 1
-        self._smt = smt or 1
-        self._bind = Binding.BIND_NONE if bind is None else bind
+
+        if tasks is not None:
+            self.tasks = tasks
+        if nodes is not None:
+            self.nodes = nodes
+        if tasks_per_node is not None:
+            self.tasks_per_node = tasks_per_node
+        if tasks_per_socket is not None:
+            self.tasks_per_socket = tasks_per_socket
+        if cpus_per_task is not None:
+            self.cpus_per_task = cpus_per_task
+        if threads_per_core is not None:
+            self.threads_per_core = threads_per_core
+        if bind is not None:
+            self.bind = bind
 
         try:
-            tasks = self.tasks
-            nodes = self.nodes
-            threads = self.threads
+            tasks = self.get_tasks()
+            nodes = self.get_nodes()
+            threads = self.get_threads()
         except AttributeError as excinfo:
             error(('Need to specify at least one of:\n'
                    'number of tasks or (tasks_per_node and nodes) or (tasks_per_socket and nodes)'))
@@ -149,67 +169,65 @@ class Job:
             error(f'Invalid number of threads: {threads}')
             raise ValueError
 
-    @property
-    def tasks(self):
+    def get_tasks(self):
         """
         The total number of MPI tasks
-        """
-        if self._tasks is not None:
-            return self._tasks
-        return self.nodes * self.tasks_per_node
 
-    @property
-    def nodes(self):
+        If this has not been specified explicitly, it is estimated as
+        ``nodes * tasks_per_node``.
+        """
+        tasks = getattr(self, 'tasks', None)
+        if tasks is None:
+            return self.get_nodes() * self.get_tasks_per_node()
+        return tasks
+
+    def get_nodes(self):
         """
         The total number of nodes
-        """
-        if self._nodes is not None:
-            return self._nodes
-        threads_per_node = self.cpu_config.cores_per_node * self.smt
-        return (self.threads + threads_per_node - 1) // threads_per_node
 
-    @property
-    def tasks_per_node(self):
+        If this has not been specified explicitly, it is estimated as
+        ``ceil(threads / available_threads_per_node)`` with the number of
+        available threads dependent on the use of SMT.
+        """
+        nodes = getattr(self, 'nodes', None)
+        if nodes is None:
+            threads_per_node = self.cpu_config.cores_per_node * self.get_threads_per_core()
+            return (self.get_threads() + threads_per_node - 1) // threads_per_node
+        return nodes
+
+    def get_tasks_per_node(self):
         """
         The number of tasks on each node
+
+        If this has not been specified explicitly, it is estimated as
+        ``tasks_per_socket * sockets_per_node``.
         """
-        if self._tasks_per_node is None:
+        tasks_per_node = getattr(self, 'tasks_per_node', None)
+        if tasks_per_node is None:
             return self.tasks_per_socket * self.cpu_config.sockets_per_node
-        return self._tasks_per_node
+        return tasks_per_node
 
-    @property
-    def tasks_per_socket(self):
+    def get_cpus_per_task(self):
         """
-        The number of tasks on each socket
-        """
-        if self._tasks_per_socket is None:
-            raise AttributeError
-        return self._tasks_per_socket
+        The number of CPUs assigned to each task
 
-    @property
-    def cpus_per_task(self):
+        If this has not been specified explicitly, it defaults to 1
         """
-        The number of processing units per task
-        """
-        return self._cpus_per_task
+        return getattr(self, 'cpus_per_task', 1)
 
-    @property
-    def smt(self):
+    def get_threads_per_core(self):
         """
-        Symmetric multi-threading, i.e. logical tasks per physical core
-        """
-        return self._smt
+        The number of threads assigned to each core (symmetric multi threading
+        or hyperthreading for values greater than 1)
 
-    @property
-    def bind(self):
+        If this has not been specified explicitly, it defaults to 1
         """
-        The binding strategy to use
-        """
-        return self._bind
+        return getattr(self, 'threads_per_core', 1)
 
-    @property
-    def threads(self):
+    def get_threads(self):
         """
         The total number of threads across all tasks
+
+        This is derived automatically as ``tasks * cpus_per_task``
         """
-        return self.tasks * self.cpus_per_task
+        return self.get_tasks() * self.get_cpus_per_task()

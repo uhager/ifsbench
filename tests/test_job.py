@@ -11,58 +11,91 @@ from ifsbench import Job, CpuConfiguration, Binding
     # Only specify number of tasks:
     ({'sockets_per_node': 2, 'cores_per_socket': 8, 'threads_per_core': 2},
      {'tasks': 64},
-     {'tasks': 64, 'nodes': 4, 'tasks_per_node': None, 'tasks_per_socket': None,
-      'cpus_per_task': 1, 'threads': 64, 'smt': 1, 'bind': Binding.BIND_NONE}),
+     {'tasks': 64, 'get_tasks': 64, 'nodes': None, 'get_nodes': 4,
+      'tasks_per_node': None, 'get_tasks_per_node': None, 'tasks_per_socket': None,
+      'cpus_per_task': None, 'get_cpus_per_task': 1,
+      'threads_per_core': None, 'get_threads_per_core': 1,
+      'get_threads': 64, 'bind': None}),
     # Specify nodes and number of tasks per node:
     ({'sockets_per_node': 2, 'cores_per_socket': 8, 'threads_per_core': 2},
      {'nodes': 4, 'tasks_per_node': 16},
-     {'tasks': 64, 'nodes': 4, 'tasks_per_node': 16, 'tasks_per_socket': None,
-      'cpus_per_task': 1, 'threads': 64, 'smt': 1, 'bind': Binding.BIND_NONE}),
+     {'tasks': None, 'get_tasks': 64, 'nodes': 4, 'get_nodes': 4,
+      'tasks_per_node': 16, 'get_tasks_per_node': 16, 'tasks_per_socket': None,
+      'cpus_per_task': None, 'get_cpus_per_task': 1,
+      'threads_per_core': None, 'get_threads_per_core': 1,
+      'get_threads': 64, 'bind': None}),
     # Specify nodes and number of tasks per socket:
     ({'sockets_per_node': 2, 'cores_per_socket': 8, 'threads_per_core': 2},
      {'nodes': 4, 'tasks_per_socket': 8},
-     {'tasks': 64, 'nodes': 4, 'tasks_per_node': 16, 'tasks_per_socket': 8,
-      'cpus_per_task': 1, 'threads': 64, 'smt': 1, 'bind': Binding.BIND_NONE}),
+     {'tasks': None, 'get_tasks': 64, 'nodes': 4, 'get_nodes': 4,
+      'tasks_per_node': None, 'get_tasks_per_node': 16, 'tasks_per_socket': 8,
+      'cpus_per_task': None, 'get_cpus_per_task': 1,
+      'threads_per_core': None, 'get_threads_per_core': 1,
+      'get_threads': 64, 'bind': None}),
     # Specify nodes and number of tasks per socket with hyperthreading:
     ({'sockets_per_node': 2, 'cores_per_socket': 8, 'threads_per_core': 2},
-     {'nodes': 4, 'tasks_per_socket': 16, 'smt': 2},
-     {'tasks': 128, 'nodes': 4, 'tasks_per_node': 32, 'tasks_per_socket': 16,
-      'cpus_per_task': 1, 'threads': 128, 'smt': 2, 'bind': Binding.BIND_NONE}),
+     {'nodes': 4, 'tasks_per_socket': 16, 'threads_per_core': 2},
+     {'tasks': None, 'get_tasks': 128, 'nodes': 4, 'get_nodes': 4,
+      'tasks_per_node': None, 'get_tasks_per_node': 32, 'tasks_per_socket': 16,
+      'cpus_per_task': None, 'get_cpus_per_task': 1,
+      'threads_per_core': 2, 'get_threads_per_core': 2,
+      'get_threads': 128, 'bind': None}),
     # Undersubscribe nodes:
     ({'sockets_per_node': 2, 'cores_per_socket': 8, 'threads_per_core': 2},
      {'nodes': 4, 'tasks_per_socket': 2},
-     {'tasks': 16, 'nodes': 4, 'tasks_per_node': 4, 'tasks_per_socket': 2,
-      'cpus_per_task': 1, 'threads': 16, 'smt': 1, 'bind': Binding.BIND_NONE}),
+     {'tasks': None, 'get_tasks': 16, 'nodes': 4, 'get_nodes': 4,
+      'tasks_per_node': None, 'get_tasks_per_node': 4, 'tasks_per_socket': 2,
+      'cpus_per_task': None, 'get_cpus_per_task': 1,
+      'threads_per_core': None, 'get_threads_per_core': 1,
+      'get_threads': 16, 'bind': None}),
     # Less tasks than available:
     ({'sockets_per_node': 2, 'cores_per_socket': 8, 'threads_per_core': 2},
      {'tasks': 60, 'nodes': 4},
-     {'tasks': 60, 'nodes': 4, 'tasks_per_node': None, 'tasks_per_socket': None,
-      'cpus_per_task': 1, 'threads': 60, 'smt': 1, 'bind': Binding.BIND_NONE}),
+     {'tasks': 60, 'get_tasks': 60, 'nodes': 4, 'get_nodes': 4,
+      'tasks_per_node': None, 'get_tasks_per_node': None, 'tasks_per_socket': None,
+      'cpus_per_task': None, 'get_cpus_per_task': 1,
+      'threads_per_core': None, 'get_threads_per_core': 1,
+      'get_threads': 60, 'bind': None}),
     # Specify number of tasks that is less than total available in required nodes
     ({'sockets_per_node': 2, 'cores_per_socket': 8, 'threads_per_core': 2},
      {'tasks': 60},
-     {'tasks': 60, 'nodes': 4, 'tasks_per_node': None, 'tasks_per_socket': None,
-      'cpus_per_task': 1, 'threads': 60, 'smt': 1, 'bind': Binding.BIND_NONE}),
+     {'tasks': 60, 'get_tasks': 60, 'nodes': None, 'get_nodes': 4,
+      'tasks_per_node': None, 'get_tasks_per_node': None, 'tasks_per_socket': None,
+      'cpus_per_task': None, 'get_cpus_per_task': 1,
+      'threads_per_core': None, 'get_threads_per_core': 1,
+      'get_threads': 60, 'bind': None}),
     # Hybrid MPI+OpenMP
     ({'sockets_per_node': 2, 'cores_per_socket': 8, 'threads_per_core': 2},
      {'tasks': 16, 'cpus_per_task': 4},
-     {'tasks': 16, 'nodes': 4, 'tasks_per_node': None, 'tasks_per_socket': None,
-      'cpus_per_task': 4, 'threads': 64, 'smt': 1, 'bind': Binding.BIND_NONE}),
+     {'tasks': 16, 'get_tasks': 16, 'nodes': None, 'get_nodes': 4,
+      'tasks_per_node': None, 'get_tasks_per_node': None, 'tasks_per_socket': None,
+      'cpus_per_task': 4, 'get_cpus_per_task': 4,
+      'threads_per_core': None, 'get_threads_per_core': 1,
+      'get_threads': 64, 'bind': None}),
     # Hybrid MPI+OpenMP+SMT
     ({'sockets_per_node': 2, 'cores_per_socket': 8, 'threads_per_core': 2},
-     {'tasks': 16, 'cpus_per_task': 8, 'smt': 2},
-     {'tasks': 16, 'nodes': 4, 'tasks_per_node': None, 'tasks_per_socket': None,
-      'cpus_per_task': 8, 'threads': 128, 'smt': 2, 'bind': Binding.BIND_NONE}),
+     {'tasks': 16, 'cpus_per_task': 8, 'threads_per_core': 2},
+     {'tasks': 16, 'get_tasks': 16, 'nodes': None, 'get_nodes': 4,
+      'tasks_per_node': None, 'get_tasks_per_node': None, 'tasks_per_socket': None,
+      'cpus_per_task': 8, 'get_cpus_per_task': 8,
+      'threads_per_core': 2, 'get_threads_per_core': 2,
+      'get_threads': 128, 'bind': None}),
     # Hybrid MPI+OpenMP+SMT undersubscribed
     ({'sockets_per_node': 2, 'cores_per_socket': 8, 'threads_per_core': 2},
-     {'tasks': 14, 'cpus_per_task': 8, 'smt': 2},
-     {'tasks': 14, 'nodes': 4, 'tasks_per_node': None, 'tasks_per_socket': None,
-      'cpus_per_task': 8, 'threads': 112, 'smt': 2, 'bind': Binding.BIND_NONE}),
+     {'tasks': 14, 'cpus_per_task': 8, 'threads_per_core': 2},
+     {'tasks': 14, 'get_tasks': 14, 'nodes': None, 'get_nodes': 4,
+      'tasks_per_node': None, 'get_tasks_per_node': None, 'tasks_per_socket': None,
+      'cpus_per_task': 8, 'get_cpus_per_task': 8,
+      'threads_per_core': 2, 'get_threads_per_core': 2,
+      'get_threads': 112, 'bind': None}),
     # Hybrid MPI+OpenMP+SMT with binding
     ({'sockets_per_node': 2, 'cores_per_socket': 8, 'threads_per_core': 2},
-     {'tasks': 16, 'cpus_per_task': 8, 'smt': 2, 'bind': Binding.BIND_CORES},
-     {'tasks': 16, 'nodes': 4, 'tasks_per_node': None, 'tasks_per_socket': None,
-      'cpus_per_task': 8, 'threads': 128, 'smt': 2, 'bind': Binding.BIND_CORES}),
+     {'tasks': 16, 'cpus_per_task': 8, 'threads_per_core': 2, 'bind': Binding.BIND_CORES},
+     {'tasks': 16, 'get_tasks': 16, 'nodes': None, 'get_nodes': 4,
+      'tasks_per_node': None, 'get_tasks_per_node': None, 'tasks_per_socket': None,
+      'cpus_per_task': 8, 'get_cpus_per_task': 8,
+      'threads_per_core': 2, 'get_threads_per_core': 2,
+      'get_threads': 128, 'bind': Binding.BIND_CORES}),
 ])
 def test_job(cpu_config, jobargs, jobattrs):
     """
@@ -80,6 +113,12 @@ def test_job(cpu_config, jobargs, jobattrs):
     for attr, value in jobattrs.items():
         if value is None:
             with pytest.raises(AttributeError):
-                _ = getattr(job, attr)
+                if attr.startswith('get_'):
+                    _ = getattr(job, attr)()
+                else:
+                    _ = getattr(job, attr)
         else:
-            assert getattr(job, attr) == value
+            if attr.startswith('get_'):
+                assert getattr(job, attr)() == value
+            else:
+                assert getattr(job, attr) == value
