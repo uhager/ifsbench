@@ -2,11 +2,12 @@
 Hardware and job resource description classes
 """
 from abc import ABC
+from enum import Enum, auto
 from .logging import error
 from .util import classproperty
 
 
-__all__ = ['CpuConfiguration', 'Job']
+__all__ = ['CpuConfiguration', 'Binding', 'Job']
 
 
 class CpuConfiguration(ABC):
@@ -56,6 +57,27 @@ class CpuConfiguration(ABC):
         return self.cores_per_node * self.threads_per_core
 
 
+class Binding(Enum):
+    """
+    Description of CPU binding strategy to use, for which the launch
+    command should provide the appropriate options
+    """
+    BIND_NONE = auto()
+    """Disable all binding specification"""
+
+    BIND_SOCKETS = auto()
+    """Bind tasks to sockets"""
+
+    BIND_CORES = auto()
+    """Bind tasks to cores"""
+
+    BIND_THREADS = auto()
+    """Bind tasks to hardware threads"""
+
+    BIND_USER = auto()
+    """Indicate that a different user-specified strategy should be used"""
+
+
 class Job:
     """
     Description of a parallel job's resource requirements
@@ -90,12 +112,14 @@ class Job:
         Launch a specific number of tasks per socket
     cpus_per_task : int, optional
         The number of computing elements (threads) available to each task. Default: 1
-    use_smt : bool, optional
-        Enable symmetric multi-threading (hyperthreading)
+    smt : int, optional
+        Enable symmetric multi-threading (hyperthreading). Default: 1
+    bind : :any:`Binding`, optional
+        Specify the binding strategy to use for pinning. Default: :any:`Binding.BIND_NONE`
     """
 
     def __init__(self, cpu_config, tasks=None, nodes=None, tasks_per_node=None,
-                 tasks_per_socket=None, cpus_per_task=None, use_smt=None):
+                 tasks_per_socket=None, cpus_per_task=None, smt=None, bind=None):
 
         self.cpu_config = cpu_config
         self._tasks = tasks
@@ -103,7 +127,8 @@ class Job:
         self._tasks_per_node = tasks_per_node
         self._tasks_per_socket = tasks_per_socket
         self._cpus_per_task = cpus_per_task or 1
-        self._use_smt = use_smt or False
+        self._smt = smt or 1
+        self._bind = Binding.BIND_NONE if bind is None else bind
 
         try:
             tasks = self.tasks
@@ -140,10 +165,7 @@ class Job:
         """
         if self._nodes is not None:
             return self._nodes
-        if self.use_smt:
-            threads_per_node = self.cpu_config.threads_per_node
-        else:
-            threads_per_node = self.cpu_config.cores_per_node
+        threads_per_node = self.cpu_config.cores_per_node * self.smt
         return (self.threads + threads_per_node - 1) // threads_per_node
 
     @property
@@ -172,11 +194,18 @@ class Job:
         return self._cpus_per_task
 
     @property
-    def use_smt(self):
+    def smt(self):
         """
-        Flag to indicate symmetric multi-threading use
+        Symmetric multi-threading, i.e. logical tasks per physical core
         """
-        return self._use_smt
+        return self._smt
+
+    @property
+    def bind(self):
+        """
+        The binding strategy to use
+        """
+        return self._bind
 
     @property
     def threads(self):
