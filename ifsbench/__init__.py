@@ -17,6 +17,7 @@ from .darshanreport import * # noqa
 from .drhook import * # noqa
 from .files import * # noqa
 from .ifs import * # noqa
+from .job import * # noqa
 from .logging import * # noqa
 from .namelist import * # noqa
 from .nodefile import * # noqa
