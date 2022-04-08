@@ -1,6 +1,10 @@
+"""
+Implementation of launch commands for various MPI launchers
+"""
 from abc import ABC, abstractmethod
 
-from .job import Binding
+from .job import CpuBinding, CpuDistribution
+from .logging import debug, warning
 from .util import as_tuple
 
 
@@ -19,7 +23,7 @@ class Launcher(ABC):
 
     bind_options_map: dict
     """
-    A mapping of :any:`Binding` values to launch cmd options
+    A mapping of :any:`CpuBinding` values to launch cmd options
 
     See :meth:`get_options_from_binding` for how this is used to build
     launch command options.
@@ -66,13 +70,13 @@ class Launcher(ABC):
 
         This uses the :attr:`bind_options_map` to map the specified binding strategy
         to the relevant launch command option. The format of :attr:`bind_options_map`
-        should be a `dict` with the binding values declared in the enum :any:`Binding` as
+        should be a `dict` with the binding values declared in the enum :any:`CpuBinding` as
         keys and (a list of) launch-command option strings as values, e.g.,
-        ``{Binding.BIND_CORES: '--cpu-bind=cores'}``.
+        ``{CpuBinding.BIND_CORES: '--cpu-bind=cores'}``.
 
         Parameters
         ----------
-        bind : :any:`Binding`
+        bind : :any:`CpuBinding`
 
         Returns
         -------
@@ -83,7 +87,7 @@ class Launcher(ABC):
 
     @classmethod
     @abstractmethod
-    def get_launch_cmd(cls, job):
+    def get_launch_cmd(cls, job, user_options=None):
         """
         Return the launch command for a provided :data:`job` specification
 
@@ -93,6 +97,9 @@ class Launcher(ABC):
         ----------
         job : :any:`Job`
             The specification of hardware resources to use
+        user_options : list
+            Any user-provided options that should be appended to the option
+            list of the launch command
         """
 
 
@@ -111,22 +118,51 @@ class SrunLauncher(Launcher):
     }
 
     bind_options_map = {
-        Binding.BIND_NONE: ['--cpu-bind=none'],
-        Binding.BIND_SOCKETS: ['--cpu-bind=sockets'],
-        Binding.BIND_CORES: ['--cpu-bind=cores'],
-        Binding.BIND_THREADS: ['--cpu-bind=threads'],
-        Binding.BIND_USER: [],
+        CpuBinding.BIND_NONE: ['--cpu-bind=none'],
+        CpuBinding.BIND_SOCKETS: ['--cpu-bind=sockets'],
+        CpuBinding.BIND_CORES: ['--cpu-bind=cores'],
+        CpuBinding.BIND_THREADS: ['--cpu-bind=threads'],
+        CpuBinding.BIND_USER: [],
+    }
+
+    distribution_options_map = {
+        CpuDistribution.DISTRIBUTE_DEFAULT: '*',
+        CpuDistribution.DISTRIBUTE_BLOCK: 'block',
+        CpuDistribution.DISTRIBUTE_CYCLIC: 'cyclic',
     }
 
     @classmethod
-    def get_launch_cmd(cls, job):
+    def get_distribution_options(cls, job):
+        """Return options for task distribution"""
+        if not(hasattr(job, 'distribute_remote') or hasattr(job, 'distribute_local')):
+            return []
+
+        distribute_remote = getattr(job, 'distribute_remote', CpuDistribution.DISTRIBUTE_DEFAULT)
+        distribute_local = getattr(job, 'distribute_local', CpuDistribution.DISTRIBUTE_DEFAULT)
+
+        if distribute_remote is CpuDistribution.DISTRIBUTE_USER:
+            debug(('Not applying task distribution options because remote distribution'
+                   ' of tasks is set to use user-provided settings'))
+            return []
+        if distribute_local is CpuDistribution.DISTRIBUTE_USER:
+            debug(('Not applying task distribution options because local distribution'
+                   ' of tasks is set to use user-provided settings'))
+            return []
+
+        return [(f'--distribution={cls.distribution_options_map[distribute_remote]}'
+                 f':{cls.distribution_options_map[distribute_local]}')]
+
+    @classmethod
+    def get_launch_cmd(cls, job, user_options=None):
         """
         Return the srun command for the provided :data:`job` specification
         """
-        cmd = ['srun']
+        cmd = ['srun'] + cls.get_options_from_job(job)
         if hasattr(job, 'bind'):
             cmd += cls.get_options_from_binding(job.bind)
-        cmd += cls.get_options_from_job(job)
+        cmd += cls.get_distribution_options(job)
+        if user_options is not None:
+            cmd += list(as_tuple(user_options))
         return cmd
 
 
@@ -144,26 +180,41 @@ class AprunLauncher(Launcher):
     }
 
     bind_options_map = {
-        Binding.BIND_NONE: ['-cc none'],
-        Binding.BIND_SOCKETS: ['-cc numa_node'],
-        Binding.BIND_CORES: ['-cc depth'],
-        Binding.BIND_THREADS: ['-cc depth'],
-        Binding.BIND_USER: [],
+        CpuBinding.BIND_NONE: ['-cc none'],
+        CpuBinding.BIND_SOCKETS: ['-cc numa_node'],
+        CpuBinding.BIND_CORES: ['-cc depth'],
+        CpuBinding.BIND_THREADS: ['-cc depth'],
+        CpuBinding.BIND_USER: [],
     }
 
     @classmethod
-    def get_launch_cmd(cls, job):
+    def get_distribution_options(cls, job):
+        """Return options for task distribution"""
+        do_nothing = [CpuDistribution.DISTRIBUTE_DEFAULT, CpuDistribution.DISTRIBUTE_USER]
+        if hasattr(job, 'distribute_remote') and job.distribute_remote not in do_nothing:
+            warning('Specified remote distribution option ignored in AprunLauncher')
+        if hasattr(job, 'distribute_local') and job.distribute_local not in do_nothing:
+            warning('Specified local distribution option ignored in AprunLauncher')
+
+        return []
+
+    @classmethod
+    def get_launch_cmd(cls, job, user_options=None):
         """
         Return the aprun command for the provided :data:`job` specification
         """
         cmd = ['aprun']
-        if hasattr(job, 'bind'):
-            cmd += cls.get_options_from_binding(job.bind)
-        cmd += cls.get_options_from_job(job)
-        # Aprun has no option to specify relative to nodes, thus we have to
-        # derive the number of tasks if they have not been specified explicitly
+        # Aprun has no option to specify node counts and tasks relative to
+        # nodes, thus we derive the number of total tasks if
+        # it has not been specified explicitly
         if not hasattr(job, 'tasks'):
             cmd += [f'-n {job.get_tasks()}']
+        cmd += cls.get_options_from_job(job)
+        if hasattr(job, 'bind'):
+            cmd += cls.get_options_from_binding(job.bind)
+        cmd += cls.get_distribution_options(job)
+        if user_options is not None:
+            cmd += list(as_tuple(user_options))
         return cmd
 
 
@@ -177,28 +228,48 @@ class MpirunLauncher(Launcher):
         'tasks_per_node': '-npernode {}',
         'tasks_per_socket': '-npersocket {}',
         'cpus_per_task': '-cpus-per-proc {}',
-        'threads_per_core': '--map-by core:PE={}'
     }
 
     bind_options_map = {
-        Binding.BIND_NONE: ['--bind-to none'],
-        Binding.BIND_SOCKETS: ['--bind-to socket'],
-        Binding.BIND_CORES: ['--bind-to core'],
-        Binding.BIND_THREADS: ['--bind-to thread'],
-        Binding.BIND_USER: [],
+        CpuBinding.BIND_NONE: ['--bind-to none'],
+        CpuBinding.BIND_SOCKETS: ['--bind-to socket'],
+        CpuBinding.BIND_CORES: ['--bind-to core'],
+        CpuBinding.BIND_THREADS: ['--bind-to hwthread'],
+        CpuBinding.BIND_USER: [],
+    }
+
+    distribution_options_map = {
+        CpuDistribution.DISTRIBUTE_BLOCK: 'core',
+        CpuDistribution.DISTRIBUTE_CYCLIC: 'numa',
     }
 
     @classmethod
-    def get_launch_cmd(cls, job):
+    def get_distribution_options(cls, job):
+        """Return options for task distribution"""
+        do_nothing = [CpuDistribution.DISTRIBUTE_DEFAULT, CpuDistribution.DISTRIBUTE_USER]
+        if hasattr(job, 'distribute_remote') and job.distribute_remote not in do_nothing:
+            warning('Specified remote distribution option ignored in MpirunLauncher')
+
+        if not hasattr(job, 'distribute_local') or job.distribute_local in do_nothing:
+            return []
+
+        return [f'--map-by {cls.distribution_options_map[job.distribute_local]}']
+
+    @classmethod
+    def get_launch_cmd(cls, job, user_options=None):
         """
         Return the mpirun command for the provided :data:`job` specification
         """
         cmd = ['mpirun']
-        if hasattr(job, 'bind'):
-            cmd += cls.get_options_from_binding(job.bind)
-        cmd += cls.get_options_from_job(job)
-        # Mpirun has no option to specify relative to nodes, thus we have to
-        # derive the number of tasks if they have not been specified explicitly
+        # Mpirun has no option to specify tasks relative to nodes without also
+        # modifying the mapping, thus we derive the number of total tasks if
+        # it has not been specified explicitly
         if not hasattr(job, 'tasks'):
             cmd += [f'-np {job.get_tasks()}']
+        cmd += cls.get_options_from_job(job)
+        if hasattr(job, 'bind'):
+            cmd += cls.get_options_from_binding(job.bind)
+        cmd += cls.get_distribution_options(job)
+        if user_options is not None:
+            cmd += list(as_tuple(user_options))
         return cmd

@@ -5,7 +5,7 @@ Test various implementations of :any:`Launcher`
 import pytest
 
 from ifsbench import (
-    CpuConfiguration, Binding, Job,
+    CpuConfiguration, CpuBinding, CpuDistribution, Job,
     SrunLauncher, AprunLauncher, MpirunLauncher
 )
 
@@ -31,18 +31,18 @@ def fixture_cpu_config():
 ])
 def test_mpi_job(cpu_config, launcher, cmd):
     """An MPI-only :any:`Job` specification"""
-    job = Job(cpu_config, tasks=185, bind=Binding.BIND_NONE)
+    job = Job(cpu_config, tasks=185, bind=CpuBinding.BIND_NONE)
     assert set(launcher.get_launch_cmd(job)) == cmd
 
 
 @pytest.mark.parametrize('launcher,cmd', [
     (SrunLauncher, {'srun', '--ntasks=185', '--ntasks-per-core=2', '--cpu-bind=threads'}),
     (AprunLauncher, {'aprun', '-n 185', '-j 2', '-cc depth'}),
-    (MpirunLauncher, {'mpirun', '-np 185', '--map-by core:PE=2', '--bind-to thread'})
+    (MpirunLauncher, {'mpirun', '-np 185', '--bind-to hwthread'})
 ])
 def test_mpi_smt_job(cpu_config, launcher, cmd):
     """An MPI-only :any:`Job` specification with hyperthreading"""
-    job = Job(cpu_config, tasks=185, threads_per_core=2, bind=Binding.BIND_THREADS)
+    job = Job(cpu_config, tasks=185, threads_per_core=2, bind=CpuBinding.BIND_THREADS)
     assert set(launcher.get_launch_cmd(job)) == cmd
 
 
@@ -53,7 +53,7 @@ def test_mpi_smt_job(cpu_config, launcher, cmd):
 ])
 def test_mpi_per_node_job(cpu_config, launcher, cmd):
     """An MPI-only :any:`Job` specification with resources specified per node"""
-    job = Job(cpu_config, nodes=7, tasks_per_node=3, bind=Binding.BIND_SOCKETS)
+    job = Job(cpu_config, nodes=7, tasks_per_node=3, bind=CpuBinding.BIND_SOCKETS)
     assert set(launcher.get_launch_cmd(job)) == cmd
 
 
@@ -64,7 +64,7 @@ def test_mpi_per_node_job(cpu_config, launcher, cmd):
 ])
 def test_mpi_per_socket_job(cpu_config, launcher, cmd):
     """An MPI-only :any:`Job` specification with resources specified per socket"""
-    job = Job(cpu_config, nodes=7, tasks_per_socket=30, bind=Binding.BIND_CORES)
+    job = Job(cpu_config, nodes=7, tasks_per_socket=30, bind=CpuBinding.BIND_CORES)
     assert set(launcher.get_launch_cmd(job)) == cmd
 
 
@@ -77,3 +77,67 @@ def test_hybrid_per_socket_job(cpu_config, launcher, cmd):
     """A hybrid :any:`Job` specification with resources specified per socket"""
     job = Job(cpu_config, nodes=2, tasks_per_socket=10, cpus_per_task=3)
     assert set(launcher.get_launch_cmd(job)) == cmd
+
+
+@pytest.mark.parametrize('launcher,cmd', [
+    (SrunLauncher, {'srun', '--ntasks=185', '--distribution=block:*'}),
+    (AprunLauncher, {'aprun', '-n 185'}),
+    (MpirunLauncher, {'mpirun', '-np 185'})
+])
+def test_mpi_distribute_remote_block_job(cpu_config, launcher, cmd):
+    """An MPI-only :any:`Job` specification with the distribution of ranks
+    across nodes prescribed
+    """
+    job = Job(cpu_config, tasks=185, distribute_remote=CpuDistribution.DISTRIBUTE_BLOCK)
+    assert set(launcher.get_launch_cmd(job)) == cmd
+
+
+@pytest.mark.parametrize('launcher,cmd', [
+    (SrunLauncher, {'srun', '--ntasks=185', '--distribution=*:cyclic'}),
+    (AprunLauncher, {'aprun', '-n 185'}),
+    (MpirunLauncher, {'mpirun', '-np 185', '--map-by numa'})
+])
+def test_mpi_distribute_local_cyclic_job(cpu_config, launcher, cmd):
+    """An MPI-only :any:`Job` specification with the distribution of ranks
+    across sockets prescribed
+    """
+    job = Job(cpu_config, tasks=185, distribute_local=CpuDistribution.DISTRIBUTE_CYCLIC)
+    assert set(launcher.get_launch_cmd(job)) == cmd
+
+
+@pytest.mark.parametrize('launcher,cmd', [
+    (SrunLauncher, {'srun', '--ntasks=185', '--distribution=block:block'}),
+    (AprunLauncher, {'aprun', '-n 185'}),
+    (MpirunLauncher, {'mpirun', '-np 185', '--map-by core'})
+])
+def test_mpi_distribute_block_job(cpu_config, launcher, cmd):
+    """An MPI-only :any:`Job` specification with the distribution of ranks
+    fully prescribed
+    """
+    job = Job(cpu_config, tasks=185, distribute_remote=CpuDistribution.DISTRIBUTE_BLOCK,
+              distribute_local=CpuDistribution.DISTRIBUTE_BLOCK)
+    assert set(launcher.get_launch_cmd(job)) == cmd
+
+
+@pytest.mark.parametrize('launcher,cmd', [
+    (SrunLauncher, {'srun', '--ntasks=185', '--my-option'}),
+    (AprunLauncher, {'aprun', '-n 185', '--my-option'}),
+    (MpirunLauncher, {'mpirun', '-np 185', '--my-option'})
+])
+def test_mpi_custom_option(cpu_config, launcher, cmd):
+    """An MPI-only :any:`Job` specification with custom option handed through
+    """
+    job = Job(cpu_config, tasks=185)
+    assert set(launcher.get_launch_cmd(job, user_options='--my-option')) == cmd
+
+
+@pytest.mark.parametrize('launcher,cmd', [
+    (SrunLauncher, {'srun', '--ntasks=185', '--my-option', '--full-custom'}),
+    (AprunLauncher, {'aprun', '-n 185', '--my-option', '--full-custom'}),
+    (MpirunLauncher, {'mpirun', '-np 185', '--my-option', '--full-custom'})
+])
+def test_mpi_custom_options(cpu_config, launcher, cmd):
+    """An MPI-only :any:`Job` specification with custom options handed through
+    """
+    job = Job(cpu_config, tasks=185)
+    assert set(launcher.get_launch_cmd(job, user_options=['--my-option', '--full-custom'])) == cmd

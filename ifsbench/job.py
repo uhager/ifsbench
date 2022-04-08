@@ -7,7 +7,7 @@ from .logging import error
 from .util import classproperty
 
 
-__all__ = ['CpuConfiguration', 'Binding', 'Job']
+__all__ = ['CpuConfiguration', 'CpuBinding', 'CpuDistribution', 'Job']
 
 
 class CpuConfiguration(ABC):
@@ -57,7 +57,7 @@ class CpuConfiguration(ABC):
         return self.cores_per_node * self.threads_per_core
 
 
-class Binding(Enum):
+class CpuBinding(Enum):
     """
     Description of CPU binding strategy to use, for which the launch
     command should provide the appropriate options
@@ -75,6 +75,24 @@ class Binding(Enum):
     """Bind tasks to hardware threads"""
 
     BIND_USER = auto()
+    """Indicate that a different user-specified strategy should be used"""
+
+
+class CpuDistribution(Enum):
+    """
+    Description of CPU distribution strategy to use, for which the launch
+    command should provide the appropriate options
+    """
+    DISTRIBUTE_DEFAULT = auto()
+    """Use the default distribution strategy"""
+
+    DISTRIBUTE_BLOCK = auto()
+    """Allocate ranks/threads consecutively"""
+
+    DISTRIBUTE_CYCLIC = auto()
+    """Allocate ranks/threads in a round-robin fashion"""
+
+    DISTRIBUTE_USER = auto()
     """Indicate that a different user-specified strategy should be used"""
 
 
@@ -126,12 +144,17 @@ class Job:
         The number of computing elements (threads) available to each task for hybrid jobs.
     threads_per_core : int, optional
         Enable symmetric multi-threading (hyperthreading).
-    bind : :any:`Binding`, optional
+    bind : :any:`CpuBinding`, optional
         Specify the binding strategy to use for pinning.
+    distribute_remote : :any:`CpuDistribution`, optional
+        Specify the distribution strategy to use for task distribution across nodes
+    distribute_local : :any:`CpuDistribution`, optional
+        Specify the distribution strategy to use for task distribution across sockets within a node
     """
 
     def __init__(self, cpu_config, tasks=None, nodes=None, tasks_per_node=None,
-                 tasks_per_socket=None, cpus_per_task=None, threads_per_core=None, bind=None):
+                 tasks_per_socket=None, cpus_per_task=None, threads_per_core=None,
+                 bind=None, distribute_remote=None, distribute_local=None):
 
         self.cpu_config = cpu_config
 
@@ -149,6 +172,10 @@ class Job:
             self.threads_per_core = threads_per_core
         if bind is not None:
             self.bind = bind
+        if distribute_remote is not None:
+            self.distribute_remote = distribute_remote
+        if distribute_local is not None:
+            self.distribute_local = distribute_local
 
         try:
             tasks = self.get_tasks()
