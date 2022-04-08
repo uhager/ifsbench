@@ -157,6 +157,10 @@ class SrunLauncher(Launcher):
         """
         Return the srun command for the provided :data:`job` specification
         """
+        if job.get_tasks() <= 1:
+            # Single-task runs don't need a launcher
+            return []
+
         cmd = ['srun'] + cls.get_options_from_job(job)
         if hasattr(job, 'bind'):
             cmd += cls.get_options_from_binding(job.bind)
@@ -182,7 +186,7 @@ class AprunLauncher(Launcher):
     bind_options_map = {
         CpuBinding.BIND_NONE: ['-cc none'],
         CpuBinding.BIND_SOCKETS: ['-cc numa_node'],
-        CpuBinding.BIND_CORES: ['-cc depth'],
+        CpuBinding.BIND_CORES: ['-cc cpu'],
         CpuBinding.BIND_THREADS: ['-cc depth'],
         CpuBinding.BIND_USER: [],
     }
@@ -203,6 +207,10 @@ class AprunLauncher(Launcher):
         """
         Return the aprun command for the provided :data:`job` specification
         """
+        if job.get_tasks() <= 1:
+            # Single-task runs don't need a launcher
+            return []
+
         cmd = ['aprun']
         # Aprun has no option to specify node counts and tasks relative to
         # nodes, thus we derive the number of total tasks if
@@ -260,6 +268,10 @@ class MpirunLauncher(Launcher):
         """
         Return the mpirun command for the provided :data:`job` specification
         """
+        if job.get_tasks() <= 1:
+            # Single-task runs don't need a launcher
+            return []
+
         cmd = ['mpirun']
         # Mpirun has no option to specify tasks relative to nodes without also
         # modifying the mapping, thus we derive the number of total tasks if

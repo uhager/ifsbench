@@ -59,7 +59,7 @@ def test_mpi_per_node_job(cpu_config, launcher, cmd):
 
 @pytest.mark.parametrize('launcher,cmd', [
     (SrunLauncher, {'srun', '--nodes=7', '--ntasks-per-socket=30', '--cpu-bind=cores'}),
-    (AprunLauncher, {'aprun', '-n 630', '-S 30', '-cc depth'}),
+    (AprunLauncher, {'aprun', '-n 630', '-S 30', '-cc cpu'}),
     (MpirunLauncher, {'mpirun', '-np 630', '-npersocket 30', '--bind-to core'})
 ])
 def test_mpi_per_socket_job(cpu_config, launcher, cmd):
@@ -125,8 +125,7 @@ def test_mpi_distribute_block_job(cpu_config, launcher, cmd):
     (MpirunLauncher, {'mpirun', '-np 185', '--my-option'})
 ])
 def test_mpi_custom_option(cpu_config, launcher, cmd):
-    """An MPI-only :any:`Job` specification with custom option handed through
-    """
+    """An MPI-only :any:`Job` specification with custom option handed through"""
     job = Job(cpu_config, tasks=185)
     assert set(launcher.get_launch_cmd(job, user_options='--my-option')) == cmd
 
@@ -137,7 +136,17 @@ def test_mpi_custom_option(cpu_config, launcher, cmd):
     (MpirunLauncher, {'mpirun', '-np 185', '--my-option', '--full-custom'})
 ])
 def test_mpi_custom_options(cpu_config, launcher, cmd):
-    """An MPI-only :any:`Job` specification with custom options handed through
-    """
+    """An MPI-only :any:`Job` specification with custom options handed through"""
     job = Job(cpu_config, tasks=185)
     assert set(launcher.get_launch_cmd(job, user_options=['--my-option', '--full-custom'])) == cmd
+
+
+@pytest.mark.parametrize('launcher,cmd', [
+    (SrunLauncher, set()),
+    (AprunLauncher, set()),
+    (MpirunLauncher, set())
+])
+def test_mpi_custom_options(cpu_config, launcher, cmd):
+    """A non-parallel :any:`Job` specification"""
+    job = Job(cpu_config, tasks=1)
+    assert set(launcher.get_launch_cmd(job)) == cmd

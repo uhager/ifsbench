@@ -130,7 +130,7 @@ class Job:
     Parameters
     ----------
     cpu_config : :any:`CpuConfiguration`
-        The description of the available CPUs in the target system
+        The description of the available CPUs in the target system.
     tasks : int, optional
         The total number of MPI tasks to be used.
     nodes : int, optional
@@ -156,6 +156,7 @@ class Job:
                  tasks_per_socket=None, cpus_per_task=None, threads_per_core=None,
                  bind=None, distribute_remote=None, distribute_local=None):
 
+        assert isinstance(cpu_config, CpuConfiguration)
         self.cpu_config = cpu_config
 
         if tasks is not None:
