@@ -229,7 +229,7 @@ class IFS(ABC):
 
         # Run it
         cmd = ['%s' % self.executable]
-        arch.run(cmd=cmd, nproc=nproc, nthread=nthread, hyperthread=hyperthread, env=env, **kwargs)
+        arch.run(cmd=cmd, tasks=nproc, cpus_per_task=nthread, threads_per_core=hyperthread, env=env, **kwargs)
 
 
 class IFS_CY46R1(IFS):

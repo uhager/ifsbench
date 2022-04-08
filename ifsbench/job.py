@@ -156,7 +156,7 @@ class Job:
                  tasks_per_socket=None, cpus_per_task=None, threads_per_core=None,
                  bind=None, distribute_remote=None, distribute_local=None):
 
-        assert isinstance(cpu_config, CpuConfiguration)
+        assert issubclass(cpu_config, CpuConfiguration)
         self.cpu_config = cpu_config
 
         if tasks is not None:
