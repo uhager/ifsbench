@@ -111,3 +111,12 @@ def test_ifs_setup_nml(here, cycle):
     groups = tuple(nml.nml.groups())
     default_params += ((('namrip', 'cstop'), 'd10'),)
     assert all(param in groups for param in default_params)
+
+
+@pytest.mark.parametrize('cycle', [None, 'cy1', 'foobar', 'cy100'])
+def test_ifs_setup_invalid(cycle):
+    """Verify that an invalid cycle key will use the default value"""
+
+    assert cycle not in ifs.cycle_registry
+    obj = ifs.IFS.create_cycle(cycle, builddir='builddir')
+    assert isinstance(obj, ifs.cycle_registry['default'])

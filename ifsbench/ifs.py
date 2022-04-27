@@ -4,6 +4,7 @@ from os import getenv
 
 from .arch import arch_registry, Arch
 from .drhook import DrHook
+from .logging import warning
 from .namelist import IFSNamelist
 
 # Note: all IFS subclasses registered in cycle_registry are also exported
@@ -51,7 +52,8 @@ class IFS(ABC):
         **kwargs :
             Keyword arguments to provide to the cycle constructor
         """
-        if cycle is None:
+        if cycle is None or cycle.lower() not in cycle_registry:
+            warning(f'Cycle "{cycle}" not found, using the default ({cycle_registry["default"].cycle})')
             cycle = 'default'
         return cycle_registry[cycle.lower()](*args, **kwargs)
 
@@ -284,6 +286,10 @@ class IFS_CY47R1(IFS):
 
 class IFS_CY47R2(IFS_CY47R1):
     cycle = 'cy47r2'
+
+
+class IFS_CY48(IFS_CY47R1):
+    cycle = 'cy48'
 
 
 cycle_registry = {
