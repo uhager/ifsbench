@@ -177,7 +177,8 @@ class IFS(ABC):
         # Insert the number of MPI ranks into the config file
         assert isinstance(nproc, int) and isinstance(nproc_io, int)
         nml['NAMPAR0']['NPROC'] = nproc - nproc_io
-        nml['NAMIO_SERV']['NPROC_IO'] = nproc_io
+        if 'NAMIO_SERV' in nml:
+            nml['NAMIO_SERV']['NPROC_IO'] = nproc_io
 
         # Modify forecast length
         fclen = kwargs.pop('fclen', None)
@@ -267,11 +268,11 @@ class IFS_CY47R1(IFS):
         elif prec in ('single', 'sp'):
             self.prec = 'sp'
         else:
-            raise ValueError('Invalid precision: {}'.format(prec))
+            raise ValueError(f'Invalid precision: {prec}')
 
     @property
     def exec_name(self):
-        return 'ifsMASTER.{}'.format(self.prec.upper())
+        return f'ifsMASTER.{self.prec.upper()}'
 
     @property
     def ld_library_paths(self):
