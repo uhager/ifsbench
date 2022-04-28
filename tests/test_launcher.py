@@ -146,7 +146,7 @@ def test_mpi_custom_options(cpu_config, launcher, cmd):
     (AprunLauncher, set()),
     (MpirunLauncher, set())
 ])
-def test_mpi_custom_options(cpu_config, launcher, cmd):
+def test_mpi_non_parallel(cpu_config, launcher, cmd):
     """A non-parallel :any:`Job` specification"""
     job = Job(cpu_config, tasks=1)
     assert set(launcher.get_launch_cmd(job)) == cmd

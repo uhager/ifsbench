@@ -299,6 +299,7 @@ cycle_registry = {
     'cy46r1': IFS_CY46R1,
     'cy47r1': IFS_CY47R1,
     'cy47r2': IFS_CY47R2,
+    'cy48': IFS_CY48,
 }
 """Registry of available IFS cycles and the corresponding classes"""
 
