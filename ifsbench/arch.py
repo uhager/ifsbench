@@ -82,12 +82,11 @@ class Arch(ABC):
     def run_job(cls, cmd, job, launch_cmd=None, launch_user_options=None,
                 logfile=None, env=None, **kwargs):
         """
-        Arch-specific general purpose executable execution for job specification
+        Arch-specific general purpose executable execution for :any:`Job` specification
 
         This method can be used by the architecture-specific implementations.
 
-        It sets up the OpenMP environment and launches :data:`cmd` using the
-        resource requirements specified in :data:`job`.
+        It launches :data:`cmd` using the resource requirements specified in :data:`job`.
 
         The architecture-specific :attr:`launcher` is used to generate the
         required launch command for that. The user can override this behaviour
