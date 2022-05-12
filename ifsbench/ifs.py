@@ -259,7 +259,6 @@ class IFS_CY47R1(IFS):
     cycle = 'cy47r1'
 
     def __init__(self, *args, prec='dp', **kwargs):
-        self.cycle = 'cy47r2'
         super().__init__(*args, **kwargs)
 
         prec = prec.lower()
