@@ -13,7 +13,7 @@ from pprint import pformat
 from ifsbench.logging import debug, info, warning, error
 
 
-__all__ = ['gettempdir', 'execute', 'symlink_data', 'copy_data', 'Timer']
+__all__ = ['gettempdir', 'execute', 'symlink_data', 'copy_data', 'Timer', 'classproperty']
 
 
 def gettempdir():
@@ -88,9 +88,9 @@ def execute(command, **kwargs):
                     run(command, check=True, cwd=cwd, env=run_env,
                         stdout=logfile, stderr=stderr, **kwargs)
 
-    except CalledProcessError as e:
-        error('Execution failed with return code: %s' % e.returncode)
-        raise e
+    except CalledProcessError as excinfo:
+        error(f'Execution failed with return code: {excinfo.returncode}')
+        raise excinfo
 
 
 def symlink_data(source, dest, force=True):
@@ -102,7 +102,7 @@ def symlink_data(source, dest, force=True):
     :param force: Force delete and re-link for existing symlinks
     """
     if not source.exists():
-        warning('Trying to link non-existent file: %s' % source)
+        warning(f'Trying to link non-existent file: {source}')
 
     if not dest.parent.exists():
         dest.parent.mkdir(parents=True)
@@ -111,10 +111,10 @@ def symlink_data(source, dest, force=True):
         if not dest.resolve() == source and force:
             # Delete and re-link of path points somewhere else
             dest.unlink()
-            debug('Symlinking %s -> %s' % (source, dest))
+            debug(f'Symlinking {source} -> {dest}')
             dest.symlink_to(source)
     else:
-        debug('Symlinking %s -> %s' % (source, dest))
+        debug(f'Symlinking {source} -> {dest}')
         dest.symlink_to(source)
 
 
@@ -131,7 +131,7 @@ def copy_data(source, dest, force=False):
     :param force: Force delete and copy for existing symlinks
     """
     if not source.exists():
-        raise RuntimeError('Trying to copy non-existent file: %s' % source)
+        raise RuntimeError(f'Trying to copy non-existent file: {source}')
 
     if not dest.parent.exists():
         dest.parent.mkdir(parents=True)
@@ -140,10 +140,10 @@ def copy_data(source, dest, force=False):
         if force or source.stat().st_mtime > dest.stat().st_mtime:
             # Delete and re-link if `dest` points somewhere else
             dest.unlink()
-            debug('Copying %s -> %s' % (source, dest))
+            debug(f'Copying {source} -> {dest}')
             shutil.copyfile(source, dest)
     else:
-        debug('Copying %s -> %s' % (source, dest))
+        debug(f'Copying {source} -> {dest}')
         shutil.copyfile(source, dest)
 
 
@@ -156,7 +156,7 @@ def Timer(name=None):
     yield
     end_time = timeit.default_timer()
     time = end_time - start_time
-    print('Timer::%s: %.3f s' % (name, time))
+    print(f'Timer::{name}: {time:.3f} s')
 
 
 def as_tuple(item, type=None, length=None):
@@ -212,3 +212,15 @@ def flatten(l):
         else:
             newlist.append(el)
     return newlist
+
+
+class classproperty:
+    """
+    Decorator to make classmethods available as class properties
+    """
+
+    def __init__(self, method):
+        self._method = method
+
+    def __get__(self, instance, owner):  # pylint:disable=unused-argument
+        return self._method(owner)

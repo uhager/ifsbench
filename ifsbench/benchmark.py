@@ -86,14 +86,14 @@ class Benchmark(ABC):
         for path in input_files:
             path = Path(path)
             dest = Path(rundir) / path
-            candidates = flatten([list(Path(s).glob('**/%s' % path.name)) for s in srcdir])
+            candidates = flatten([list(Path(s).glob(f'**/{path.name}')) for s in srcdir])
             if len(candidates) == 0:
-                warning('Input file %s not found in %s' % (path.name, srcdir))
+                warning(f'Input file {path.name} not found in {srcdir}')
                 continue
             if len(candidates) == 1:
                 source = candidates[0]
             else:
-                warning('More than one input file %s found in %s' % (path.name, srcdir))
+                warning(f'More than one input file {path.name} found in {srcdir}')
                 source = candidates[0]
 
             if copy:
@@ -108,14 +108,14 @@ class Benchmark(ABC):
         """
         Create instance of ``Benchmark`` object from given tarball
         """
-        pass
+        raise NotImplementedError
 
     def to_tarball(self, filepath):
         """
         Dump input files and configuration to a tarball for off-line
         benchmarking.
         """
-        pass
+        raise NotImplementedError
 
     def check_input(self):
         """
@@ -124,7 +124,7 @@ class Benchmark(ABC):
         for path in self.input_files:
             filepath = self.rundir / path
             if not filepath.exists():
-                raise RuntimeError('Required input file %s not found!' % filepath)
+                raise RuntimeError(f'Required input file "{filepath}" not found!')
 
     def run(self, **kwargs):
         """
@@ -132,8 +132,8 @@ class Benchmark(ABC):
         """
         if 'rundir' in kwargs:
             if kwargs['rundir'] != self.rundir:
-                error('Stored run directory: %s' % self.rundir)
-                error('Given run directory:  %s' % kwargs['rundir'])
+                error(f'Stored run directory: {self.rundir}')
+                error(f'Given run directory:  {kwargs["rundir"]}')
                 raise RuntimeError('Conflicting run directories provided!')
         else:
             kwargs['rundir'] = self.rundir
@@ -142,7 +142,7 @@ class Benchmark(ABC):
             self.ifs.run(**kwargs)
 
         except CalledProcessError:
-            error('Benchmark run failed: %s' % kwargs)
+            error(f'Benchmark run failed: {" ".join(kwargs)}')
             sys.exit(-1)
 
         # Provide DrHook output path only if DrHook is active

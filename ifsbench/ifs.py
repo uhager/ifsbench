@@ -4,6 +4,7 @@ from os import getenv
 
 from .arch import arch_registry, Arch
 from .drhook import DrHook
+from .logging import warning
 from .namelist import IFSNamelist
 
 # Note: all IFS subclasses registered in cycle_registry are also exported
@@ -51,7 +52,8 @@ class IFS(ABC):
         **kwargs :
             Keyword arguments to provide to the cycle constructor
         """
-        if cycle is None:
+        if cycle is None or cycle.lower() not in cycle_registry:
+            warning(f'Cycle "{cycle}" not found, using the default ({cycle_registry["default"].cycle})')
             cycle = 'default'
         return cycle_registry[cycle.lower()](*args, **kwargs)
 
@@ -175,7 +177,8 @@ class IFS(ABC):
         # Insert the number of MPI ranks into the config file
         assert isinstance(nproc, int) and isinstance(nproc_io, int)
         nml['NAMPAR0']['NPROC'] = nproc - nproc_io
-        nml['NAMIO_SERV']['NPROC_IO'] = nproc_io
+        if 'NAMIO_SERV' in nml:
+            nml['NAMIO_SERV']['NPROC_IO'] = nproc_io
 
         # Modify forecast length
         fclen = kwargs.pop('fclen', None)
@@ -229,7 +232,7 @@ class IFS(ABC):
 
         # Run it
         cmd = ['%s' % self.executable]
-        arch.run(cmd=cmd, nproc=nproc, nthread=nthread, hyperthread=hyperthread, env=env, **kwargs)
+        arch.run(cmd=cmd, tasks=nproc, cpus_per_task=nthread, threads_per_core=hyperthread, env=env, **kwargs)
 
 
 class IFS_CY46R1(IFS):
@@ -256,7 +259,6 @@ class IFS_CY47R1(IFS):
     cycle = 'cy47r1'
 
     def __init__(self, *args, prec='dp', **kwargs):
-        self.cycle = 'cy47r2'
         super().__init__(*args, **kwargs)
 
         prec = prec.lower()
@@ -265,11 +267,11 @@ class IFS_CY47R1(IFS):
         elif prec in ('single', 'sp'):
             self.prec = 'sp'
         else:
-            raise ValueError('Invalid precision: {}'.format(prec))
+            raise ValueError(f'Invalid precision: {prec}')
 
     @property
     def exec_name(self):
-        return 'ifsMASTER.{}'.format(self.prec.upper())
+        return f'ifsMASTER.{self.prec.upper()}'
 
     @property
     def ld_library_paths(self):
@@ -286,12 +288,17 @@ class IFS_CY47R2(IFS_CY47R1):
     cycle = 'cy47r2'
 
 
+class IFS_CY48(IFS_CY47R1):
+    cycle = 'cy48'
+
+
 cycle_registry = {
     'default': IFS_CY47R2,
 
     'cy46r1': IFS_CY46R1,
     'cy47r1': IFS_CY47R1,
     'cy47r2': IFS_CY47R2,
+    'cy48': IFS_CY48,
 }
 """Registry of available IFS cycles and the corresponding classes"""
 
