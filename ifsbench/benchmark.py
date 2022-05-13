@@ -4,10 +4,11 @@ Classes to set-up a benchmark
 from abc import ABC, abstractmethod
 from pathlib import Path
 from subprocess import CalledProcessError
+from pprint import pformat
 import sys
 
 from .drhook import DrHook
-from .logging import warning, error
+from .logging import warning, error, debug
 from .util import copy_data, symlink_data, as_tuple, flatten
 from .runrecord import RunRecord
 
@@ -142,7 +143,8 @@ class Benchmark(ABC):
             self.ifs.run(**kwargs)
 
         except CalledProcessError:
-            error(f'Benchmark run failed: {" ".join(kwargs)}')
+            error(f'Benchmark run failed!')
+            debug(f'Execution parameters:\n{pformat(kwargs, indent=2)}')
             sys.exit(-1)
 
         # Provide DrHook output path only if DrHook is active
