@@ -228,11 +228,12 @@ class IFS(ABC):
                                      nthread=nthread, hyperthread=hyperthread, arch=arch, **kwargs)
 
         # Write the input namelist
-        nml.write('fort.4', force=True)
+        nml.write(rundir/'fort.4', force=True)
 
         # Run it
         cmd = ['%s' % self.executable]
-        arch.run(cmd=cmd, tasks=nproc, cpus_per_task=nthread, threads_per_core=hyperthread, env=env, **kwargs)
+        arch.run(cmd=cmd, tasks=nproc, cpus_per_task=nthread, threads_per_core=hyperthread,
+                 env=env, cwd=rundir, **kwargs)
 
 
 class IFS_CY46R1(IFS):
