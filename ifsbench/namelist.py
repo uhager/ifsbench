@@ -102,7 +102,7 @@ def sanitize_namelist(nml, merge_strategy='first'):
                     merged.patch(f90nml.Namelist({key: values}))
                 nml[key] = merged[key]
             else:
-                raise ValueError('Invalid merge strategy: {}'.format(merge_strategy))
+                raise ValueError(f'Invalid merge strategy: {merge_strategy}')
     return nml
 
 

@@ -143,7 +143,7 @@ class Benchmark(ABC):
             self.ifs.run(**kwargs)
 
         except CalledProcessError:
-            error(f'Benchmark run failed!')
+            error('Benchmark run failed!')
             debug(f'Execution parameters:\n{pformat(kwargs, indent=2)}')
             sys.exit(-1)
 

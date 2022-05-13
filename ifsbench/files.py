@@ -60,7 +60,7 @@ class InputFile:
         obj = cls(meta['fullpath'], src_dir=src_dir, compute_metadata=verify_checksum)
         if verify_checksum:
             if meta['sha256sum'] != obj.checksum:
-                raise ValueError('Checksum for {} does not match'.format(path))
+                raise ValueError(f'Checksum for {path} does not match')
         else:
             obj.checksum = meta.get('sha256sum')
             obj.size = meta.get('size')
@@ -169,7 +169,7 @@ class ExperimentFiles:
         verify_checksum : bool, optional
             Verify checksum of all files.
         """
-        with Path(input_path).open() as f:
+        with Path(input_path).open(encoding='utf-8') as f:
             return cls.from_dict(yaml.safe_load(f), verify_checksum=verify_checksum)
 
     @classmethod
@@ -203,7 +203,7 @@ class ExperimentFiles:
         output_path : str or :any:`pathlib.Path`
             File name for the YAML file.
         """
-        with Path(output_path).open('w') as f:
+        with Path(output_path).open('w', encoding='utf-8') as f:
             yaml.safe_dump(self.to_dict(), f, sort_keys=False)
 
     def to_dict(self):
@@ -247,7 +247,7 @@ class ExperimentFiles:
             if candidate_file.checksum == input_file.checksum:
                 return candidate_file
         if verify_checksum:
-            raise ValueError('Input file {} not found in source directories'.format(input_file.path.name))
+            raise ValueError(f'Input file {input_file.path.name} not found in source directories')
         warning('Input file %s not found in source directories', input_file.path.name)
         return input_file
 
@@ -427,11 +427,11 @@ class ExperimentFiles:
         input_dir = [Path(path).resolve() for path in as_tuple(input_dir)]
         tarballs = set()
         for f in obj.exp_files:
-            tarball_name = '{}.tar.gz'.format(f.src_dir.name)
+            tarball_name = f'{f.src_dir.name}.tar.gz'
             candidates = [path for src_dir in input_dir
                           for path in glob.iglob(str(src_dir/'**'/tarball_name), recursive=True)]
             if not candidates:
-                raise ValueError('Archive {} not found in input directories'.format(tarball_name))
+                raise ValueError(f'Archive {tarball_name} not found in input directories')
             if len(candidates) > 1:
                 warning('Found multiple candidates for %s, using the first: %s',
                         tarball_name, ', '.join(candidates))

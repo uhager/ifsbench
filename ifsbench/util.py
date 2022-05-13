@@ -8,7 +8,7 @@ import tempfile
 import sys
 from pathlib import Path
 from os import environ, getcwd
-from subprocess import run, Popen, STDOUT, PIPE, CalledProcessError
+from subprocess import Popen, STDOUT, PIPE, CalledProcessError
 from pprint import pformat
 
 from ifsbench.logging import debug, info, warning, error
@@ -60,7 +60,7 @@ def execute(command, **kwargs):
     if isinstance(command, str):
         command = command.split(' ')
 
-    debug('[ifsbench] User env:\n%s' % pformat(env, indent=2))
+    debug(f'[ifsbench] User env:\n{pformat(env, indent=2)}')
     if env is not None:
         # Inject user-defined environment
         run_env = environ.copy()
@@ -88,7 +88,7 @@ def execute(command, **kwargs):
 
     if logfile:
         # If we're file-logging, intercept via pipe
-        _log_file = Path(logfile).open('w')
+        _log_file = Path(logfile).open('w', encoding='utf-8')
         cmd_args['stdout'] = PIPE
     else:
         _log_file = None
@@ -96,7 +96,7 @@ def execute(command, **kwargs):
 
     try:
         # Execute with our args and outside args
-        p = Popen(command, **cmd_args, **kwargs)
+        p = Popen(command, **cmd_args, **kwargs)  # pylint: disable=consider-using-with
 
         if logfile:
             while p.poll() is None:
@@ -189,7 +189,7 @@ def Timer(name=None):
     print(f'Timer::{name}: {time:.3f} s')
 
 
-def as_tuple(item, type=None, length=None):
+def as_tuple(item, dtype=None, length=None):
     """
     Force item to a tuple.
 
@@ -208,9 +208,9 @@ def as_tuple(item, type=None, length=None):
         except (TypeError, NotImplementedError):
             t = (item,) * (length or 1)
     if length and not len(t) == length:
-        raise ValueError("Tuple needs to be of length %d" % length)
-    if type and not all(isinstance(i, type) for i in t):
-        raise TypeError("Items need to be of type %s" % type)
+        raise ValueError(f'Tuple needs to be of length {length}')
+    if dtype and not all(isinstance(i, dtype) for i in t):
+        raise TypeError('Items need to be of type {dtype}')
     return t
 
 

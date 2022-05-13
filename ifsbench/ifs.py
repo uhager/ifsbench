@@ -125,7 +125,7 @@ class IFS(ABC):
 
         # Define the run directory as data directory to the IFS
         assert rundir
-        env['DATA'] = '%s' % rundir
+        env['DATA'] = str(rundir)
 
         # Set up DrHook according to preset
         drhook = kwargs.pop('drhook', None)
@@ -231,7 +231,7 @@ class IFS(ABC):
         nml.write(rundir/'fort.4', force=True)
 
         # Run it
-        cmd = ['%s' % self.executable]
+        cmd = [str(self.executable)]
         arch.run(cmd=cmd, tasks=nproc, cpus_per_task=nthread, threads_per_core=hyperthread,
                  env=env, cwd=rundir, **kwargs)
 
