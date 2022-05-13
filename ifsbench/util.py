@@ -5,9 +5,10 @@ import contextlib
 import shutil
 import timeit
 import tempfile
+import sys
 from pathlib import Path
 from os import environ, getcwd
-from subprocess import run, STDOUT, CalledProcessError
+from subprocess import run, Popen, STDOUT, PIPE, CalledProcessError
 from pprint import pformat
 
 from ifsbench.logging import debug, info, warning, error
@@ -78,19 +79,48 @@ def execute(command, **kwargs):
     debug('[ifsbench] Run directory: ' + cwd)
     info('[ifsbench] Executing: ' + ' '.join(command))
 
+    if dryrun:
+        return
+
+    cmd_args = {
+        'cwd': cwd, 'env': run_env, 'text': True, 'stderr': stderr
+    }
+
+    if logfile:
+        # If we're file-logging, intercept via pipe
+        _log_file = Path(logfile).open('w')
+        cmd_args['stdout'] = PIPE
+    else:
+        _log_file = None
+        cmd_args['stdout'] = stdout
+
     try:
-        if not dryrun:
-            if logfile is None:
-                run(command, check=True, cwd=cwd, env=run_env,
-                    stdout=stdout, stderr=stderr, **kwargs)
-            else:
-                with Path(logfile).open('w') as logfile:
-                    run(command, check=True, cwd=cwd, env=run_env,
-                        stdout=logfile, stderr=stderr, **kwargs)
+        # Execute with our args and outside args
+        p = Popen(command, **cmd_args, **kwargs)
+
+        if logfile:
+            while p.poll() is None:
+                line = p.stdout.readline()
+                if line:
+                    # Forward to user output
+                    sys.stdout.write(line)
+
+                    # Also flush to logfile
+                    _log_file.write(line)
+                    _log_file.flush()
+
+        # Check for successful completion
+        ret = p.wait()
+        if ret:
+            raise CalledProcessError(ret, command)
 
     except CalledProcessError as excinfo:
         error(f'Execution failed with return code: {excinfo.returncode}')
         raise excinfo
+
+    finally:
+        if _log_file:
+            _log_file.close()
 
 
 def symlink_data(source, dest, force=True):
