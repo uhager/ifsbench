@@ -94,23 +94,36 @@ def execute(command, **kwargs):
         _log_file = None
         cmd_args['stdout'] = stdout
 
+
+    def _read_and_multiplex(p):
+        """
+        Read from ``p.stdout.readline()`` and write to log and sys.stdout.
+        """
+        line = p.stdout.readline()
+        if line:
+            # Forward to user output
+            sys.stdout.write(line)
+
+            # Also flush to logfile
+            _log_file.write(line)
+            _log_file.flush()
+
     try:
         # Execute with our args and outside args
-        p = Popen(command, **cmd_args, **kwargs)  # pylint: disable=consider-using-with
+        with Popen(command, **cmd_args, **kwargs) as p:
 
-        if logfile:
-            while p.poll() is None:
-                line = p.stdout.readline()
-                if line:
-                    # Forward to user output
-                    sys.stdout.write(line)
+            if logfile:
+                # Intercept p.stdout and multiplex to file and sys.stdout
+                while p.poll() is None:
+                    _read_and_multiplex(p)
 
-                    # Also flush to logfile
-                    _log_file.write(line)
-                    _log_file.flush()
+            # Check for successful completion
+            ret = p.wait()
 
-        # Check for successful completion
-        ret = p.wait()
+            if logfile:
+                # Read one last time to catch racy process output
+                _read_and_multiplex(p)
+
         if ret:
             raise CalledProcessError(ret, command)
 
