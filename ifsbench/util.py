@@ -5,9 +5,10 @@ import contextlib
 import shutil
 import timeit
 import tempfile
+import sys
 from pathlib import Path
 from os import environ, getcwd
-from subprocess import run, STDOUT, CalledProcessError
+from subprocess import Popen, STDOUT, PIPE, CalledProcessError
 from pprint import pformat
 
 from ifsbench.logging import debug, info, warning, error
@@ -59,7 +60,7 @@ def execute(command, **kwargs):
     if isinstance(command, str):
         command = command.split(' ')
 
-    debug('[ifsbench] User env:\n%s' % pformat(env, indent=2))
+    debug(f'[ifsbench] User env:\n{pformat(env, indent=2)}')
     if env is not None:
         # Inject user-defined environment
         run_env = environ.copy()
@@ -78,19 +79,61 @@ def execute(command, **kwargs):
     debug('[ifsbench] Run directory: ' + cwd)
     info('[ifsbench] Executing: ' + ' '.join(command))
 
+    if dryrun:
+        return
+
+    cmd_args = {
+        'cwd': cwd, 'env': run_env, 'text': True, 'stderr': stderr
+    }
+
+    if logfile:
+        # If we're file-logging, intercept via pipe
+        _log_file = Path(logfile).open('w', encoding='utf-8')
+        cmd_args['stdout'] = PIPE
+    else:
+        _log_file = None
+        cmd_args['stdout'] = stdout
+
+
+    def _read_and_multiplex(p):
+        """
+        Read from ``p.stdout.read()`` and write to log and sys.stdout.
+        """
+        line = p.stdout.read()
+        if line:
+            # Forward to user output
+            sys.stdout.write(line)
+
+            # Also flush to logfile
+            _log_file.write(line)
+            _log_file.flush()
+
     try:
-        if not dryrun:
-            if logfile is None:
-                run(command, check=True, cwd=cwd, env=run_env,
-                    stdout=stdout, stderr=stderr, **kwargs)
-            else:
-                with Path(logfile).open('w') as logfile:
-                    run(command, check=True, cwd=cwd, env=run_env,
-                        stdout=logfile, stderr=stderr, **kwargs)
+        # Execute with our args and outside args
+        with Popen(command, **cmd_args, **kwargs) as p:
+
+            if logfile:
+                # Intercept p.stdout and multiplex to file and sys.stdout
+                while p.poll() is None:
+                    _read_and_multiplex(p)
+
+            # Check for successful completion
+            ret = p.wait()
+
+            if logfile:
+                # Read one last time to catch racy process output
+                _read_and_multiplex(p)
+
+        if ret:
+            raise CalledProcessError(ret, command)
 
     except CalledProcessError as excinfo:
         error(f'Execution failed with return code: {excinfo.returncode}')
         raise excinfo
+
+    finally:
+        if _log_file:
+            _log_file.close()
 
 
 def symlink_data(source, dest, force=True):
@@ -159,7 +202,7 @@ def Timer(name=None):
     print(f'Timer::{name}: {time:.3f} s')
 
 
-def as_tuple(item, type=None, length=None):
+def as_tuple(item, dtype=None, length=None):
     """
     Force item to a tuple.
 
@@ -178,9 +221,9 @@ def as_tuple(item, type=None, length=None):
         except (TypeError, NotImplementedError):
             t = (item,) * (length or 1)
     if length and not len(t) == length:
-        raise ValueError("Tuple needs to be of length %d" % length)
-    if type and not all(isinstance(i, type) for i in t):
-        raise TypeError("Items need to be of type %s" % type)
+        raise ValueError(f'Tuple needs to be of length {length}')
+    if dtype and not all(isinstance(i, dtype) for i in t):
+        raise TypeError('Items need to be of type {dtype}')
     return t
 
 

@@ -141,7 +141,7 @@ def test_benchmark_execute(here, watcher):
         assert ifscmd in watcher.output
 
         # Ensure fort.4 config file was generated
-        config = here.parent/'fort.4'
+        config = rundir/'fort.4'
         assert config.exists()
 
         # Clean up config file
@@ -356,7 +356,7 @@ def test_benchmark_from_experiment_files_execute(here, watcher):
         assert ifscmd in watcher.output
 
         # Ensure fort.4 config file was generated
-        config = here.parent/'fort.4'
+        config = rundir/'fort.4'
         assert config.exists()
 
         # Clean up config file
@@ -392,7 +392,7 @@ def test_benchmark_from_tarball(here, watcher):
             assert ifscmd in watcher.output
 
             # Ensure fort.4 config file was generated
-            config = here.parent/'fort.4'
+            config = rundir/'fort.4'
             assert config.exists()
 
             # Clean up config file
