@@ -97,9 +97,9 @@ def execute(command, **kwargs):
 
     def _read_and_multiplex(p):
         """
-        Read from ``p.stdout.readline()`` and write to log and sys.stdout.
+        Read from ``p.stdout.read()`` and write to log and sys.stdout.
         """
-        line = p.stdout.readline()
+        line = p.stdout.read()
         if line:
             # Forward to user output
             sys.stdout.write(line)
