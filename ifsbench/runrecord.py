@@ -204,7 +204,8 @@ class RunRecord:
         if self.drhook is not None and mode != 'json':
             self.drhook.write(filepath)
 
-    def compare_norms(self, result, reference, field='', norm='', exit_on_error=False):
+    @staticmethod
+    def compare_norms(result, reference, field='', norm='', exit_on_error=False):
         """
         Compare a single time series of norms
 
@@ -222,7 +223,7 @@ class RunRecord:
 
             # Either soft-fail or return false
             if exit_on_error:
-                exit(-1)
+                sys.exit(-1)
             else:
                 return False
 
