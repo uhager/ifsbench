@@ -3,7 +3,7 @@ Test :any:`IFS` and adjacent classes
 """
 from pathlib import Path
 import pytest
-import ifsbench.ifs as ifs
+from ifsbench import ifs
 
 
 @pytest.fixture(name='here')
