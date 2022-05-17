@@ -181,7 +181,7 @@ class ExperimentFilesBenchmark(Benchmark):
         """
 
     @property
-    def input_files(self):
+    def input_files(self):  # pylint: disable=arguments-differ
         return self._input_files
 
     @classmethod

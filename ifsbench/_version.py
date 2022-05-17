@@ -88,7 +88,7 @@ def run_command(commands, args, cwd=None, verbose=False, hide_stderr=False,
         dispcmd = str([command] + args)
         try:
             # remember shell=False, so use git.cmd on windows, not just git
-            process = subprocess.Popen([command] + args, cwd=cwd, env=env,
+            process = subprocess.Popen([command] + args, cwd=cwd, env=env,  # pylint:disable=consider-using-with
                                        stdout=subprocess.PIPE,
                                        stderr=(subprocess.PIPE if hide_stderr
                                                else None), **popen_kwargs)

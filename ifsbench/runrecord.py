@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 from collections import OrderedDict
 import json
@@ -47,8 +48,8 @@ class RunRecord:
 
     def __repr__(self):
         s = 'RunRecord::\n'
-        s += '    timestamp: %s\n%s' % (self.timestamp)
-        s += '    comment: %s\n%s' % (self.comment, self.spectral_norms)
+        s += f'    timestamp: {self.timestamp}\n'
+        s += f'    comment: {self.comment}\n{self.spectral_norms}'
         return s
 
     def to_dict(self, orient='list'):
@@ -108,7 +109,7 @@ class RunRecord:
             return cls.from_json(filepath=filepath.with_suffix('.json'), orient=orient)
         if mode == 'hdf5':
             return cls.from_hdf5(filepath=filepath.with_suffix('.hdf5'))
-        raise ValueError('Invalid mode {}'.format(mode))
+        raise ValueError(f'Invalid mode {mode}')
 
     @classmethod
     def from_hdf5(cls, filepath):
@@ -186,9 +187,9 @@ class RunRecord:
         filepath = Path(filepath)
 
         if mode == 'json':
-            with filepath.with_suffix('.json').open('w') as f:
+            with filepath.with_suffix('.json').open('w', encoding='utf-8') as f:
                 json.dump(self.to_dict(orient=orient), f, indent=4)
-            debug('Writing %s' % filepath.with_suffix('.json'))
+            debug(f"Writing {filepath.with_suffix('.json')}")
 
         if mode == 'hdf5':
             # TODO: Warning untested!
@@ -197,7 +198,7 @@ class RunRecord:
         if mode == 'csv':
             # TODO: Warning untested!
             self.spectral_norms.to_csv(filepath.with_suffix('.norms.csv'))
-            with filepath.with_suffix('.meta.json').open('w') as f:
+            with filepath.with_suffix('.meta.json').open('w', encoding='utf-8') as f:
                 f.write(json.dumps(self.metadata))
 
         if self.drhook is not None and mode != 'json':
@@ -214,10 +215,10 @@ class RunRecord:
         :param exit_on_error: Flag to force immediate termination
         """
         if not (result == reference).all():
-            error('FAILURE: Norm %s of field %s deviates from reference:' % (norm, field))
+            error(f'FAILURE: Norm {norm} of field {field} deviates from reference:')
             analysis = pd.DataFrame({'Result': result, 'Reference': reference,
                                      'Difference': reference - result})
-            info('\nField: %s\n%s' % (field, analysis))
+            info(f'\nField: {field}\n{analysis}')
 
             # Either soft-fail or return false
             if exit_on_error:
@@ -236,7 +237,7 @@ class RunRecord:
         """
 
         try:
-            debug('Validating results against reference in %s' % refpath)
+            debug(f'Validating results against reference in {refpath}')
             reference = self.from_file(filepath=refpath)
 
             # Validate all recorded spectral norms
@@ -261,13 +262,14 @@ class RunRecord:
                     is_valid_gp = is_valid_gp and is_valid
 
             if is_valid_sp and is_valid_gp:
-                success('VALIDATED: Result matches reference in %s' % (refpath))
+                success(f'VALIDATED: Result matches reference in {refpath}')
                 return True
 
             if exit_on_error:
-                exit(-1)
+                sys.exit(-1)
             else:
                 return False
 
         except FileNotFoundError:
-            warning('Reference not found: %s Skipping validation...' % refpath)
+            warning(f'Reference not found: {refpath} Skipping validation...')
+            return True
