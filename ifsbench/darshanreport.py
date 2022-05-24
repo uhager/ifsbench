@@ -47,14 +47,12 @@ def open_darshan_logfile(filepath):
         is_parser_log = logfile.read(32).find(b'darshan log version:') != -1
     if not is_parser_log:
         logpath = gettempdir()/(filepath.stem + '.log')
-        execute(['darshan-parser', str(filepath)], logfile=str(logpath))
-        filepath = Path(logpath)
-    try:
-        logfile = filepath.open('r', encoding='utf-8')
+        with logpath.open('w', encoding='utf-8') as logfile:
+            execute(['darshan-parser', str(filepath)], stdout=logfile)
+        filepath = logpath
+    with filepath.open('r', encoding='utf-8') as logfile:
         report = mmap.mmap(logfile.fileno(), 0, prot=mmap.PROT_READ)
         yield report
-    finally:
-        logfile.close()
 
 
 class DarshanReport:
@@ -94,8 +92,10 @@ class DarshanReport:
         return pairs
 
     def _parse_report(self, report):
-        #report = report.decode()
-
+        """
+        Utility function used in the constructor to parse the report created by
+        darshan-parser
+        """
         # Get log version
         ptr = report.find(b'darshan log version:')
         line_start = report.find(b'\n', ptr)
