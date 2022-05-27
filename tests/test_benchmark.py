@@ -1,16 +1,16 @@
 """
 Tests for all classes that define a benchmark and its input files
 """
-import shutil
-from pathlib import Path
+
 from contextlib import contextmanager
+from pathlib import Path
+import shutil
 
 import pytest
 from conftest import Watcher
 from ifsbench import (
     logger, Benchmark, IFS,
-    InputFile, ExperimentFiles, ExperimentFilesBenchmark, SpecialRelativePath,
-    DarshanReport, read_files_from_darshan, write_files_from_darshan, gettempdir
+    ExperimentFiles, ExperimentFilesBenchmark, SpecialRelativePath,
 )
 
 @pytest.fixture(name='watcher')
@@ -146,172 +146,6 @@ def test_benchmark_execute(here, watcher):
 
         # Clean up config file
         config.unlink()
-
-
-def test_input_file(here):
-    """
-    Test representation of a single input file
-    """
-    # Test basic representation
-    path = Path(__file__)
-    input_file = InputFile(path, src_dir=here)
-    assert str(input_file.path) == path.name
-    assert input_file.fullpath == path
-    assert input_file.src_dir == here
-
-    # Test dumping and loading
-    other_file = InputFile.from_dict(input_file.to_dict(), src_dir=here)
-    assert str(other_file.path) == path.name
-    assert other_file.fullpath == path
-    assert other_file.src_dir == here
-
-    # Test dumping and loading without src_dir
-    extra_file = InputFile.from_dict(input_file.to_dict())
-    assert extra_file.path == path.relative_to('/')
-    assert extra_file.fullpath == path
-    assert extra_file.src_dir == Path('/')
-
-    # Test checksum verification
-    extra_file.checksum = 'foobar'
-    with pytest.raises(ValueError):
-        InputFile.from_dict(extra_file.to_dict())
-
-    # Test dumping and loading without checksum verification
-    other_file._path = Path('foo.bar')  # pylint: disable=protected-access
-    extra_file = InputFile.from_dict(other_file.to_dict(), verify_checksum=False)
-    assert extra_file.path == (here/'foo.bar').relative_to('/')
-    assert extra_file.fullpath == here/'foo.bar'
-    assert extra_file.src_dir == Path('/')
-
-    # Test equality of input files even with different paths
-    the_file = InputFile(path, src_dir=here)
-    also_the_file = InputFile(here/'..'/path.parent.name/path.name, src_dir=here.parent)
-    assert the_file.fullpath != also_the_file.fullpath
-    assert the_file.fullpath.resolve() == also_the_file.fullpath.resolve()
-    assert the_file.checksum == also_the_file.checksum
-    assert the_file == also_the_file
-
-
-def test_experiment_files(here):
-    """
-    Test discovery of files in src_dir
-    """
-    exp_setup = experiment_files_dict.copy()
-
-    # Intentionally void the checksum for one file
-    exp_setup['my-exp-id']['/the/path/to/ifsdata']['some/inputD']['sha256sum'] = \
-        exp_setup['my-exp-id']['/the/path/to/ifsdata']['some/inputD']['sha256sum'][:-1]
-
-    # Create ExperimentFiles object from the dict
-    exp_files = ExperimentFiles.from_dict(exp_setup.copy(), verify_checksum=False)
-    assert exp_files.exp_id == 'my-exp-id'
-    assert len(exp_files.files) == 4
-    assert len(exp_files.exp_files) == 3
-    assert len(exp_files.ifsdata_files) == 1
-
-    # Update the srcdir which automatically verifies the checksum
-    with pytest.raises(ValueError):
-        exp_files.update_srcdir(here, with_ifsdata=True)
-
-    # Do the same but now with correct checksum
-    exp_setup['my-exp-id']['/the/path/to/ifsdata']['some/inputD']['sha256sum'] += 'f'
-    exp_files = ExperimentFiles.from_dict(exp_setup, verify_checksum=False)
-
-    # Update the srcdir for exp_files but not ifsdata
-    exp_files.update_srcdir(here)
-    assert all(str(f.fullpath.parent) == str(here/'inidata') for f in exp_files.exp_files)
-    assert all(str(f.fullpath.parent).startswith('/the/path/to') for f in exp_files.ifsdata_files)
-
-    # Update srcdir for all
-    exp_files.update_srcdir(here, with_ifsdata=True)
-    assert all(str(f.fullpath.parent) == str(here/'inidata') for f in exp_files.exp_files)
-    assert all(str(f.fullpath.parent) == str(here/'ifsdata') for f in exp_files.ifsdata_files)
-
-    # Reload experiment from dict with checksum verification
-    reloaded_exp_files = ExperimentFiles.from_dict(exp_files.to_dict(), verify_checksum=True)
-    assert len(reloaded_exp_files.files) == 4
-    assert len(reloaded_exp_files.exp_files) == 3
-    assert len(reloaded_exp_files.ifsdata_files) == 1
-
-    # Pack experiment files to tarballs
-    with temporary_tarballdir(here) as tarballdir:
-        exp_files.to_tarball(tarballdir, with_ifsdata=True)
-        assert Path(tarballdir/here.name).with_suffix('.tar.gz').exists()
-        assert Path(tarballdir/'ifsdata.tar.gz').exists()
-        yaml_file = tarballdir/(exp_files.exp_id+'.yml')
-        exp_files.to_yaml(yaml_file)
-
-        # Unpack experiments
-        reloaded_exp_files = ExperimentFiles.from_tarball(
-            yaml_file, input_dir=tarballdir, output_dir=tarballdir, with_ifsdata=True)
-        assert len(reloaded_exp_files.files) == 4
-        assert len(reloaded_exp_files.exp_files) == 3
-        assert len(reloaded_exp_files.ifsdata_files) == 1
-        assert all(str(f.fullpath.parent).startswith(str(tarballdir))
-                   for f in reloaded_exp_files.files)
-
-
-def test_experiment_files_from_darshan(here):
-    """
-    Test representation of darshan report in `ExperimentFiles`
-    """
-    report = DarshanReport(here/'darshan.log')
-    read_files = read_files_from_darshan(report)
-    write_files = write_files_from_darshan(report)
-    input_files = read_files - write_files
-
-    # Test basic representation
-    exp_files = ExperimentFiles('abcd')
-    exp_files.add_file(*input_files, compute_metadata=False)
-    assert len(exp_files.files) == 27
-    assert len(exp_files.exp_files) == 15
-    assert len(exp_files.ifsdata_files) == 12
-
-    # Test dumping and loading
-    other_files = ExperimentFiles.from_dict(exp_files.to_dict(), verify_checksum=False)
-    assert {str(f.fullpath) for f in exp_files.files}=={str(f.fullpath) for f in other_files.files}
-
-    yaml_file = gettempdir()/'experiment_files.yml'
-    exp_files.to_yaml(yaml_file)
-    other_files = ExperimentFiles.from_yaml(yaml_file, verify_checksum=False)
-
-
-def test_special_relative_path():
-    """
-    Test correct mapping of paths with :any:`SpecialRelativePath`
-    """
-    mapper = SpecialRelativePath(r"^(?:.*?\/)?(?P<name>[^\/]+)$", r"relative/to/\g<name>")
-
-    assert mapper('/this/is/some/path') == 'relative/to/path'
-    assert mapper('relative/path') == 'relative/to/path'
-    assert mapper('path') == 'relative/to/path'
-    assert mapper('/invalid/path/') == '/invalid/path/'
-
-    mapper = SpecialRelativePath.from_filename(
-        'wam_', r'\g<post>', match=SpecialRelativePath.NameMatch.LEFT_ALIGNED)
-
-    assert mapper('/this/is/some/path') == '/this/is/some/path'
-    assert mapper('/path/to/wam_sfcwindin') == 'sfcwindin'
-    assert mapper('relative/path/to/wam_cdwavein') == 'cdwavein'
-    assert mapper('wam_specwavein') == 'specwavein'
-    assert mapper('/some/wam_specwavein/file') == '/some/wam_specwavein/file'
-
-    mapper = SpecialRelativePath.from_filename(
-        r'rtablel_\d+', r'ifs/\g<name>', match=SpecialRelativePath.NameMatch.EXACT)
-
-    assert mapper('/absolute/path/to/rtablel_2063') == 'ifs/rtablel_2063'
-    assert mapper('relative/to/rtablel_2063') == 'ifs/rtablel_2063'
-    assert mapper('rtablel_2063') == 'ifs/rtablel_2063'
-    assert mapper('/some/rtablel_a2063') == '/some/rtablel_a2063'
-    assert mapper('rtablel_2063/abc') == 'rtablel_2063/abc'
-    assert mapper('tl159/hjpa/install_SP/share/odb/rtablel_2063') == 'ifs/rtablel_2063'
-
-    mapper = SpecialRelativePath.from_dirname(
-        'ifsdata', r'ifsdata\g<child>', match=SpecialRelativePath.NameMatch.EXACT)
-
-    assert mapper('data/ifsdata/greenhouse_gas_climatology_46r1.nc') == \
-        'ifsdata/greenhouse_gas_climatology_46r1.nc'
-    assert mapper('/perm/rd/nabr/ifsbench-setups/v2/data/ifsdata/RADRRTM') == 'ifsdata/RADRRTM'
 
 
 @pytest.mark.parametrize('copy', [True, False])
