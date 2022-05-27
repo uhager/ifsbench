@@ -1,34 +1,12 @@
 #!/usr/bin/env python3
 
-from logging import FileHandler
 from pathlib import Path
 import click
 
 from ifsbench import (
-    logger, DEBUG, header, debug, gettempdir, ExperimentFiles,
+    cli, header, debug, gettempdir, ExperimentFiles,
     DarshanReport, read_files_from_darshan, write_files_from_darshan
 )
-
-@click.group()
-@click.option('--debug/--no-debug', 'debug_', default=False, show_default=True,
-              help='Enable / disable debug mode with verbose logging.')
-@click.option('--log', type=click.Path(writable=True),
-              help='Write more detailed information to a log file.')
-@click.pass_context
-def cli(ctx, debug_, log):
-    """
-    Command-line interface for IFSbench
-
-    This provides a number of commands to pack and unpack input
-    files for IFS experiments.
-    """
-    ctx.obj['DEBUG'] = debug_
-    if debug_:
-        logger.setLevel(DEBUG)
-    if log:
-        file_handler = FileHandler(log, mode='w')
-        file_handler.setLevel(DEBUG)
-        logger.addHandler(file_handler)
 
 
 @cli.command()
