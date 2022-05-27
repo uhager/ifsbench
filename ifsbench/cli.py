@@ -57,6 +57,8 @@ def cli(ctx, debug_, log, pdb_):
         <script-name> t21 compo-fc
 
     """
+    if ctx.obj is None:
+        ctx.obj = dict()
     ctx.obj['DEBUG'] = debug_
     if debug_:
         logger.setLevel(DEBUG)
