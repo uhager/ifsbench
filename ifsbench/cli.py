@@ -3,15 +3,27 @@ Common options and utilities for ifsbench run-scripts and CLI
 """
 
 from functools import wraps
+from logging import FileHandler
+import sys
 
 import click
+
+from .logging import logger, DEBUG
+from .util import auto_post_mortem_debugger
 
 
 __all__ = ['cli', 'RunOptions', 'run_options', 'ReferenceOptions', 'reference_options']
 
 
 @click.group()
-def cli():
+@click.option('--debug/--no-debug', 'debug_', default=False, show_default=True,
+              help='Enable / disable debug mode with verbose logging.')
+@click.option('--log', type=click.Path(writable=True),
+              help='Write debug-level information to a log file.')
+@click.option('--pdb', 'pdb_', default=False, is_flag=True, show_default=True,
+              help='Attach Python debugger when exceptions occur.')
+@click.pass_context
+def cli(ctx, debug_, log, pdb_):
     """
     The IFSbench command line utility.
 
@@ -45,6 +57,15 @@ def cli():
         <script-name> t21 compo-fc
 
     """
+    ctx.obj['DEBUG'] = debug_
+    if debug_:
+        logger.setLevel(DEBUG)
+    if log:
+        file_handler = FileHandler(log, mode='w')
+        file_handler.setLevel(DEBUG)
+        logger.addHandler(file_handler)
+    if pdb_:
+        sys.excepthook = auto_post_mortem_debugger
 
 
 class RunOptions:
