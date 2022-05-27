@@ -36,6 +36,17 @@ def test_mpi_job(cpu_config, launcher, cmd):
 
 
 @pytest.mark.parametrize('launcher,cmd', [
+    (SrunLauncher, {'srun', '--ntasks=185', '--cpus-per-task=4', '--cpu-bind=none'}),
+    (AprunLauncher, {'aprun', '-n 185', '-d 4', '-cc none'}),
+    (MpirunLauncher, {'mpirun', '-np 185', '-cpus-per-proc 4', '--bind-to none'})
+])
+def test_hybrid_mpi_job(cpu_config, launcher, cmd):
+    """A hybrid MPI + OpenMP :any:`Job` specification"""
+    job = Job(cpu_config, tasks=185, cpus_per_task=4, bind=CpuBinding.BIND_NONE)
+    assert set(launcher.get_launch_cmd(job)) == cmd
+
+
+@pytest.mark.parametrize('launcher,cmd', [
     (SrunLauncher, {'srun', '--ntasks=185', '--ntasks-per-core=2', '--cpu-bind=threads'}),
     (AprunLauncher, {'aprun', '-n 185', '-j 2', '-cc depth'}),
     (MpirunLauncher, {'mpirun', '-np 185', '--bind-to hwthread'})
