@@ -36,7 +36,7 @@ class DrHook(Enum):
         return self.__class__.__env_map__[self.value]
 
 
-class DrHookRecord(object):
+class DrHookRecord:
     """
     Class to encapsulate a DrHook performance record for a single benchmark run.
     """
@@ -44,20 +44,13 @@ class DrHookRecord(object):
     sre_tag = r'[\w\(\)\*_-@]+'
 
     re_program = re.compile(r"program='(?P<program>.*)'")
-    sre_walltime = r'Wall-time is (?P<walltime>%s) sec on proc#%s \((?P<nprocs>%s) procs, (?P<threads>%s) threads\)' % (
-        sre_number, sre_number, sre_number, sre_number
-    )
-    re_walltime = re.compile(sre_walltime)
-    sre_memory = r'Memory usage : %s MB (heap), %s MB (rss), %s MB (stack), %s MB (vmpeak), %s (paging)' % (
-        sre_number, sre_number, sre_number, sre_number, sre_number
-    )
-    re_memory = re.compile(sre_memory)
-
-    sre_row = r'(?P<id>%s) +(?P<percent>%s) +(?P<cumul>%s) +(?P<self>%s) +(?P<total>%s) +(?P<calls>%s)' \
-              r' +%s +%s +(?P<routine>.*)' % (
-                  sre_number, sre_number, sre_number, sre_number, sre_number, sre_number, sre_number, sre_number
-              )
-    re_row = re.compile(sre_row)
+    re_walltime = re.compile(fr'Wall-time is (?P<walltime>{sre_number}) sec on proc#{sre_number} '
+                             fr'\((?P<nprocs>{sre_number}) procs, (?P<threads>{sre_number}) threads\)')
+    re_memory = re.compile(fr'Memory usage : {sre_number} MB (heap), {sre_number} MB (rss), '
+                           fr'{sre_number} MB (stack), {sre_number} MB (vmpeak), {sre_number} (paging)')
+    re_row = re.compile(fr'(?P<id>{sre_number}) +(?P<percent>{sre_number}) +(?P<cumul>{sre_number}) +'
+                        fr'(?P<self>{sre_number}) +(?P<total>{sre_number}) +(?P<calls>{sre_number}) +'
+                        fr'{sre_number} +{sre_number} +(?P<routine>.*)')
 
     def __init__(self, data, metadata):
         self.data = data
@@ -76,23 +69,21 @@ class DrHookRecord(object):
         """
         Pretty-print content of the merged DrHook results.
         """
-        s = 'The name of the executable : %s\n' % self.metadata['program']
-        s += 'Number of MPI-tasks        : %s\n' % self.metadata['nprocs']
-        s += 'Number of OpenMP-threads   : %s\n' % self.metadata['threads']
-        s += 'Wall-times over %s MPI-tasks (secs) : Min=%.3f, Max=%.3f, Avg=%.3f, StDev=%.3f\n' % (
-            self.metadata['nprocs'], self.metadata['mintime'], self.metadata['maxtime'],
-            self.metadata['avgtime'], self.metadata['stdtime']
-        )
+        s =  f'The name of the executable : {self.metadata["program"]}\n'
+        s += f'Number of MPI-tasks        : {self.metadata["nprocs"]}\n'
+        s += f'Number of OpenMP-threads   : {self.metadata["threads"]}\n'
+        s += f'Wall-times over {self.metadata["nprocs"]:.3f} MPI-tasks (secs) : '
+        s += f'Min={self.metadata["mintime"]:.3f}, Max={self.metadata["maxtime"]:.3f}, '
+        s += f'Avg={self.metadata["avgtime"]:.3f}, StDev={self.metadata["stdtime"]:.3f}\n'
         s += 'Routines whose total time (i.e. sum) > 0.010 secs will be included in the listing\n'
         s += '  Avg-%   Avg.time   Min.time   Max.time   St.dev  Imbal-%   # of calls : Name of the routine\n'
         for _, row in self.data.iterrows():
-            s += ' %6.2f%%    %6.3f    %6.3f    %6.3f    %6.3f    %6.2f    %9.d : %s\n' % (
-                row['avgPercent'], row['avgTime'], row['minTime'], row['maxTime'],
-                row['stddev'], row['imbalance'], row['numCalls'], row['routine']
-            )
-        return s
+            s += f' {row["avgPercent"]:6.2f}%    {row["avgTime"]:6.3f}    {row["minTime"]:6.3f}    '
+            s += f'{row["maxTime"]:6.3f}    {row["stddev"]:6.3f}    {row["imbalance"]:6.2f}    '
+            s += f'{row["numCalls"]:9.d} : {row["routine"]}\n'
+            return s
 
-    def write(self, filepath, orient='index'):
+    def write(self, filepath):
         """
         Write an aggregated benchmark result to file
         """
@@ -101,7 +92,7 @@ class DrHookRecord(object):
         self.metadata.to_csv(filepath.with_suffix('.drhook.meta.csv'))
 
         # Pretty print a total for human consumption
-        with filepath.with_suffix('.drhook.txt').open('w') as f:
+        with filepath.with_suffix('.drhook.txt').open('w', encoding='utf-8') as f:
             f.write(self.pprint())
 
     @classmethod
@@ -136,7 +127,7 @@ class DrHookRecord(object):
         """
         Parse the raw DrHook (per-process) profile files into a ``pandas.DataFrame``.
         """
-        debug('Parsing DrHook profile: %s' % filepath)
+        debug(f'Parsing DrHook profile: {filepath}')
 
         filepath = Path(filepath)
         columns = ['id', 'percent', 'cumul', 'self', 'total', 'calls', 'routine']
@@ -144,7 +135,7 @@ class DrHookRecord(object):
         dfs = []
         metas = []
         for path in filepath.parent.glob(filepath.name):
-            with Path(path).open('r') as f:
+            with Path(path).open('r', encoding='utf-8') as f:
                 raw = f.read()
 
             # Parse metadata into series object

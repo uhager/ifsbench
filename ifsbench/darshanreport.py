@@ -50,7 +50,7 @@ def open_darshan_logfile(filepath):
         execute(['darshan-parser', str(filepath)], logfile=str(logpath))
         filepath = Path(logpath)
     try:
-        logfile = filepath.open('r')
+        logfile = filepath.open('r', encoding='utf-8')
         report = mmap.mmap(logfile.fileno(), 0, prot=mmap.PROT_READ)
         yield report
     finally:

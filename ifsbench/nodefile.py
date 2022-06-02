@@ -1,13 +1,13 @@
 import re
-import pandas as pd
 from pathlib import Path
 from datetime import datetime
+import pandas as pd
 
 
 __all__ = ['NODEFile']
 
 
-class NODEFile(object):
+class NODEFile:
     """
     Utility reader to parse NODE.001_01 log files and extract norms.
     """
@@ -30,14 +30,13 @@ class NODEFile(object):
     re_tstep_norms = re.compile(sre_tstep_norms, re.MULTILINE | re.DOTALL)
 
     # Individual gridpoint norm entries (per field)
-    sre_gp_norms = r'GPNORM\s*(?P<field>{name})\s*AVERAGE\s*MINIMUM\s*MAXIMUM\s*AVE\s*'.format(name=sre_name)
-    sre_gp_norms += r'(?P<avg>{number})\s*(?P<min>{number})\s*(?P<max>{number})'.format(number=sre_number)
+    sre_gp_norms = fr'GPNORM\s*(?P<field>{sre_name})\s*AVERAGE\s*MINIMUM\s*MAXIMUM\s*AVE\s*'
+    sre_gp_norms += fr'(?P<avg>{sre_number})\s*(?P<min>{sre_number})\s*(?P<max>{sre_number})'
     re_gp_norms = re.compile(sre_gp_norms, re.MULTILINE)
 
     def __init__(self, filepath):
         self.filepath = Path(filepath)
-        with self.filepath.open() as f:
-            self.content = f.read()
+        self.content = self.filepath.read_text(encoding='utf-8')
 
     @property
     def timestamp(self):
@@ -45,7 +44,7 @@ class NODEFile(object):
         Timestamp of the run that produced this NODE file.
         """
         match = self.re_timestamp.search(self.content)
-        return datetime.strptime('%s %s' % (match.group('date'), match.group('time')), '%Y-%m-%d %H:%M:%S')
+        return datetime.strptime(f"{match.group('date')} {match.group('time')}", '%Y-%m-%d %H:%M:%S')
 
     @property
     def spectral_norms(self):

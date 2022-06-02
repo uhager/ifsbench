@@ -3,7 +3,7 @@ from io import StringIO
 import logging
 
 
-class Watcher(object):
+class Watcher:
     """
     ContextManager to redirect stdout and store result in an internalized string.
 

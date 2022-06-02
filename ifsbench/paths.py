@@ -73,7 +73,7 @@ class SpecialRelativePath:
         pattern = r"^(?P<parent>.*?\/)?(?P<name>"
         if match in (cls.NameMatch.RIGHT_ALIGNED, cls.NameMatch.FREE):
             pattern += r"(?P<pre>[^\/]*?)"
-        pattern += r"(?P<match>{})".format(filename)
+        pattern += fr"(?P<match>{filename})"
         if match in (cls.NameMatch.LEFT_ALIGNED, cls.NameMatch.FREE):
             pattern += r"(?P<post>[^\/]*?)"
         pattern += r")$"
@@ -103,7 +103,7 @@ class SpecialRelativePath:
         pattern = r"^(?P<parent>.*?\/)?(?P<name>"
         if match in (cls.NameMatch.RIGHT_ALIGNED, cls.NameMatch.FREE):
             pattern += r"(?P<pre>[^\/]*?)"
-        pattern += r"(?P<match>{})".format(dirname)
+        pattern += fr"(?P<match>{dirname})"
         if match in (cls.NameMatch.LEFT_ALIGNED, cls.NameMatch.FREE):
             pattern += r"(?P<post>[^\/]*?)"
         pattern += r")(?P<child>\/.*?)$"
