@@ -32,6 +32,7 @@ def fixture_runopts_cmd():
         print(f'launch_cmd = {runopts.launch_cmd}')
         print(f'launch_options = {runopts.launch_options}')
         print(f'forecast_length = {runopts.forecast_length}')
+        print(f'nproma = {runopts.nproma}')
 
     return _runopts_cmd
 
@@ -72,12 +73,13 @@ def parse_output(string):
         'launch_cmd': 'None',
         'launch_options': 'None',
         'forecast_length': 'None',
+        'nproma': 'None',
     }),
     ([
         '--nproc=32', '--nthread=4', '--hyperthread=2',
         '--nproc-io=2', '--arch=foobar',
         '--launch-options="--mem=120G -q np -p par"',
-        '--forecast-length=h24'
+        '--forecast-length=h24', '--nproma=32'
     ], {
         'nproc': '32',
         'nthread': '4',
@@ -87,6 +89,7 @@ def parse_output(string):
         'launch_cmd': 'None',
         'launch_options': '"--mem=120G -q np -p par"',
         'forecast_length': 'h24',
+        'nproma': '32',
     }),
     (['--launch-cmd="srun -n 12"'],
      {
@@ -98,6 +101,7 @@ def parse_output(string):
         'launch_cmd': '"srun -n 12"',
         'launch_options': 'None',
         'forecast_length': 'None',
+        'nproma': 'None',
     }),
     (['-l"srun -n 12"', '-a', 'foobar'],
      {
@@ -109,8 +113,9 @@ def parse_output(string):
         'launch_cmd': '"srun -n 12"',
         'launch_options': 'None',
         'forecast_length': 'None',
+        'nproma': 'None',
     }),
-    (['-n4', '-c2', '-a blub', '--fclen=d10'],
+    (['-n4', '-c2', '-a blub', '--fclen=d10', '--nproma=-24'],
      {
         'nproc': '4',
         'nthread': '2',
@@ -120,6 +125,7 @@ def parse_output(string):
         'launch_cmd': 'None',
         'launch_options': 'None',
         'forecast_length': 'd10',
+        'nproma': '-24'
     }),
 ])
 def test_run_options(runner, options, expected):

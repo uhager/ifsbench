@@ -58,7 +58,7 @@ def cli(ctx, debug_, log, pdb_):
 
     """
     if ctx.obj is None:
-        ctx.obj = dict()
+        ctx.obj = {}
     ctx.obj['DEBUG'] = debug_
     if debug_:
         logger.setLevel(DEBUG)
@@ -156,6 +156,7 @@ def run_options(func):
                   help='User options to add to the launch command (ignored if using --launch-cmd')
     @click.option('--forecast-length', '--fclen', default=None,
                   help='Length of forecast (e.g., h240 or d10)')
+    @click.option('--nproma', default=None, help='Override the value of NPROMA')
     @click.pass_context
     @wraps(func)
     def process_run_options(ctx, *args, **kwargs):
@@ -171,6 +172,7 @@ def run_options(func):
         runopts.launch_cmd = kwargs.pop('launch_cmd')
         runopts.launch_options = kwargs.pop('launch_options')
         runopts.forecast_length = kwargs.pop('forecast_length')
+        runopts.nproma = kwargs.pop('nproma')
         return ctx.invoke(func, *args, runopts, **kwargs)
 
     return process_run_options
