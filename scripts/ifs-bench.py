@@ -1,34 +1,12 @@
 #!/usr/bin/env python3
 
-from logging import FileHandler
 from pathlib import Path
 import click
 
 from ifsbench import (
-    logger, DEBUG, header, gettempdir, ExperimentFiles,
+    cli, header, debug, gettempdir, ExperimentFiles,
     DarshanReport, read_files_from_darshan, write_files_from_darshan
 )
-
-@click.group()
-@click.option('--debug/--no-debug', default=False, show_default=True,
-              help='Enable / disable debug mode with verbose logging.')
-@click.option('--log', type=click.Path(writable=True),
-              help='Write more detailed information to a log file.')
-@click.pass_context
-def cli(ctx, debug, log):
-    """
-    Command-line interface for IFSbench
-
-    This provides a number of commands to pack and unpack input
-    files for IFS experiments.
-    """
-    ctx.obj['DEBUG'] = debug
-    if debug:
-        logger.setLevel(DEBUG)
-    if log:
-        file_handler = FileHandler(log, mode='w')
-        file_handler.setLevel(DEBUG)
-        logger.addHandler(file_handler)
 
 
 @cli.command()
@@ -117,7 +95,7 @@ def pack_experiment(exp_id, darshan_log, input_dir, output_dir, with_ifsdata):
     report = DarshanReport(darshan_log)
     read_files = read_files_from_darshan(report)
     write_files = write_files_from_darshan(report)
-    
+
     # Hack: we need to remove namelists from write_files because for unknown reasons
     # Darshan reports sometimes a single write on these files for ioserver ranks.
     # Once this behaviour is resolved, this can be removed in the future
@@ -128,6 +106,9 @@ def pack_experiment(exp_id, darshan_log, input_dir, output_dir, with_ifsdata):
 
     input_files = read_files - write_files
     header('Identified %d input files', len(input_files))
+
+    for f in input_files:
+        debug('  %s', f)
 
     # Create input files overview
     exp_files = ExperimentFiles(exp_id, src_dir=input_dir)

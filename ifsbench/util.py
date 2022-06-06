@@ -2,19 +2,22 @@
 Collection of utility routines
 """
 import contextlib
-import shutil
-import timeit
-import tempfile
-import sys
-from pathlib import Path
 from os import environ, getcwd
-from subprocess import Popen, STDOUT, PIPE, CalledProcessError
+from pathlib import Path
 from pprint import pformat
+import shutil
+from subprocess import Popen, STDOUT, PIPE, CalledProcessError
+import sys
+import tempfile
+import timeit
 
 from ifsbench.logging import debug, info, warning, error
 
 
-__all__ = ['gettempdir', 'execute', 'symlink_data', 'copy_data', 'Timer', 'classproperty']
+__all__ = [
+    'gettempdir', 'execute', 'symlink_data', 'copy_data', 'Timer', 'classproperty',
+    'auto_post_mortem_debugger'
+]
 
 
 def gettempdir():
@@ -267,3 +270,26 @@ class classproperty:
 
     def __get__(self, instance, owner):  # pylint:disable=unused-argument
         return self._method(owner)
+
+
+def auto_post_mortem_debugger(type, value, tb):  # pylint: disable=redefined-builtin
+    """
+    Exception hook that automatically attaches a debugger
+
+    Activate by setting ``sys.excepthook = auto_post_mortem_debugger``
+
+    Adapted from https://code.activestate.com/recipes/65287/
+    """
+    is_interactive = hasattr(sys, 'ps1')
+    no_tty = not sys.stderr.isatty() or not sys.stdin.isatty() or not sys.stdout.isatty()
+    if is_interactive or no_tty or type == SyntaxError:
+        # we are in interactive mode or we don't have a tty-like
+        # device, so we call the default hook
+        sys.__excepthook__(type, value, tb)
+    else:
+        import traceback # pylint: disable=import-outside-toplevel
+        import pdb # pylint: disable=import-outside-toplevel
+        # we are NOT in interactive mode, print the exception...
+        traceback.print_exception(type, value, tb)
+        # ...then start the debugger in post-mortem mode.
+        pdb.post_mortem(tb)   # pylint: disable=no-member

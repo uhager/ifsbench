@@ -33,6 +33,7 @@ class InputFile:
             src_dir = '/'
         self._src_dir = Path(src_dir)
         self._path = Path(path).relative_to(self.src_dir)
+        self._original_path = Path(path)
 
         if compute_metadata:
             self.checksum = self._sha256sum(self.fullpath)
@@ -81,6 +82,11 @@ class InputFile:
         return self.src_dir/self._path
 
     @property
+    def original_path(self):
+        """The original path of the file used during construction of the object"""
+        return self._original_path
+
+    @property
     def path(self):
         """The path of the file relative to :attr:`src_dir`"""
         return self._path
@@ -103,10 +109,10 @@ class InputFile:
         filepath = Path(filepath)
         logfile = gettempdir()/'checksum.sha256'
         cmd = ['sha256sum', str(filepath)]
-        execute(cmd, logfile=logfile)
-        with logfile.open() as f:
-            checksum, name = f.read().split()
-            assert name == str(filepath)
+        with logfile.open('w', encoding='utf-8') as f:
+            execute(cmd, stdout=f)
+        checksum, name = logfile.read_text().split()
+        assert name == str(filepath)
         return checksum
 
     @staticmethod
@@ -242,13 +248,25 @@ class ExperimentFiles:
             for src_dir in self.src_dir
             for path in glob.iglob(str(src_dir/'**'/input_file.path.name), recursive=True)
         ]
+
+        # Sort the candidates by the overlap (judged from the end) in an attempt to
+        # minimize the number of files to try
+        def _score_overlap_from_behind(string):
+            try:
+                return [i == j for i, j in zip(reversed(str(input_file)), reversed(string))].index(False)
+            except ValueError:
+                return min(len(input_file), len(string))
+
+        candidates.sort(key=_score_overlap_from_behind, reverse=True)
+
         for path, src_dir in candidates:
             candidate_file = InputFile(path, src_dir)
             if candidate_file.checksum == input_file.checksum:
                 return candidate_file
+
         if verify_checksum:
-            raise ValueError(f'Input file {input_file.path.name} not found in source directories')
-        warning('Input file %s not found in source directories', input_file.path.name)
+            raise ValueError(f'Input file {input_file.path} not found relative to source directories')
+        warning('Input file %s not found relative to source directories', input_file.path)
         return input_file
 
     def add_file(self, *filepath, compute_metadata=True):
@@ -260,10 +278,8 @@ class ExperimentFiles:
         filepath : (list of) str or :any:`pathlib.Path`
             One or multiple file paths to add.
         """
-        for path in filepath:
-            input_file = InputFile(path, compute_metadata=compute_metadata)
-            input_file = self._input_file_in_src_dir(input_file, verify_checksum=compute_metadata)
-            self._files.add(input_file)
+        filepath = [InputFile(path, compute_metadata=compute_metadata) for path in filepath]
+        self.add_input_file(*filepath, verify_checksum=compute_metadata)
 
     def add_input_file(self, *input_file, verify_checksum=True):
         """
@@ -275,8 +291,11 @@ class ExperimentFiles:
             One or multiple input file instances to add.
         """
         for f in input_file:
-            new_file = self._input_file_in_src_dir(f, verify_checksum=verify_checksum)
-            self._files.add(new_file)
+            try:
+                new_file = self._input_file_in_src_dir(f, verify_checksum=verify_checksum)
+                self._files.add(new_file)
+            except ValueError:
+                warning('Skipping input file %s', f.path)
 
     def update_srcdir(self, src_dir, update_files=True, with_ifsdata=False):
         """

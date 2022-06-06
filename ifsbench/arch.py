@@ -287,8 +287,9 @@ class AtosAaIntel(AtosAa):
         env['OMP_NUM_THREADS'] = cpus_per_task
         # TODO: Ensure proper pinning
 
-        # Fill nodes without hyperthreading
-        tasks_per_node = kwargs.pop('tasks_per_node', min(tasks, cls.cpu_config.cores_per_node))
+        # Fill nodes as much as possible
+        max_tasks_per_node = cls.cpu_config.cores_per_node * threads_per_core // cpus_per_task
+        tasks_per_node = kwargs.pop('tasks_per_node', min(tasks, max_tasks_per_node))
 
         # Bind to cores
         bind = CpuBinding.BIND_CORES

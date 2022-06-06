@@ -8,6 +8,7 @@ from pkg_resources import get_distribution, DistributionNotFound
 
 from .arch import * # noqa
 from .benchmark import * # noqa
+from .cli import * # noqa
 from .darshanreport import * # noqa
 from .drhook import * # noqa
 from .files import * # noqa
