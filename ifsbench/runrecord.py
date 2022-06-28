@@ -241,35 +241,30 @@ class RunRecord:
             debug(f'Validating results against reference in {refpath}')
             reference = self.from_file(filepath=refpath)
 
+            failure = False
+
             # Validate all recorded spectral norms
-            is_valid_sp = True
-            for field in self.spectral_norms.columns:
-                is_valid = self.compare_norms(
-                    result=self.spectral_norms[field],
-                    reference=reference.spectral_norms[field],
-                    field=field, exit_on_error=exit_on_error
-                )
-                is_valid_sp = is_valid_sp and is_valid
+            sp_diff = self.spectral_norms - reference.spectral_norms
+            if not (sp_diff == 0.).all(axis=None):
+                error(f'FAILURE: Spectral norms deviate from reference:\n{sp_diff}\n')
+                failure = True
+                if exit_on_error:
+                    sys.exit(-1)
 
             # Validate avg/min/max norms for all recorded gridpoint fields
-            is_valid_gp = True
-            for field in self.gridpoint_norms.index.unique(level=0):
-                for norm in ['avg', 'min', 'max']:
-                    is_valid = self.compare_norms(
-                        result=self.gridpoint_norms.loc[(field, norm)],
-                        reference=reference.gridpoint_norms.loc[(field, norm)],
-                        field=field, norm=norm, exit_on_error=exit_on_error
-                    )
-                    is_valid_gp = is_valid_gp and is_valid
+            gp_diff = self.gridpoint_norms - reference.gridpoint_norms
+            if not (gp_diff == 0.).all(axis=None):
+                error(f'FAILURE: Gridpoint norms deviate from reference:\n{gp_diff}\n')
+                failure = True
+                if exit_on_error:
+                    sys.exit(-1)
 
-            if is_valid_sp and is_valid_gp:
-                success(f'VALIDATED: Result matches reference in {refpath}')
-                return True
-
-            if exit_on_error:
-                sys.exit(-1)
-            else:
+            if failure:
                 return False
+
+            success(f'VALIDATED: Result matches reference in {refpath}')
+            return True
+
 
         except FileNotFoundError:
             warning(f'Reference not found: {refpath} Skipping validation...')

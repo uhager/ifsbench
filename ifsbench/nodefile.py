@@ -72,15 +72,24 @@ class NODEFile:
         for m in self.re_tstep_norms.finditer(self.content):
             step_match = m.groupdict()
             entries = [m.groupdict() for m in self.re_gp_norms.finditer(step_match['norms'])]
-            for e in entries:
-                e['step'] = step_match['step']
-            data_raw += [pd.DataFrame(entries)]
+
+            # Create DataFrame and pivot it, so that fields are columns
+            df = pd.DataFrame(entries).transpose()
+            df.columns = df.iloc[0]
+            df.drop(df.index[0], inplace=True)
+
+            # Add the indexes as columns, but don't sort yet
+            df['norm'] = df.index
+            df['step'] = pd.to_numeric(step_match['step'])
+
+            # Collect DF per timestep for later concatenation
+            data_raw += [df]
 
         # Concatenate and sanitizes dataframes and create step-field mulit-index
         data = pd.concat(data_raw)
-        data['step'] = pd.to_numeric(data['step'])
-        data.set_index(['field', 'step'], inplace=True)
+        data.set_index(['norm', 'step'], inplace=True)
         for c in data.columns:
             data[c] = pd.to_numeric(data[c])
+        data.sort_index(inplace=True)
 
         return data
