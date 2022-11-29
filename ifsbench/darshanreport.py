@@ -5,8 +5,10 @@ import io
 import mmap
 from contextlib import contextmanager
 from pathlib import Path
+from subprocess import CalledProcessError
 import pandas as pd
 
+from ifsbench.logging import warning, error
 from ifsbench.util import gettempdir, execute
 
 
@@ -47,8 +49,15 @@ def open_darshan_logfile(filepath):
         is_parser_log = logfile.read(32).find(b'darshan log version:') != -1
     if not is_parser_log:
         logpath = gettempdir()/(filepath.stem + '.log')
-        with logpath.open('w', encoding='utf-8') as logfile:
-            execute(['darshan-parser', str(filepath)], stdout=logfile)
+        try:
+            with logpath.open('w', encoding='utf-8') as logfile:
+                execute(['darshan-parser', str(filepath)], stdout=logfile)
+        except CalledProcessError as e:
+            if logpath.stat().st_size > 0:
+                warning('darshan-parser exited with non-zero exit code. Continue with potentially incomplete file...')
+            else:
+                error('darshan-parser exited with non-zero exit code and did not produce an output file.')
+                raise e
         filepath = logpath
     with filepath.open('r', encoding='utf-8') as logfile:
         report = mmap.mmap(logfile.fileno(), 0, prot=mmap.PROT_READ)
