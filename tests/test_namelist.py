@@ -90,6 +90,44 @@ def test_sanitize_namelist(mode):
     nml_file.unlink()
 
 
+def test_empty_namelist():
+    nml_string = """
+&a
+    foo = 4
+    foobar = 3
+/
+&b
+    bar = 1
+    foo = 2
+/
+&a
+    foo = 1
+    bar = 2
+/
+&a
+/
+&c
+/
+    """.strip()
+    nml_file = gettempdir()/'nml'
+    nml_file.write_text(nml_string)
+    nml = f90nml.read(nml_file)
+
+    sanitized = sanitize_namelist(nml, merge_strategy='first')
+    assert sanitized.todict() == {'a': {'foo': 4, 'foobar': 3}, 'b': {'bar': 1, 'foo': 2}, 'c':{}}
+
+    sanitized = sanitize_namelist(nml, merge_strategy='last')
+    assert sanitized.todict() == {'a':{}, 'b': {'bar': 1, 'foo': 2}, 'c':{}}
+
+    sanitized = sanitize_namelist(nml, merge_strategy='merge_first')
+    assert sanitized.todict() == {'a': {'foo': 4, 'foobar': 3, 'bar': 2}, 'b': {'bar': 1, 'foo': 2}, 'c':{}}
+
+    sanitized = sanitize_namelist(nml, merge_strategy='merge_last')
+    assert sanitized.todict() == {'a': {'foo': 1, 'foobar': 3, 'bar': 2}, 'b': {'bar': 1, 'foo': 2}, 'c':{}}
+
+    nml_file.unlink()
+
+
 def test_namelist_diff():
     nml1_string = """
 &a
