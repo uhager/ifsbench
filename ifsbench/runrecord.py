@@ -61,9 +61,7 @@ class RunRecord:
 
         # Encode gridpoint norms by taking cross-sections of each field
         fields = self.gridpoint_norms.index.unique(level=0)
-        d['gridpoint_norms'] = OrderedDict({
-            field: self.gridpoint_norms.xs(field).to_dict(orient=orient) for field in fields
-        })
+        d['gridpoint_norms'] = self.gridpoint_norms.to_dict(orient=orient)
 
         if self.drhook is not None:
             d['drhook'] = self.drhook.to_dict(orient=orient)
