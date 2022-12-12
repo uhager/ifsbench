@@ -74,6 +74,32 @@ class NODEFile:
 
             yield group_name, step, content
 
+    @staticmethod
+    def _construct_dataframe(raw_data, default_value=0):
+        """
+        Build a dataframe from a dict of <step index, data dict> pairs. All
+        not-specified values are set to the default_value. 
+        This is necessary, as pandas sets unspecified values to NaN which may
+        cause major problems when validating results.
+        """
+
+        # Create the data frame from the actual data.
+        data = pd.DataFrame(raw_data.values())
+
+        for c in data.columns:
+            data[c] = pd.to_numeric(data[c])
+
+        data.set_index('step', inplace=True)
+
+        # Find non-assigned values in the dataframe.
+        isna = data.isna()
+
+        # Set all non-assigned values to the default value.
+        data.mask(isna, default_value, inplace=True)
+
+        return data 
+        
+
     @property
     def spectral_norms(self):
         """
@@ -114,12 +140,7 @@ class NODEFile:
             else:
                 raw_data[step] = {**raw_data[step], **tmp_data} 
 
-        data = pd.DataFrame(raw_data.values())
-        # Ensure numeric values in data.
-        for c in data.columns:
-            data[c] = pd.to_numeric(data[c])
-
-        data.set_index('step', inplace=True)
+        data = self._construct_dataframe(raw_data, default_value=0)
 
         return data
 
@@ -168,11 +189,6 @@ class NODEFile:
             # was just read.
             raw_data[step] = {**raw_data[step], **row_data} 
 
-        # Create the dataframe and sort it by the step indices.
-        data = pd.DataFrame(raw_data.values())
-        data.set_index('step', inplace=True)
-        for c in data.columns:
-            data[c] = pd.to_numeric(data[c])
-        data.sort_index(inplace=True)
+        data = self._construct_dataframe(raw_data, default_value=0)
 
         return data
