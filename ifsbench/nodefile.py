@@ -20,14 +20,19 @@ class NODEFile:
     sre_number = r'[\w\-\+\.]+'
 
     # Regex for property names.
-    sre_name = r'[\w\(\) ]+'
+    sre_name = r'[\w\(\)\s]+'
 
-    # Regex for parsing a "SPECTRAL NORMS" block. 
-    sre_sp_norms = r'SPECTRAL NORMS -\s*' + sre_name + r'\s*(?P<log_prehyds>' + sre_number + r')+'
-    sre_sp_norms += r'\s*LEV\s*VORTICITY\s*DIVERGENCE\s*TEMPERATURE\s*KINETIC ENERGY\s*'
-    sre_sp_norms += r'AVE\s*(?P<vorticity>' + sre_number + r')\s*(?P<divergence>' + sre_number
-    sre_sp_norms += r')\s*(?P<temperature>' + sre_number + r')\s*(?P<kinetic_energy>' + sre_number + r')'
-    re_sp_norms = re.compile(sre_sp_norms, re.MULTILINE)
+    # Regex for parsing a "SPECTRAL NORMS" block. It returns three groups:
+    # * log_prehyds: Holds the log_prehyds value.
+    # * headers: Whitespace separated string that holds the name of the
+    #   properties that are stored.
+    # * values: Whitespace separated string that holds the corresponding
+    #   values.
+    sre_sp_norms = r'SPECTRAL NORMS -\s*' + sre_name + r'\s*(?P<log_prehyds>' 
+    sre_sp_norms += sre_number + r')+\s*LEV'
+    sre_sp_norms += r'(?P<headers>.*?)AVE'
+    sre_sp_norms += r'(?P<values>[0-9Ee\-\+\.\s]+)'
+    re_sp_norms = re.compile(sre_sp_norms, re.MULTILINE | re.DOTALL)
 
     # Regex for parsing a single gridpoint norm block.
     sre_gp_norms = fr'GPNORM\s*(?P<field>{sre_name})\s*AVERAGE\s*MINIMUM\s*MAXIMUM\s*AVE\s*'
@@ -38,7 +43,7 @@ class NODEFile:
     # followed by a block name (optional) and the step index (required).
     # As far as I can see it, a block, always ends with a line that starts with
     # "NSTEP".
-    it_str = r'NORMS AT NSTEP CNT4\s*(.*?)\s*(\d+)(.*?)NSTEP'
+    it_str = r'NORMS AT NSTEP (.*?)\s+(\d+)(.*?)NSTEP'
     re_it_str = re.compile(it_str, re.MULTILINE | re.DOTALL)
 
     def __init__(self, filepath):
@@ -86,6 +91,11 @@ class NODEFile:
         # Create the data frame from the actual data.
         data = pd.DataFrame(raw_data.values())
 
+        # If the DataFrame is empty, return now as some of the subsequent steps
+        # may fail in this case.
+        if data.empty:
+            return data
+
         for c in data.columns:
             data[c] = pd.to_numeric(data[c])
 
@@ -98,7 +108,17 @@ class NODEFile:
         data.mask(isna, default_value, inplace=True)
 
         return data 
-        
+
+    @staticmethod
+    def _sanitise_float(value):
+        # Unfortunately we need this hack. IFS sometimes outputs
+        # floating point numbers in a non-standard exponential way,
+        # writing 0.1-2 instead of 0.1e-2. Python can't parse the
+        # former. Therefore we do a little check here to detect values
+        # that contain a "-" but no "e".
+        if '-' in value and ('e' not in value.lower()):
+            value = value.replace('-', 'e-')
+        return value
 
     @property
     def spectral_norms(self):
@@ -120,6 +140,13 @@ class NODEFile:
             match = self.re_sp_norms.search(content)     
             if match is None:
                 continue
+           
+ 
+            # If no data exists yet for the timestep, create a new dictionary
+            # for it, which also holds the timestep
+            if step not in raw_data:
+                raw_data[step] = {'step': step}
+
 
             # Check if the block has a name or not. If it does, create a prefix
             # that is added to all stored properties.          
@@ -128,17 +155,18 @@ class NODEFile:
             else:
                 prefix=''
 
-            # Append the prefix to each key in the match.groupdict dictionary.   
-            tmp_data = {prefix+key: value for key,value in match.groupdict().items()}
+            # Split the headers where there are at least two whitespaces (some
+            # property names include a single whitespace but two properties are
+            # usually separated by multiple whitespaces).
+            headers = re.split(r'\s{2,}', match['headers'].strip())
+            values = re.split(r'\s+', match['values'].strip())
 
-            
-            # Add the parsed data to the raw_data dictionary. If some data for
-            # this timestep exists already, merge the data.
-            if step not in raw_data:
-                tmp_data['step'] = step
-                raw_data[step] = tmp_data
-            else:
-                raw_data[step] = {**raw_data[step], **tmp_data} 
+            # Add the key/value pairs to the actual data dict.
+            for name, value in zip(headers, values):
+                raw_data[step][prefix+name] = self._sanitise_float(value)
+
+            raw_data[step][prefix+'log_prehyds'] = self._sanitise_float(
+                match['log_prehyds'])
 
         data = self._construct_dataframe(raw_data, default_value=0)
 
@@ -183,7 +211,7 @@ class NODEFile:
                     prefix=f"{name} "
 
                 for key, value in entry.items():
-                    row_data[prefix+key] = value
+                    row_data[prefix+key] = self._sanitise_float(value)
 
             # Combine the previous data for timestep "step" with the data that
             # was just read.
