@@ -76,6 +76,5 @@ def cli(color, namelist1, namelist2):
     if diff:
         print_diff(diff)
 
-    
 if __name__ == "__main__":
     cli()  # pylint: disable=no-value-for-parameter

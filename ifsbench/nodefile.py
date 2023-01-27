@@ -28,7 +28,7 @@ class NODEFile:
     #   properties that are stored.
     # * values: Whitespace separated string that holds the corresponding
     #   values.
-    sre_sp_norms = r'SPECTRAL NORMS -\s*' + sre_name + r'\s*(?P<log_prehyds>' 
+    sre_sp_norms = r'SPECTRAL NORMS -\s*' + sre_name + r'\s*(?P<log_prehyds>'
     sre_sp_norms += sre_number + r')+\s*LEV'
     sre_sp_norms += r'(?P<headers>.*?)AVE'
     sre_sp_norms += r'(?P<values>[0-9Ee\-\+\.\s]+)'
@@ -83,7 +83,7 @@ class NODEFile:
     def _construct_dataframe(raw_data, default_value=0):
         """
         Build a dataframe from a dict of <step index, data dict> pairs. All
-        not-specified values are set to the default_value. 
+        not-specified values are set to the default_value.
         This is necessary, as pandas sets unspecified values to NaN which may
         cause major problems when validating results.
         """
@@ -107,7 +107,7 @@ class NODEFile:
         # Set all non-assigned values to the default value.
         data.mask(isna, default_value, inplace=True)
 
-        return data 
+        return data
 
     @staticmethod
     def _sanitise_float(value):
@@ -126,7 +126,7 @@ class NODEFile:
         Return the spectral norms that are stored in the logfile as a
         pandas.DataFrame object.
         Each row of the DataFrame corresponds to a single timestep whereas each
-        row corresponds to a property. 
+        row corresponds to a property.
         """
 
         # Initially, we use a dict that maps from time steps to the
@@ -137,11 +137,11 @@ class NODEFile:
         for group_name, step, content in self._iterate_step_data():
 
             # Try to look for spectral norm data in the current data block.
-            match = self.re_sp_norms.search(content)     
+            match = self.re_sp_norms.search(content)
             if match is None:
                 continue
-           
- 
+
+
             # If no data exists yet for the timestep, create a new dictionary
             # for it, which also holds the timestep
             if step not in raw_data:
@@ -149,7 +149,7 @@ class NODEFile:
 
 
             # Check if the block has a name or not. If it does, create a prefix
-            # that is added to all stored properties.          
+            # that is added to all stored properties.
             if group_name:
                 prefix=group_name+'_'
             else:
@@ -215,7 +215,7 @@ class NODEFile:
 
             # Combine the previous data for timestep "step" with the data that
             # was just read.
-            raw_data[step] = {**raw_data[step], **row_data} 
+            raw_data[step] = {**raw_data[step], **row_data}
 
         data = self._construct_dataframe(raw_data, default_value=0)
 

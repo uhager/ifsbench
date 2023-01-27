@@ -119,7 +119,7 @@ def pack_experiment(exp_id, darshan_log, input_dir, output_dir, with_ifsdata):
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Write input files summary
-    summary_yml = output_dir/'{}.yml'.format(exp_id)
+    summary_yml = output_dir/f"{exp_id}.yml"
     header('Creating summary file %s', str(summary_yml))
     exp_files.to_yaml(summary_yml)
 

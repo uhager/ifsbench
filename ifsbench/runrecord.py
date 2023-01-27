@@ -60,7 +60,6 @@ class RunRecord:
         d['spectral_norms'] = self.spectral_norms.to_dict(orient=orient)
 
         # Encode gridpoint norms by taking cross-sections of each field
-        fields = self.gridpoint_norms.index.unique(level=0)
         d['gridpoint_norms'] = self.gridpoint_norms.to_dict(orient=orient)
 
         if self.drhook is not None:

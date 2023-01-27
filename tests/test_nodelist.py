@@ -1,13 +1,14 @@
 """
 Test :any:`IFS` and adjacent classes
 """
+
 import datetime
-import pandas as pd
 from pathlib import Path
+
+import pandas as pd
 import pytest
 from ifsbench import NODEFile
 
-    
 def nodelist_path():
     """Return the path to the nodefiles directory."""
     main_path = Path(__file__).parent.resolve()
@@ -32,7 +33,7 @@ def all_nodelists():
 def test_nodefile_timestamp(node_path, timestamp):
     """
     Test that the output of the "timestamp" method matches the timestamp in the
-    nodefile. 
+    nodefile.
     """
     nodefile = NODEFile(node_path)
 
@@ -54,7 +55,7 @@ def test_spectral_norms(node_path, nrows, ncolumns):
     norms = nodefile.spectral_norms
 
     # Verify that we get a pandas DataFrame and not something else.
-    assert type(norms) == pd.DataFrame
+    assert isinstance(norms, pd.DataFrame)
 
     # For the moment, just compare the shape of the DataFrame to some reference
     # values. In the future, we should probably test against the actual values.
@@ -72,8 +73,6 @@ def test_grid_norms(node_path, nrows, ncolumns):
 
     norms = nodefile.gridpoint_norms
 
-    assert type(norms) == pd.DataFrame
+    assert isinstance(norms, pd.DataFrame)
 
     assert norms.shape == (nrows, ncolumns)
-
-      
