@@ -12,9 +12,25 @@ __all__ = ['IFSNamelist', 'sanitize_namelist', 'namelist_diff']
 class IFSNamelist:
     """
     Class to manage construction and validation of IFS-specific namelists.
+
+    Parameters
+    __________
+    template : str/path, optional
+        template namelist file
+    namelist : str/path, optional
+        namelist file
+    mode : str, optional
+        mode defining how to process namelist files and whether and how to sanitise
+
+        following modes are available:
+          * ``auto`` - (**default**) sanitising by merging duplicate keys except for keys with a specific layout
+          * ``legacy`` - sanitising by merging duplicate keys
+          * ``f90nml`` - no sanitising at all
     """
 
-    def __init__(self, template=None, namelist=None):
+    def __init__(self, template=None, namelist=None, mode='auto'):
+        self.mode = mode
+        assert mode in ['auto', 'legacy', 'f90nml']
         self.nml = f90nml.Namelist()
         self.nml.uppercase = True
         self.nml.end_comma = True
@@ -49,14 +65,17 @@ class IFSNamelist:
         """
         Add contents of another namelist from file
         """
-        other_nml = sanitize_namelist(f90nml.read(filepath))
+        if self.mode == 'f90nml':
+            other_nml = f90nml.read(filepath)
+        else:
+            other_nml = sanitize_namelist(f90nml.read(filepath), mode=self.mode)
         self.nml.update(other_nml)
 
     def write(self, filepath, force=True):
         self.nml.write(filepath, force=force)
 
 
-def sanitize_namelist(nml, merge_strategy='first'):
+def sanitize_namelist(nml, merge_strategy='first', mode='auto'):
     """
     Sanitize a given namelist
 
@@ -78,6 +97,8 @@ def sanitize_namelist(nml, merge_strategy='first'):
         The namelist to sanitise
     merge_strategy : str, optional
         The merge strategy to use.
+    mode : str, optional
+        The mode, whether to skip specific keys for sanitising (``auto``)
 
     Returns
     -------
@@ -87,6 +108,12 @@ def sanitize_namelist(nml, merge_strategy='first'):
     nml = nml.copy()
     for key in nml:
         if isinstance(nml[key], list):
+            if mode == 'auto':
+                _ = []
+                for i in range(len(nml[key])):
+                    _.extend([_key for _key in nml[key][i] if isinstance(nml[key][i][_key], f90nml.Namelist)])
+                if len(set(_)) == 1:
+                    continue
             if merge_strategy == 'first':
                 nml[key] = nml[key][0]
             elif merge_strategy == 'last':
@@ -163,3 +190,4 @@ def namelist_diff(nml, other_nml):
                 diff[group] = (None, values)
 
     return diff
+

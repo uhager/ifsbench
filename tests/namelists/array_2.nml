@@ -1,0 +1,17 @@
+&SOMEVAL
+VAL=42,
+/
+
+&SOMEVAL
+VAL=42,
+/
+
+&SOMEARRAY THIS%A='1string', THIS%B='1thing', THIS%C=1, THIS%D=-1.0 /
+&SOMEARRAY THIS%A='2string', THIS%B='2thing', THIS%C=2, THIS%D=-2.0 /
+&SOMEARRAY THIS%A='3string', THIS%B='3thing', THIS%C=3, THIS%D=-3.0 /
+&SOMEARRAY  /
+
+&ANOTHERARRAY SELF%E='another1string', SELF%F='another1thing' /
+&ANOTHERARRAY SELF%E='another2string', SELF%F='another2thing' /
+&ANOTHERARRAY  /
+

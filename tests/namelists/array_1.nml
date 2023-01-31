@@ -1,0 +1,30 @@
+&SOMEVAL
+VAL=42,
+/
+
+&SOMEVAL
+VAL=42,
+/
+
+&SOMEARRAY,
+    SOMEARRAY(1)%A='1string',
+    SOMEARRAY(1)%B='1thing',
+    SOMEARRAY(1)%C=1,
+    SOMEARRAY(1)%D=-1.0,
+    SOMEARRAY(2)%A='2string',
+    SOMEARRAY(2)%B='2thing',
+    SOMEARRAY(2)%C=2,
+    SOMEARRAY(2)%D=-2.0,
+    SOMEARRAY(3)%A='3string',
+    SOMEARRAY(3)%B='3thing',
+    SOMEARRAY(3)%C=3,
+    SOMEARRAY(3)%D=-3.0,
+    /
+
+&ANOTHERARRAY,
+    ANOTHERARRAY(1)%E='another1string'
+    ANOTHERARRAY(1)%F='another1thing'
+    ANOTHERARRAY(2)%E='another2string'
+    ANOTHERARRAY(2)%F='another2thing'
+    /
+
