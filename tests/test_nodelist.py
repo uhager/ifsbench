@@ -16,13 +16,6 @@ def nodelist_path():
     return main_path/'nodefiles'
 
 
-@pytest.fixture
-def all_nodelists():
-    return (
-        nodelist_path/'nodefile_default',
-        nodelist_path/'nodefile_pred_corr'
-    )
-
 @pytest.mark.parametrize(
     'node_path,timestamp',
     (

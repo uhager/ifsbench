@@ -125,8 +125,9 @@ class NODEFile:
         """
         Return the spectral norms that are stored in the logfile as a
         pandas.DataFrame object.
+
         Each row of the DataFrame corresponds to a single timestep whereas each
-        row corresponds to a property.
+        columns corresponds to a property.
         """
 
         # Initially, we use a dict that maps from time steps to the
@@ -151,9 +152,9 @@ class NODEFile:
             # Check if the block has a name or not. If it does, create a prefix
             # that is added to all stored properties.
             if group_name:
-                prefix=group_name+'_'
+                prefix = group_name + '_'
             else:
-                prefix=''
+                prefix = ''
 
             # Split the headers where there are at least two whitespaces (some
             # property names include a single whitespace but two properties are
