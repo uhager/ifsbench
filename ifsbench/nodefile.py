@@ -12,27 +12,39 @@ class NODEFile:
     Utility reader to parse NODE.001_01 log files and extract norms.
     """
 
+    # Regex to extract the data from a nodefile.
     sre_timestamp = r'Date :\s*(?P<date>[\d-]+)\s*Time :\s*(?P<time>[\d:]+)'
     re_timestamp = re.compile(sre_timestamp)
 
+    # Regex for floating point numbers.
     sre_number = r'[\w\-\+\.]+'
-    sre_name = r'[\w\(\)]+'
 
-    sre_header_norms = r'NORMS AT NSTEP CNT4\s*(?P<step>[\d]+)\s*'
-    sre_sp_norms = r'SPECTRAL NORMS -\s*' + sre_name + r'\s*(?P<log_prehyds>' + sre_number + r')+'
-    sre_sp_norms += r'\s*LEV\s*VORTICITY\s*DIVERGENCE\s*TEMPERATURE\s*KINETIC ENERGY\s*'
-    sre_sp_norms += r'AVE\s*(?P<vorticity>' + sre_number + r')\s*(?P<divergence>' + sre_number
-    sre_sp_norms += r')\s*(?P<temperature>' + sre_number + r')\s*(?P<kinetic_energy>' + sre_number + r')'
-    re_sp_norms = re.compile(sre_header_norms + sre_sp_norms, re.MULTILINE)
+    # Regex for property names.
+    sre_name = r'[\w\(\)\s]+'
 
-    # Captures generic block of field norms per timestep
-    sre_tstep_norms = sre_header_norms + r'(?P<norms>.*?)NSTEP.*?STEPO'
-    re_tstep_norms = re.compile(sre_tstep_norms, re.MULTILINE | re.DOTALL)
+    # Regex for parsing a "SPECTRAL NORMS" block. It returns three groups:
+    # * log_prehyds: Holds the log_prehyds value.
+    # * headers: Whitespace separated string that holds the name of the
+    #   properties that are stored.
+    # * values: Whitespace separated string that holds the corresponding
+    #   values.
+    sre_sp_norms = r'SPECTRAL NORMS -\s*' + sre_name + r'\s*(?P<log_prehyds>'
+    sre_sp_norms += sre_number + r')+\s*LEV'
+    sre_sp_norms += r'(?P<headers>.*?)AVE'
+    sre_sp_norms += r'(?P<values>[0-9Ee\-\+\.\s]+)'
+    re_sp_norms = re.compile(sre_sp_norms, re.MULTILINE | re.DOTALL)
 
-    # Individual gridpoint norm entries (per field)
+    # Regex for parsing a single gridpoint norm block.
     sre_gp_norms = fr'GPNORM\s*(?P<field>{sre_name})\s*AVERAGE\s*MINIMUM\s*MAXIMUM\s*AVE\s*'
     sre_gp_norms += fr'(?P<avg>{sre_number})\s*(?P<min>{sre_number})\s*(?P<max>{sre_number})'
     re_gp_norms = re.compile(sre_gp_norms, re.MULTILINE)
+
+    # Each result block in the node file starts with "NORMS AT NSTEP CNT4",
+    # followed by a block name (optional) and the step index (required).
+    # As far as I can see it, a block, always ends with a line that starts with
+    # "NSTEP".
+    it_str = r'NORMS AT NSTEP (.*?)\s+(\d+)(.*?)NSTEP'
+    re_it_str = re.compile(it_str, re.MULTILINE | re.DOTALL)
 
     def __init__(self, filepath):
         self.filepath = Path(filepath)
@@ -46,19 +58,119 @@ class NODEFile:
         match = self.re_timestamp.search(self.content)
         return datetime.strptime(f"{match.group('date')} {match.group('time')}", '%Y-%m-%d %H:%M:%S')
 
+    def _iterate_step_data(self):
+        """
+        Each nodefile stores the results at the different time steps.
+        Additionally, there may be different "groups" for each time step (for
+        example results for the predictor/corrector or just "standard" data).
+
+        This function yields tuples of the type (group name, step index,
+        content).
+        """
+        # Use the re_it_str regex to find all step blocks. This returns a tuple
+        # that contains (group name, step index, block content).
+        matches = self.re_it_str.findall(self.content)
+
+        for group_name, step, content in matches:
+            # Strip the group name of all whitespaces and parenthesis.
+            group_name = group_name.strip(' ()')
+            step = int(step)
+            content = content.strip()
+
+            yield group_name, step, content
+
+    @staticmethod
+    def _construct_dataframe(raw_data, default_value=0):
+        """
+        Build a dataframe from a dict of <step index, data dict> pairs. All
+        not-specified values are set to the default_value.
+        This is necessary, as pandas sets unspecified values to NaN which may
+        cause major problems when validating results.
+        """
+
+        # Create the data frame from the actual data.
+        data = pd.DataFrame(raw_data.values())
+
+        # If the DataFrame is empty, return now as some of the subsequent steps
+        # may fail in this case.
+        if data.empty:
+            return data
+
+        for c in data.columns:
+            data[c] = pd.to_numeric(data[c])
+
+        data.set_index('step', inplace=True)
+
+        # Find non-assigned values in the dataframe.
+        isna = data.isna()
+
+        # Set all non-assigned values to the default value.
+        data.mask(isna, default_value, inplace=True)
+
+        return data
+
+    @staticmethod
+    def _sanitise_float(value):
+        # Unfortunately we need this hack. IFS sometimes outputs
+        # floating point numbers in a non-standard exponential way,
+        # writing 0.1-2 instead of 0.1e-2. Python can't parse the
+        # former. Therefore we do a little check here to detect values
+        # that contain a "-" but no "e".
+        if '-' in value and ('e' not in value.lower()):
+            value = value.replace('-', 'e-')
+        return value
+
     @property
     def spectral_norms(self):
         """
-        Timeseries of spectral norms as recorded in the logfile
-        """
-        entries = [m.groupdict() for m in self.re_sp_norms.finditer(self.content)]
-        data = pd.DataFrame(entries)
-        data['step'] = pd.to_numeric(data['step'])
-        data.set_index('step', inplace=True)
+        Return the spectral norms that are stored in the logfile as a
+        pandas.DataFrame object.
 
-        # Ensure numeric values in data
-        for c in data.columns:
-            data[c] = pd.to_numeric(data[c])
+        Each row of the DataFrame corresponds to a single timestep whereas each
+        columns corresponds to a property.
+        """
+
+        # Initially, we use a dict that maps from time steps to the
+        # corresponding data.
+        raw_data = {}
+
+        # Iterate over all data blocks in the node file.
+        for group_name, step, content in self._iterate_step_data():
+
+            # Try to look for spectral norm data in the current data block.
+            match = self.re_sp_norms.search(content)
+            if match is None:
+                continue
+
+
+            # If no data exists yet for the timestep, create a new dictionary
+            # for it, which also holds the timestep
+            if step not in raw_data:
+                raw_data[step] = {'step': step}
+
+
+            # Check if the block has a name or not. If it does, create a prefix
+            # that is added to all stored properties.
+            if group_name:
+                prefix = group_name + '_'
+            else:
+                prefix = ''
+
+            # Split the headers where there are at least two whitespaces (some
+            # property names include a single whitespace but two properties are
+            # usually separated by multiple whitespaces).
+            headers = re.split(r'\s{2,}', match['headers'].strip())
+            values = re.split(r'\s+', match['values'].strip())
+
+            # Add the key/value pairs to the actual data dict.
+            for name, value in zip(headers, values):
+                raw_data[step][prefix+name] = self._sanitise_float(value)
+
+            raw_data[step][prefix+'log_prehyds'] = self._sanitise_float(
+                match['log_prehyds'])
+
+        data = self._construct_dataframe(raw_data, default_value=0)
+
         return data
 
     @property
@@ -67,29 +179,45 @@ class NODEFile:
         Timeseries of spectral norms as recorded in the logfile
         """
 
-        # Create a Dataframe for all fields per timestep from regexes
-        data_raw = []
-        for m in self.re_tstep_norms.finditer(self.content):
-            step_match = m.groupdict()
-            entries = [m.groupdict() for m in self.re_gp_norms.finditer(step_match['norms'])]
+        # Initially, we use a dict that maps from time steps to the
+        # corresponding data.
+        raw_data = {}
 
-            # Create DataFrame and pivot it, so that fields are columns
-            df = pd.DataFrame(entries).transpose()
-            df.columns = df.iloc[0]
-            df.drop(df.index[0], inplace=True)
+        # Iterate over all data blocks in the node file.
+        for group_name, step, content in self._iterate_step_data():
 
-            # Add the indexes as columns, but don't sort yet
-            df['norm'] = df.index
-            df['step'] = pd.to_numeric(step_match['step'])
+            # Each data block may contain different grid point properties
+            # (humidity, snow, rain, ...). Parse each of them.
+            entries = [m.groupdict() for m in self.re_gp_norms.finditer(content)]
 
-            # Collect DF per timestep for later concatenation
-            data_raw += [df]
+            if step not in raw_data:
+                raw_data[step] = {'step': step}
 
-        # Concatenate and sanitizes dataframes and create step-field mulit-index
-        data = pd.concat(data_raw)
-        data.set_index(['norm', 'step'], inplace=True)
-        for c in data.columns:
-            data[c] = pd.to_numeric(data[c])
-        data.sort_index(inplace=True)
+            row_data = {}
+
+            # Loop over all grid point properties. Each grid point property
+            # usually  holds several values (min, max, average). Each such
+            # value should end up in a separate column of the data frame (e.g.
+            # the average rain value should end up in the "RAIN avg" column.
+            for entry in entries:
+                # Get the name of the current value (and strip all still
+                # remaining whitespaces).
+                name = entry.pop('field').strip()
+
+                # Prepend the name by the name of the group
+                # (predictor/corrector/nothing) if applicable.
+                if group_name:
+                    prefix=f"{group_name}_{name} "
+                else:
+                    prefix=f"{name} "
+
+                for key, value in entry.items():
+                    row_data[prefix+key] = self._sanitise_float(value)
+
+            # Combine the previous data for timestep "step" with the data that
+            # was just read.
+            raw_data[step] = {**raw_data[step], **row_data}
+
+        data = self._construct_dataframe(raw_data, default_value=0)
 
         return data

@@ -60,10 +60,7 @@ class RunRecord:
         d['spectral_norms'] = self.spectral_norms.to_dict(orient=orient)
 
         # Encode gridpoint norms by taking cross-sections of each field
-        fields = self.gridpoint_norms.index.unique(level=0)
-        d['gridpoint_norms'] = OrderedDict({
-            field: self.gridpoint_norms.xs(field).to_dict(orient=orient) for field in fields
-        })
+        d['gridpoint_norms'] = self.gridpoint_norms.to_dict(orient=orient)
 
         if self.drhook is not None:
             d['drhook'] = self.drhook.to_dict(orient=orient)
@@ -156,15 +153,8 @@ class RunRecord:
             spectral_norms[c] = pd.to_numeric(spectral_norms[c])
 
         # Read and normalize gridpoint norms by field
-        gp_norms = []
-        for field, norms in data['gridpoint_norms'].items():
-            norms = pd.DataFrame().from_dict(norms, orient=orient)
-            norms.index.rename('step', inplace=True)
-            norms['field'] = field
-            gp_norms += [norms]
-
-        gridpoint_norms = pd.concat(gp_norms)
-        gridpoint_norms.set_index(['field', gridpoint_norms.index], inplace=True)
+        gridpoint_norms = pd.DataFrame.from_dict(data['gridpoint_norms'], orient=orient)
+        gridpoint_norms.index.rename('step', inplace=True)
         for c in gridpoint_norms.columns:
             gridpoint_norms[c] = pd.to_numeric(gridpoint_norms[c])
 
