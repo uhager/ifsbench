@@ -1,13 +1,13 @@
 """
 Tests for handling namelists
 """
+from pathlib import Path
 import f90nml
 import pytest
-from path import Path
 try:
     from collections import OrderedDict
 except ImportError:
-    OrderedDict = dict
+    OrderedDict = dictpl
 from ifsbench import sanitize_namelist, namelist_diff, gettempdir, IFSNamelist
 
 
@@ -276,4 +276,3 @@ def test_namelist_duplicate_key_set_val(here, mode):
 
     nml_1['someval']['val'] = 1
     nml_2['someval']['val'] = 1
-

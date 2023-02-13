@@ -109,10 +109,11 @@ def sanitize_namelist(nml, merge_strategy='first', mode='auto'):
     for key in nml:
         if isinstance(nml[key], list):
             if mode == 'auto':
-                _ = []
-                for i in range(len(nml[key])):
-                    _.extend([_key for _key in nml[key][i] if isinstance(nml[key][i][_key], f90nml.Namelist)])
-                if len(set(_)) == 1:
+                unique_keys = {
+                    _key for values in nml[key] for _key, val in values.items()
+                    if isinstance(val, f90nml.Namelist)
+                }
+                if len(unique_keys) == 1:
                     continue
             if merge_strategy == 'first':
                 nml[key] = nml[key][0]
@@ -190,4 +191,3 @@ def namelist_diff(nml, other_nml):
                 diff[group] = (None, values)
 
     return diff
-
