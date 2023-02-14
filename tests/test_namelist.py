@@ -7,7 +7,7 @@ import pytest
 try:
     from collections import OrderedDict
 except ImportError:
-    OrderedDict = dictpl
+    OrderedDict = dict
 from ifsbench import sanitize_namelist, namelist_diff, gettempdir, IFSNamelist
 
 
