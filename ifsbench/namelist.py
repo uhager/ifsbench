@@ -105,29 +105,41 @@ def sanitize_namelist(nml, merge_strategy='first', mode='auto'):
     f90nml.Namelist
         The sanitised namelist
     """
-    nml = nml.copy()
-    for key in nml:
-        if isinstance(nml[key], list):
+    # all_keys = [str(key) for key in nml.keys()]
+    # breakpoint()
+    unique_namelist_names = list(dict.fromkeys(nml.keys()))
+    if len(unique_namelist_names) == len(nml.keys()):
+        return nml
+    nml_dict = OrderedDict((str(key), []) for key in unique_namelist_names)
+    for key, values in nml.items():
+        nml_dict[str(key)] += [values]
+    nml = f90nml.Namelist()
+    for key, values in nml_dict.items():
+        if len(values) == 1:
+            nml[key] = values[0]
+        else:
             if mode == 'auto':
                 unique_keys = {
-                    _key for values in nml[key] for _key, val in values.items()
+                    _key for _values in values for _key, val in _values.items()
                     if isinstance(val, f90nml.Namelist)
                 }
                 if len(unique_keys) == 1:
+                    for _values in values:
+                        nml.add_cogroup(key, _values)
                     continue
             if merge_strategy == 'first':
-                nml[key] = nml[key][0]
+                nml[key] = values[0]
             elif merge_strategy == 'last':
-                nml[key] = nml[key][-1]
+                nml[key] = values[-1]
             elif merge_strategy == 'merge_first':
                 merged = f90nml.Namelist({key: {}})
-                for values in reversed(nml[key]):
-                    merged.patch(f90nml.Namelist({key: values}))
+                for _values in reversed(values):
+                    merged.patch(f90nml.Namelist({key: _values}))
                 nml[key] = merged[key]
             elif merge_strategy == 'merge_last':
                 merged = f90nml.Namelist({key: {}})
-                for values in nml[key]:
-                    merged.patch(f90nml.Namelist({key: values}))
+                for _values in values:
+                    merged.patch(f90nml.Namelist({key: _values}))
                 nml[key] = merged[key]
             else:
                 raise ValueError(f'Invalid merge strategy: {merge_strategy}')
