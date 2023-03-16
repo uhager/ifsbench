@@ -105,8 +105,6 @@ def sanitize_namelist(nml, merge_strategy='first', mode='auto'):
     f90nml.Namelist
         The sanitised namelist
     """
-    # all_keys = [str(key) for key in nml.keys()]
-    # breakpoint()
     unique_namelist_names = list(dict.fromkeys(nml.keys()))
     if len(unique_namelist_names) == len(nml.keys()):
         return nml
