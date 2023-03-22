@@ -4,6 +4,7 @@ Data structures to represent IFS input files
 
 from collections import defaultdict
 from pathlib import Path
+from subprocess import CalledProcessError
 import glob
 import yaml
 
@@ -260,7 +261,10 @@ class ExperimentFiles:
         candidates.sort(key=_score_overlap_from_behind, reverse=True)
 
         for path, src_dir in candidates:
-            candidate_file = InputFile(path, src_dir)
+            try:
+                candidate_file = InputFile(path, src_dir)
+            except CalledProcessError:
+                continue
             if candidate_file.checksum == input_file.checksum:
                 return candidate_file
 
