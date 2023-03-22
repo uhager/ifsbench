@@ -157,7 +157,17 @@ def convert(_nml):
     """
     convert relevant keys to original layout ...
     """
-    nml = _nml.copy()
+    # Convert to f90nml<1.4 format
+    nml = f90nml.Namelist()
+    for key_, values in _nml.items():
+        key = str(key_)
+        if key in nml:
+            if isinstance(nml[key], list):
+                nml[key] += [values]
+            else:
+                nml[key] = [nml[key], values]
+        else:
+            nml[key] = values
     for key in nml:
         if isinstance(nml[key], list):
             _ = []
@@ -226,20 +236,23 @@ def test_namelist_duplicate_key(here, mode):
                                                              ('_start_index', {'anotherarray': [1]})]))])
         assert nml_2.nml.todict() \
                == OrderedDict([('someval', _val),
-                               ('somearray', [OrderedDict([('this', _somearray_1)]),
-                                              OrderedDict([('this', _somearray_2)]),
-                                              OrderedDict([('this', _somearray_3)]),
-                                              OrderedDict()]),
-                               ('anotherarray', [OrderedDict([('self', _another_array_1)]),
-                                                 OrderedDict([('self', _another_array_2)]),
-                                                 OrderedDict()])])
+                               ('somearray', OrderedDict()),
+                               ('anotherarray', OrderedDict()),
+                               ('_grp_somearray_0', OrderedDict([('this', _somearray_1)])),
+                               ('_grp_somearray_1', OrderedDict([('this', _somearray_2)])),
+                               ('_grp_somearray_2', OrderedDict([('this', _somearray_3)])),
+                               ('_grp_somearray_3', OrderedDict()),
+                               ('_grp_anotherarray_0', OrderedDict([('self', _another_array_1)])),
+                               ('_grp_anotherarray_1', OrderedDict([('self', _another_array_2)])),
+                               ('_grp_anotherarray_2', OrderedDict())
+                              ])
 
         _converted_nml_2 = convert(nml_2.nml)
         assert nml_1.nml == _converted_nml_2
 
     elif mode == "f90nml":
         assert nml_1.nml.todict() \
-               == OrderedDict([('someval', [_val, _val]),
+               == OrderedDict([('someval', OrderedDict()),
                                ('somearray', OrderedDict([('somearray',
                                                            [_somearray_1,
                                                             _somearray_2,
@@ -248,20 +261,29 @@ def test_namelist_duplicate_key(here, mode):
                                ('anotherarray', OrderedDict([('anotherarray',
                                                               [_another_array_1,
                                                                _another_array_2]),
-                                                             ('_start_index', {'anotherarray': [1]})]))])
+                                                             ('_start_index', {'anotherarray': [1]})])),
+                               ('_grp_someval_0', _val),
+                               ('_grp_someval_1', _val),
+                              ])
 
         assert nml_2.nml.todict() \
-               == OrderedDict([('someval', [_val, _val]),
-                               ('somearray', [OrderedDict([('this', _somearray_1)]),
-                                              OrderedDict([('this', _somearray_2)]),
-                                              OrderedDict([('this', _somearray_3)]),
-                                              OrderedDict()]),
-                               ('anotherarray', [OrderedDict([('self', _another_array_1)]),
-                                                 OrderedDict([('self', _another_array_2)]),
-                                                 OrderedDict()])])
+               == OrderedDict([('someval', OrderedDict()),
+                               ('somearray', OrderedDict()),
+                               ('anotherarray', OrderedDict()),
+                               ('_grp_someval_0', _val),
+                               ('_grp_someval_1', _val),
+                               ('_grp_somearray_0', OrderedDict([('this', _somearray_1)])),
+                               ('_grp_somearray_1', OrderedDict([('this', _somearray_2)])),
+                               ('_grp_somearray_2', OrderedDict([('this', _somearray_3)])),
+                               ('_grp_somearray_3', OrderedDict()),
+                               ('_grp_anotherarray_0', OrderedDict([('self', _another_array_1)])),
+                               ('_grp_anotherarray_1', OrderedDict([('self', _another_array_2)])),
+                               ('_grp_anotherarray_2', OrderedDict())
+                              ])
 
+        _converted_nml_1 = convert(nml_1.nml)
         _converted_nml_2 = convert(nml_2.nml)
-        assert nml_1.nml == _converted_nml_2
+        assert _converted_nml_1 == _converted_nml_2
 
 
 @pytest.mark.parametrize('mode', available_modes(xfail=[('f90nml', 'nml["someval"] is a list as not sanitized')]))
