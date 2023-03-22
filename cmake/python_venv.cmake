@@ -50,7 +50,7 @@ function(python_venv VENV_NAME )
     unset( Python3_EXECUTABLE )
 
     # Launch a new search
-    find_package( Python3 COMPONENTS Interpreter Development REQUIRED )
+    find_package( Python3 COMPONENTS Interpreter REQUIRED )
 
     # Find the binary directory of the virtual environment
     execute_process(
