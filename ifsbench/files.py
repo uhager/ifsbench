@@ -109,7 +109,7 @@ class InputFile:
     def _sha256sum(filepath):
         """Create SHA-256 checksum for the file at the given path"""
         filepath = Path(filepath)
-        with tempfile.TemporaryDirectory() as tmp_dir:
+        with tempfile.TemporaryDirectory(prefix='ifsbench') as tmp_dir:
             logfile = Path(tmp_dir)/'checksum.sha256'
             cmd = ['sha256sum', str(filepath)]
             with logfile.open('w', encoding='utf-8') as f:
