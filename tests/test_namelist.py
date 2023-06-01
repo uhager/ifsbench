@@ -2,13 +2,15 @@
 Tests for handling namelists
 """
 from pathlib import Path
+import tempfile
+
 import f90nml
 import pytest
 try:
     from collections import OrderedDict
 except ImportError:
     OrderedDict = dict
-from ifsbench import sanitize_namelist, namelist_diff, gettempdir, IFSNamelist
+from ifsbench import sanitize_namelist, namelist_diff, IFSNamelist
 
 
 @pytest.fixture(scope='module', name='here')
@@ -70,10 +72,11 @@ def test_sanitize_namelist(mode):
 /
     """.strip()
 
-    nml_file = gettempdir()/'nml'
-    with nml_file.open('w') as f:
-        f.write(nml_string)
-    nml = f90nml.read(nml_file)
+    with tempfile.TemporaryDirectory(prefix='ifsbench') as tmp_dir:
+        nml_file = Path(tmp_dir)/'nml'
+        with nml_file.open('w') as f:
+            f.write(nml_string)
+        nml = f90nml.read(nml_file)
 
     sanitized = sanitize_namelist(nml, merge_strategy='first', mode=mode)
     assert sanitized.todict() == {'a': {'foo': 4, 'foobar': 3}, 'b': {'bar': 1, 'foo': 2}}
@@ -86,8 +89,6 @@ def test_sanitize_namelist(mode):
 
     sanitized = sanitize_namelist(nml, merge_strategy='merge_last', mode=mode)
     assert sanitized.todict() == {'a': {'foo': 1, 'foobar': 3, 'bar': 2}, 'b': {'bar': 1, 'foo': 2}}
-
-    nml_file.unlink()
 
 
 def test_empty_namelist():
@@ -109,9 +110,10 @@ def test_empty_namelist():
 &c
 /
     """.strip()
-    nml_file = gettempdir()/'nml'
-    nml_file.write_text(nml_string)
-    nml = f90nml.read(nml_file)
+    with tempfile.TemporaryDirectory(prefix='ifsbench') as tmp_dir:
+        nml_file = Path(tmp_dir)/'nml'
+        nml_file.write_text(nml_string)
+        nml = f90nml.read(nml_file)
 
     sanitized = sanitize_namelist(nml, merge_strategy='first')
     assert sanitized.todict() == {'a': {'foo': 4, 'foobar': 3}, 'b': {'bar': 1, 'foo': 2}, 'c':{}}
@@ -124,8 +126,6 @@ def test_empty_namelist():
 
     sanitized = sanitize_namelist(nml, merge_strategy='merge_last')
     assert sanitized.todict() == {'a': {'foo': 1, 'foobar': 3, 'bar': 2}, 'b': {'bar': 1, 'foo': 2}, 'c':{}}
-
-    nml_file.unlink()
 
 
 def test_namelist_diff():
@@ -159,20 +159,21 @@ def test_namelist_diff():
 /
     """.strip()
 
-    nml1_file = gettempdir()/'nml1'
-    with nml1_file.open('w') as f:
-        f.write(nml1_string)
-    nml1 = f90nml.read(nml1_file)
+    with tempfile.TemporaryDirectory(prefix='ifsbench') as tmp_dir:
+        nml1_file = Path(tmp_dir)/'nml1'
+        with nml1_file.open('w') as f:
+            f.write(nml1_string)
+        nml1 = f90nml.read(nml1_file)
 
-    nml2_file = gettempdir()/'nml2'
-    with nml2_file.open('w') as f:
-        f.write(nml2_string)
-    nml2 = f90nml.read(nml2_file)
+        nml2_file = Path(tmp_dir)/'nml2'
+        with nml2_file.open('w') as f:
+            f.write(nml2_string)
+        nml2 = f90nml.read(nml2_file)
 
-    nml3_file = gettempdir()/'nml3'
-    with nml3_file.open('w') as f:
-        f.write(nml3_string)
-    nml3 = f90nml.read(nml3_file)
+        nml3_file = Path(tmp_dir)/'nml3'
+        with nml3_file.open('w') as f:
+            f.write(nml3_string)
+        nml3 = f90nml.read(nml3_file)
 
     assert not namelist_diff(nml1, nml1.copy())
     assert not namelist_diff(nml1, nml2)
@@ -185,10 +186,6 @@ def test_namelist_diff():
         'b': ({'bar': 1, 'foo': 2}, None),
         'c': (None, {'foofoo': 4}),
     }
-
-    nml1_file.unlink()
-    nml2_file.unlink()
-    nml3_file.unlink()
 
 
 def convert(_nml):
