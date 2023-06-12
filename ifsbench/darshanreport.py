@@ -6,6 +6,7 @@ import mmap
 from contextlib import contextmanager
 from pathlib import Path
 from subprocess import CalledProcessError
+import tempfile
 import pandas as pd
 
 from ifsbench.logging import warning, error
@@ -44,7 +45,7 @@ def open_darshan_logfile(filepath):
     Utility context manager to run darshan-parser on the fly if the given file
     path does not point to a darshan log text file.
     """
-    
+
     # This function may create a temporary directory (using
     # tempfile.TemporaryDirectory). We wrap everything in it in a try/finally
     # clause in order to cleanup this directory afterwards.

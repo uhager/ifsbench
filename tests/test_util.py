@@ -1,11 +1,10 @@
 """
 Tests for utility routines
 """
-import os
 from pathlib import Path
 from subprocess import CalledProcessError
-import pytest
 import tempfile
+import pytest
 
 from ifsbench.util import execute
 

@@ -8,7 +8,6 @@ from pprint import pformat
 import shutil
 from subprocess import Popen, STDOUT, PIPE, CalledProcessError
 import sys
-import tempfile
 import timeit
 
 from ifsbench.logging import debug, info, warning, error
