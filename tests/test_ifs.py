@@ -43,8 +43,8 @@ def test_ifs(cycle, prec):
         obj_default = ifs.IFS.create_cycle(cycle, builddir='build')
         obj_install = ifs.IFS.create_cycle(cycle, builddir='build', installdir='../prefix')
     else:
-        exec_name = {'sp': 'ifsMASTER.SP', 'dp': 'ifsMASTER.DP'}[prec]
-        ld_library_path = 'build/ifs_dp'
+        exec_name = f'ifsMASTER.{prec.upper()}'
+        ld_library_path = f'build/ifs_{prec}'
         obj_default = ifs.IFS.create_cycle(cycle, builddir='build', prec=prec)
         obj_install = ifs.IFS.create_cycle(cycle, builddir='build', installdir='../prefix', prec=prec)
 
@@ -84,7 +84,7 @@ def test_ifs_setup_env(cycle, prec):
     if cycle == 'cy46r1':
         assert 'LD_LIBRARY_PATH' in env and 'build/ifs-source:' in env['LD_LIBRARY_PATH']
     else:
-        assert 'LD_LIBRARY_PATH' in env and 'build/ifs_dp:' in env['LD_LIBRARY_PATH']
+        assert 'LD_LIBRARY_PATH' in env and f'build/ifs_{prec}:' in env['LD_LIBRARY_PATH']
 
 
 @pytest.mark.parametrize('cycle', list(ifs.cycle_registry.keys()))

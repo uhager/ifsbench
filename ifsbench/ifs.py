@@ -282,7 +282,7 @@ class IFS_CY47R1(IFS):
         Inserts ``builddir/ifs_dp`` into ``LD_LIBRARY_PATH`` so
           ``libblack.so`` is picked up.
         """
-        return (str(self.builddir/'ifs_dp'),)
+        return (str(self.builddir/f'ifs_{self.prec.lower()}'),)
 
 
 class IFS_CY47R2(IFS_CY47R1):
