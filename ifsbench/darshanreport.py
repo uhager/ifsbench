@@ -6,10 +6,11 @@ import mmap
 from contextlib import contextmanager
 from pathlib import Path
 from subprocess import CalledProcessError
+import tempfile
 import pandas as pd
 
 from ifsbench.logging import warning, error
-from ifsbench.util import gettempdir, execute
+from ifsbench.util import execute
 
 
 __all__ = ['read_files_from_darshan', 'write_files_from_darshan', 'DarshanReport']
@@ -44,24 +45,38 @@ def open_darshan_logfile(filepath):
     Utility context manager to run darshan-parser on the fly if the given file
     path does not point to a darshan log text file.
     """
-    filepath = Path(filepath)
-    with filepath.open('rb') as logfile:
-        is_parser_log = logfile.read(32).find(b'darshan log version:') != -1
-    if not is_parser_log:
-        logpath = gettempdir()/(filepath.stem + '.log')
-        try:
-            with logpath.open('w', encoding='utf-8') as logfile:
-                execute(['darshan-parser', str(filepath)], stdout=logfile)
-        except CalledProcessError as e:
-            if logpath.stat().st_size > 0:
-                warning('darshan-parser exited with non-zero exit code. Continue with potentially incomplete file...')
-            else:
-                error('darshan-parser exited with non-zero exit code and did not produce an output file.')
-                raise e
-        filepath = logpath
-    with filepath.open('r', encoding='utf-8') as logfile:
-        report = mmap.mmap(logfile.fileno(), 0, prot=mmap.PROT_READ)
-        yield report
+
+    # This function may create a temporary directory (using
+    # tempfile.TemporaryDirectory). We wrap everything in it in a try/finally
+    # clause in order to cleanup this directory afterwards.
+    tmp_dir = None
+    try:
+        filepath = Path(filepath)
+        with filepath.open('rb') as logfile:
+            is_parser_log = logfile.read(32).find(b'darshan log version:') != -1
+
+        if not is_parser_log:
+            tmp_dir = tempfile.TemporaryDirectory(prefix='ifsbench')
+
+            logpath = Path(tmp_dir.name)/(filepath.stem + '.log')
+            try:
+                with logpath.open('w', encoding='utf-8') as logfile:
+                    execute(['darshan-parser', str(filepath)], stdout=logfile)
+            except CalledProcessError as e:
+                if logpath.stat().st_size > 0:
+                    warning('darshan-parser exited with non-zero exit code. Continue with potentially incomplete file...')
+                else:
+                    error('darshan-parser exited with non-zero exit code and did not produce an output file.')
+                    raise e
+
+            filepath = logpath
+
+        with filepath.open('r', encoding='utf-8') as logfile:
+            report = mmap.mmap(logfile.fileno(), 0, prot=mmap.PROT_READ)
+            yield report
+    finally:
+        if tmp_dir is not None:
+            tmp_dir.cleanup()
 
 
 class DarshanReport:

@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 
 from pathlib import Path
+import tempfile
 import click
 
 from ifsbench import (
-    cli, header, debug, gettempdir, ExperimentFiles,
+    cli, header, debug, ExperimentFiles,
     DarshanReport, read_files_from_darshan, write_files_from_darshan
 )
 
@@ -64,12 +65,13 @@ def unpack_ifsdata(input_dir, output_dir, verify_checksum, inputs):
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    ifsdata_yaml = gettempdir()/'ifsdata.yml'
-    ifsdata_files.to_yaml(ifsdata_yaml)
+    with tempfile.TemporaryDirectory(prefix='ifsbench') as tmp_dir:
+        ifsdata_yaml = Path(tmp_dir)/'ifsdata.yml'
+        ifsdata_files.to_yaml(ifsdata_yaml)
 
-    # Extract all ifsdata files
-    ExperimentFiles.from_tarball(ifsdata_yaml, input_dir, output_dir, ifsdata_dir=output_dir,
-                                 with_ifsdata=True, verify_checksum=verify_checksum)
+        # Extract all ifsdata files
+        ExperimentFiles.from_tarball(ifsdata_yaml, input_dir, output_dir, ifsdata_dir=output_dir,
+                                     with_ifsdata=True, verify_checksum=verify_checksum)
 
 
 @cli.command()

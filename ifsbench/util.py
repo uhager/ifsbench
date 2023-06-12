@@ -8,28 +8,15 @@ from pprint import pformat
 import shutil
 from subprocess import Popen, STDOUT, PIPE, CalledProcessError
 import sys
-import tempfile
 import timeit
 
 from ifsbench.logging import debug, info, warning, error
 
 
 __all__ = [
-    'gettempdir', 'execute', 'symlink_data', 'copy_data', 'Timer', 'classproperty',
+    'execute', 'symlink_data', 'copy_data', 'Timer', 'classproperty',
     'auto_post_mortem_debugger'
 ]
-
-
-def gettempdir():
-    """
-    Create an ifsbench-specific tempdir in the systems temporary directory.
-    """
-    tmpdir = Path(tempfile.gettempdir())/'ifsbench'
-
-    if not tmpdir.exists():
-        tmpdir.mkdir()
-
-    return tmpdir
 
 
 def execute(command, **kwargs):

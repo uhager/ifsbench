@@ -5,12 +5,13 @@ Tests for all classes that represent benchmark files
 from contextlib import contextmanager
 from pathlib import Path
 import shutil
+import tempfile
 
 import pytest
 
 from ifsbench import (
     InputFile, ExperimentFiles, SpecialRelativePath, DarshanReport,
-    read_files_from_darshan, write_files_from_darshan, gettempdir
+    read_files_from_darshan, write_files_from_darshan
 )
 
 
@@ -187,9 +188,10 @@ def test_experiment_files_from_darshan(here):
     other_files = ExperimentFiles.from_dict(exp_files.to_dict(), verify_checksum=False)
     assert {str(f.fullpath) for f in exp_files.files}=={str(f.fullpath) for f in other_files.files}
 
-    yaml_file = gettempdir()/'experiment_files.yml'
-    exp_files.to_yaml(yaml_file)
-    other_files = ExperimentFiles.from_yaml(yaml_file, verify_checksum=False)
+    with tempfile.TemporaryDirectory(prefix='ifsbench') as tmp_dir:
+        yaml_file = Path(tmp_dir)/'experiment_files.yml'
+        exp_files.to_yaml(yaml_file)
+        other_files = ExperimentFiles.from_yaml(yaml_file, verify_checksum=False)
 
 
 def test_special_relative_path():

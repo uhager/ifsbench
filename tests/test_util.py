@@ -1,24 +1,12 @@
 """
 Tests for utility routines
 """
-import os
 from pathlib import Path
 from subprocess import CalledProcessError
+import tempfile
 import pytest
 
-from ifsbench.util import gettempdir, execute
-
-
-def test_gettempdir():
-    """
-    Test that gettempdir() yields a read- and writable location.
-    """
-    tmpdir = gettempdir()
-
-    assert isinstance(tmpdir, Path)
-    assert tmpdir.is_dir()
-    assert os.access(tmpdir, os.R_OK)
-    assert os.access(tmpdir, os.W_OK)
+from ifsbench.util import execute
 
 
 def test_execute():
@@ -30,23 +18,24 @@ def test_execute():
     with pytest.raises(CalledProcessError):
         execute('false')
 
-    # basic logfile capture validation
-    logfile = gettempdir()/'test_execute.log'
-    execute(['echo', 'foo', 'bar'], logfile=logfile)
-    assert logfile.read_text() == 'foo bar\n'
+    with tempfile.TemporaryDirectory(prefix='ifsbench') as tmp_dir:
+        # basic logfile capture validation
+        logfile = Path(tmp_dir)/'test_execute.log'
+        execute(['echo', 'foo', 'bar'], logfile=logfile)
+        assert logfile.read_text() == 'foo bar\n'
 
-    # verify env
-    execute(['env'], logfile=logfile, env={'FOO': 'bar', 'BAR': 'foo'})
-    with logfile.open('r') as f:
-        env_str = f.read()
-        assert 'FOO=bar' in env_str
-        assert 'BAR=foo' in env_str
+        # verify env
+        execute(['env'], logfile=logfile, env={'FOO': 'bar', 'BAR': 'foo'})
+        with logfile.open('r') as f:
+            env_str = f.read()
+            assert 'FOO=bar' in env_str
+            assert 'BAR=foo' in env_str
 
-    # no output executable
-    execute(['true'], logfile=logfile)
-    assert logfile.read_text() == ''
+        # no output executable
+        execute(['true'], logfile=logfile)
+        assert logfile.read_text() == ''
 
-    # Output a lot of lines
-    text = 'abc\n' * 100
-    execute(['echo', text], logfile=logfile)
-    assert logfile.read_text() == text + '\n'
+        # Output a lot of lines
+        text = 'abc\n' * 100
+        execute(['echo', text], logfile=logfile)
+        assert logfile.read_text() == text + '\n'
