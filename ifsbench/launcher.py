@@ -3,7 +3,7 @@ Implementation of launch commands for various MPI launchers
 """
 from abc import ABC, abstractmethod
 
-from .job import CpuBinding, CpuDistribution
+from .job import CpuBinding, CpuDistribution, GPUSetup
 from .logging import debug, warning
 from .util import as_tuple
 
@@ -114,7 +114,8 @@ class SrunLauncher(Launcher):
         'tasks_per_node': '--ntasks-per-node={}',
         'tasks_per_socket': '--ntasks-per-socket={}',
         'cpus_per_task': '--cpus-per-task={}',
-        'threads_per_core': '--ntasks-per-core={}'
+        'threads_per_core': '--ntasks-per-core={}',
+        'gpus_per_node': '--gpus-per-node={}'
     }
 
     bind_options_map = {
@@ -153,6 +154,17 @@ class SrunLauncher(Launcher):
                  f':{cls.distribution_options_map[distribute_local]}')]
 
     @classmethod
+    def get_gpu_options(cls, job):
+        """
+        Convert GPU job options into the corresponding SLURM commands.
+        """
+        if job.gpu_setup == GPUSetup.GPU_ONE_TO_ONE:
+            return [("--gpus-per-task=1")]
+
+        return []
+
+
+    @classmethod
     def get_launch_cmd(cls, job, user_options=None):
         """
         Return the srun command for the provided :data:`job` specification
@@ -165,6 +177,7 @@ class SrunLauncher(Launcher):
         if hasattr(job, 'bind'):
             cmd += cls.get_options_from_binding(job.bind)
         cmd += cls.get_distribution_options(job)
+        cmd += cls.get_gpu_options(job)
         if user_options is not None:
             cmd += list(as_tuple(user_options))
         return cmd

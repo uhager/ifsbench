@@ -4,12 +4,13 @@ Architecture specifications
 from abc import ABC, abstractmethod
 import os
 
-from .job import CpuConfiguration, CpuBinding, Job
+from .job import GPUSetup, CpuConfiguration, CpuBinding, Job
 from .launcher import Launcher, MpirunLauncher, SrunLauncher, AprunLauncher
 from .util import as_tuple, execute
 
 
-__all__ = ['Arch', 'Workstation', 'XC40Cray', 'XC40Intel', 'AtosAaIntel', 'arch_registry']
+__all__ = ['Arch', 'Workstation', 'XC40Cray', 'XC40Intel', 'AtosAaIntel',
+           'LumiC', 'LumiG', 'arch_registry']
 
 
 class Arch(ABC):
@@ -45,7 +46,8 @@ class Arch(ABC):
     @classmethod
     @abstractmethod
     def run(cls, cmd, tasks, cpus_per_task, threads_per_core, launch_cmd=None,
-            launch_user_options=None, logfile=None, env=None, **kwargs):
+            launch_user_options=None, logfile=None, env=None, gpu_setup=None,
+            **kwargs):
         """
         Arch-specific general purpose executable execution
 
@@ -73,6 +75,8 @@ class Arch(ABC):
             An optional logfile to store the output
         env : dict, optional
             Custom environment to use
+        gpu_setup : GPUSetup, optional
+            The GPU setup that should be used.
         kwargs :
             Other arguments that may be used in the architecture implementation
             or may be passed on to :any:`execute`
@@ -122,6 +126,7 @@ class Arch(ABC):
             launch_cmd = as_tuple(cls.launcher.get_launch_cmd(job, user_options=launch_user_options))
         else:
             launch_cmd = as_tuple(launch_cmd)
+
         full_cmd = ' '.join(launch_cmd + as_tuple(cmd))
         execute(full_cmd, logfile=logfile, env=env, **kwargs)
 
@@ -144,7 +149,8 @@ class Workstation(Arch):
 
     @classmethod
     def run(cls, cmd, tasks, cpus_per_task, threads_per_core, launch_cmd=None,
-            launch_user_options=None, logfile=None, env=None, **kwargs):
+            launch_user_options=None, logfile=None, env=None, gpu_setup=None,
+            **kwargs):
         """Build job description using :attr:`cpu_config`"""
 
         # Setup environment
@@ -190,7 +196,8 @@ class XC40Cray(XC40):
 
     @classmethod
     def run(cls, cmd, tasks, cpus_per_task, threads_per_core, launch_cmd=None,
-            launch_user_options=None, logfile=None, env=None, **kwargs):
+            launch_user_options=None, logfile=None, env=None, gpu_setup=None,
+            **kwargs):
         """Build job description using :attr:`XC40.cpu_config`"""
 
         # Setup environment
@@ -227,7 +234,8 @@ class XC40Intel(XC40):
 
     @classmethod
     def run(cls, cmd, tasks, cpus_per_task, threads_per_core, launch_cmd=None,
-            launch_user_options=None, logfile=None, env=None, **kwargs):
+            launch_user_options=None, logfile=None, env=None, gpu_setup=None,
+            **kwargs):
         """Build job description using :attr:`XC40.cpu_config`"""
 
         # Setup environment
@@ -254,9 +262,62 @@ class XC40Intel(XC40):
                     logfile=logfile, env=env, **kwargs)
 
 
-class AtosAa(Arch):
+class Atos(Arch):
     """
     Hardware setup for ECMWF's aa system in Bologna
+    """
+
+    @classmethod
+    def run(cls, cmd, tasks, cpus_per_task, threads_per_core, launch_cmd=None,
+            launch_user_options=None, logfile=None, env=None, gpu_setup=None,
+            **kwargs):
+        """Build job description using :attr:`cpu_config`"""
+
+        # Setup environment
+        if env is None:
+            env = os.environ.copy()
+        env['OMP_NUM_THREADS'] = cpus_per_task
+        # TODO: Ensure proper pinning
+
+        # Fill nodes as much as possible
+        max_tasks_per_node = cls.cpu_config.cores_per_node * threads_per_core // cpus_per_task
+        tasks_per_node = kwargs.pop('tasks_per_node', min(tasks, max_tasks_per_node))
+
+        launch_user_options = list(as_tuple(launch_user_options))
+
+        if gpu_setup is None:
+            gpu_setup = GPUSetup.GPU_NONE
+
+        # If GPUs are used, request the GPU partition.
+        if gpu_setup != GPUSetup.GPU_NONE:
+            launch_user_options += ['--qos=ng']
+        elif tasks * cpus_per_task > 32:
+            # By default, stuff on Atos runs on the GPIL nodes which allow only
+            # up to 32 cores. If more resources are needed, the compute
+            # partition should be requested.
+            launch_user_options += ['--qos=np']
+
+
+        if gpu_setup == GPUSetup.GPU_ONE_TO_ONE:
+            # If one-to-one GPU mapping is used, limit the number of tasks per
+            # node to the number of GPUs per node.
+            tasks_per_node = min(tasks_per_node, cls.cpu_config.gpus_per_node)
+
+        # Bind to cores
+        bind = CpuBinding.BIND_CORES
+
+        # Build job description
+        job = Job(cls.cpu_config, tasks=tasks, tasks_per_node=tasks_per_node,
+                  cpus_per_task=cpus_per_task, threads_per_core=threads_per_core,
+                  bind=bind, gpu_setup=gpu_setup)
+
+        # Launch via generic run
+        cls.run_job(cmd, job, launch_cmd=launch_cmd, launch_user_options=launch_user_options,
+                    logfile=logfile, env=env, **kwargs)
+
+class AtosAaIntel(Atos):
+    """
+    Intel compiler-toolchain setup for :any:`AtosAa`
     """
 
     class AtosAaCpuConfig(CpuConfiguration):
@@ -271,14 +332,31 @@ class AtosAa(Arch):
     launcher = SrunLauncher
 
 
-class AtosAaIntel(AtosAa):
+class AtosAc(Atos):
     """
-    Intel compiler-toolchain setup for :any:`AtosAa`
+    Architecture for the Atos ac partition that also offers NVIDIA A100 GPUs.
     """
+
+    class AtosAcCpuConfig(CpuConfiguration):
+        """Dual-socket AMD EPYC 7H12 (64 core/128 thread, 2.6 GHz)"""
+
+        sockets_per_node = 2
+        cores_per_socket = 64
+        threads_per_core = 2
+        gpus_per_node = 4
+
+    cpu_config = AtosAcCpuConfig
+
+    launcher = SrunLauncher
+
+class Lumi(Arch):
+    # Define the default partition
+    partition : str
 
     @classmethod
     def run(cls, cmd, tasks, cpus_per_task, threads_per_core, launch_cmd=None,
-            launch_user_options=None, logfile=None, env=None, **kwargs):
+            launch_user_options=None, logfile=None, env=None, gpu_setup=None,
+            **kwargs):
         """Build job description using :attr:`cpu_config`"""
 
         # Setup environment
@@ -291,16 +369,67 @@ class AtosAaIntel(AtosAa):
         max_tasks_per_node = cls.cpu_config.cores_per_node * threads_per_core // cpus_per_task
         tasks_per_node = kwargs.pop('tasks_per_node', min(tasks, max_tasks_per_node))
 
+        launch_user_options = list(as_tuple(launch_user_options))
+
+
+        if gpu_setup is None:
+            gpu_setup = GPUSetup.GPU_NONE
+
+        # If GPUs are used, request the GPU partition.
+        launch_user_options += ["--partition=%s" % cls.partition]
+
+        if gpu_setup == GPUSetup.GPU_ONE_TO_ONE:
+            # If one-to-one GPU mapping is used, limit the number of tasks per
+            # node to the number of GPUs per node.
+            tasks_per_node = min(tasks_per_node, cls.cpu_config.gpus_per_node)
+
         # Bind to cores
         bind = CpuBinding.BIND_CORES
 
         # Build job description
         job = Job(cls.cpu_config, tasks=tasks, tasks_per_node=tasks_per_node,
-                  cpus_per_task=cpus_per_task, threads_per_core=threads_per_core, bind=bind)
+                  cpus_per_task=cpus_per_task, threads_per_core=threads_per_core,
+                  bind=bind, gpu_setup=gpu_setup)
 
         # Launch via generic run
         cls.run_job(cmd, job, launch_cmd=launch_cmd, launch_user_options=launch_user_options,
                     logfile=logfile, env=env, **kwargs)
+
+
+class LumiC(Lumi):
+    """
+    Architecture for the LUMI-C partition.
+    """
+
+    partition = "standard"
+
+    class LumiCCpuConfig(CpuConfiguration):
+        sockets_per_node = 2
+        cores_per_socket = 64
+        threads_per_core = 2
+
+    cpu_config = LumiCCpuConfig
+
+    launcher = SrunLauncher
+
+
+class LumiG(Lumi):
+    """
+    Architecture for the LUMI-G partition. Only 56 cores per node are available
+    per node!
+    """
+
+    partition = "standard-g"
+
+    class LumiGCpuConfig(CpuConfiguration):
+        sockets_per_node = 1
+        cores_per_socket = 56
+        threads_per_core = 2
+        gpus_per_node = 8
+
+    cpu_config = LumiGCpuConfig
+
+    launcher = SrunLauncher
 
 
 arch_registry = {
@@ -310,5 +439,8 @@ arch_registry = {
     'xc40cray': XC40Cray,
     'xc40intel': XC40Intel,
     'atos_aa': AtosAaIntel,
+    'atos_ac': AtosAc,
+    'lumi_c': LumiC,
+    'lumi_g': LumiG
 }
 """String-lookup of :any:`Arch` implementations"""
