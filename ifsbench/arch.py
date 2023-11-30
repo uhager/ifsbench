@@ -288,8 +288,8 @@ class Atos(Arch):
         # If GPUs are used, request the GPU partition.
         if gpus_per_task is not None and gpus_per_task > 0:
             if cls.cpu_config.gpus_per_node // gpus_per_task <= 0:
-                raise ValueError("Not enough GPUs are available on the "
-                    "architecture %s!" % cls.__name__)
+                raise ValueError(f"Not enough GPUs are available on the "
+                    f"architecture {cls.__name__}!")
 
             launch_user_options += ['--qos=ng']
             tasks_per_node = min(
@@ -371,13 +371,13 @@ class Lumi(Arch):
         launch_user_options = list(as_tuple(launch_user_options))
 
         # If GPUs are used, request the GPU partition.
-        launch_user_options += ["--partition=%s" % cls.partition]
+        launch_user_options += [f"--partition={cls.partition}"]
 
         # If GPUs are used, limit the number of tasks per node.
         if gpus_per_task is not None and gpus_per_task > 0:
             if cls.cpu_config.gpus_per_node // gpus_per_task <= 0:
-                raise ValueError("Not enough GPUs are available on the "
-                    "architecture %s!" % cls.__name__)
+                raise ValueError(f"Not enough GPUs are available on the "
+                    f"architecture {cls.__name__}!")
 
             tasks_per_node = min(
                 tasks_per_node,
