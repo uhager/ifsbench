@@ -4,8 +4,7 @@ Test :any:`Job` and its ability to derive job size
 
 import pytest
 
-from ifsbench import Job, CpuConfiguration, CpuBinding, CpuDistribution, \
-    GPUSetup
+from ifsbench import Job, CpuConfiguration, CpuBinding, CpuDistribution
 
 
 @pytest.mark.parametrize('cpu_config,jobargs,jobattrs', [
@@ -116,35 +115,38 @@ from ifsbench import Job, CpuConfiguration, CpuBinding, CpuDistribution, \
       'threads_per_core': None, 'get_threads_per_core': 1,
       'get_threads': 64, 'bind': None,
       'distribute_remote': None, 'distribute_local': CpuDistribution.DISTRIBUTE_BLOCK}),
-    # Only specify number of tasks and use GPU_ONE_TO_ONE:
+    # Only specify number of tasks and use GPUs:
     ({'sockets_per_node': 2, 'cores_per_socket': 8, 'threads_per_core': 2, 'gpus_per_node': 4},
-     {'tasks': 64, 'gpu_setup': GPUSetup.GPU_ONE_TO_ONE},
+     {'tasks': 64, 'gpus_per_task': 1},
+     {'tasks': 64, 'get_tasks': 64, 'nodes': None, 'get_nodes': 16,
+      'tasks_per_node': None, 'get_tasks_per_node': 4, 'tasks_per_socket': None,
+      'cpus_per_task': None, 'get_cpus_per_task': 1,
+      'threads_per_core': None, 'get_threads_per_core': 1,
+      'gpus_per_task': 1, 'get_gpus_per_task': 1,
+      'get_threads': 64, 'bind': None, 'distribute_remote': None, 'distribute_local': None}),
+    # Only specify number of tasks and tasks_per_node and use GPUs:
+    ({'sockets_per_node': 2, 'cores_per_socket': 8, 'threads_per_core': 2, 'gpus_per_node': 4},
+     {'tasks': 64, 'tasks_per_node': 4, 'gpus_per_task': 1},
      {'tasks': 64, 'get_tasks': 64, 'nodes': None, 'get_nodes': 16,
       'tasks_per_node': 4, 'get_tasks_per_node': 4, 'tasks_per_socket': None,
       'cpus_per_task': None, 'get_cpus_per_task': 1,
       'threads_per_core': None, 'get_threads_per_core': 1,
+      'gpus_per_task': 1, 'get_gpus_per_task': 1,
       'get_threads': 64, 'bind': None, 'distribute_remote': None, 'distribute_local': None}),
-    # Only specify number of tasks and tasks_per_node and use GPU_ONE_TO_ONE:
+    # Only specify number of tasks and tasks_per_node and an incomatible 
+    # number of GPUs:
     ({'sockets_per_node': 2, 'cores_per_socket': 8, 'threads_per_core': 2, 'gpus_per_node': 4},
-     {'tasks': 64, 'tasks_per_node': 4, 'gpu_setup': GPUSetup.GPU_ONE_TO_ONE},
-     {'tasks': 64, 'get_tasks': 64, 'nodes': None, 'get_nodes': 16,
-      'tasks_per_node': 4, 'get_tasks_per_node': 4, 'tasks_per_socket': None,
-      'cpus_per_task': None, 'get_cpus_per_task': 1,
-      'threads_per_core': None, 'get_threads_per_core': 1,
-      'get_threads': 64, 'bind': None, 'distribute_remote': None, 'distribute_local': None}),
-    # Only specify number of tasks and tasks_per_node and use GPU_ONE_TO_ONE:
+     {'tasks': 64, 'tasks_per_node': 4, 'gpus_per_task': 2},
+     {}),
+    # Only specify number of tasks and tasks_per_node and use GPUs:
     ({'sockets_per_node': 2, 'cores_per_socket': 8, 'threads_per_core': 2, 'gpus_per_node': 4},
-     {'tasks': 64, 'tasks_per_node': 2, 'gpu_setup': GPUSetup.GPU_ONE_TO_ONE},
+     {'tasks': 64, 'tasks_per_node': 2, 'gpus_per_task': 1},
      {'tasks': 64, 'get_tasks': 64, 'nodes': None, 'get_nodes': 32,
       'tasks_per_node': 2, 'get_tasks_per_node': 2, 'tasks_per_socket': None,
       'cpus_per_task': None, 'get_cpus_per_task': 1,
+      'gpus_per_task': 1, 'get_gpus_per_task': 1,
       'threads_per_core': None, 'get_threads_per_core': 1,
       'get_threads': 64, 'bind': None, 'distribute_remote': None, 'distribute_local': None}),
-    # Specify nodes and number of tasks per node and use GPU_ONE_TO_ONE.
-    # This should fail due to a too-high number of tasks_per_node.
-    ({'sockets_per_node': 2, 'cores_per_socket': 8, 'threads_per_core': 2, 'gpus_per_node': 8},
-     {'nodes': 4, 'tasks_per_node': 16, 'gpu_setup': GPUSetup.GPU_ONE_TO_ONE},
-     {}),
 ])
 def test_job(cpu_config, jobargs, jobattrs):
     """

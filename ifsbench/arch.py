@@ -4,7 +4,7 @@ Architecture specifications
 from abc import ABC, abstractmethod
 import os
 
-from .job import GPUSetup, CpuConfiguration, CpuBinding, Job
+from .job import CpuConfiguration, CpuBinding, Job
 from .launcher import Launcher, MpirunLauncher, SrunLauncher, AprunLauncher
 from .util import as_tuple, execute
 
@@ -46,7 +46,7 @@ class Arch(ABC):
     @classmethod
     @abstractmethod
     def run(cls, cmd, tasks, cpus_per_task, threads_per_core, launch_cmd=None,
-            launch_user_options=None, logfile=None, env=None, gpu_setup=None,
+            launch_user_options=None, logfile=None, env=None, gpus_per_task=None,
             **kwargs):
         """
         Arch-specific general purpose executable execution
@@ -75,8 +75,8 @@ class Arch(ABC):
             An optional logfile to store the output
         env : dict, optional
             Custom environment to use
-        gpu_setup : GPUSetup, optional
-            The GPU setup that should be used.
+        gpus_per_task: int, optional
+            The number of GPUs that are used per MPI task
         kwargs :
             Other arguments that may be used in the architecture implementation
             or may be passed on to :any:`execute`
@@ -149,7 +149,7 @@ class Workstation(Arch):
 
     @classmethod
     def run(cls, cmd, tasks, cpus_per_task, threads_per_core, launch_cmd=None,
-            launch_user_options=None, logfile=None, env=None, gpu_setup=None,
+            launch_user_options=None, logfile=None, env=None, gpus_per_task=None,
             **kwargs):
         """Build job description using :attr:`cpu_config`"""
 
@@ -196,7 +196,7 @@ class XC40Cray(XC40):
 
     @classmethod
     def run(cls, cmd, tasks, cpus_per_task, threads_per_core, launch_cmd=None,
-            launch_user_options=None, logfile=None, env=None, gpu_setup=None,
+            launch_user_options=None, logfile=None, env=None, gpus_per_task=None,
             **kwargs):
         """Build job description using :attr:`XC40.cpu_config`"""
 
@@ -234,7 +234,7 @@ class XC40Intel(XC40):
 
     @classmethod
     def run(cls, cmd, tasks, cpus_per_task, threads_per_core, launch_cmd=None,
-            launch_user_options=None, logfile=None, env=None, gpu_setup=None,
+            launch_user_options=None, logfile=None, env=None, gpus_per_task=None,
             **kwargs):
         """Build job description using :attr:`XC40.cpu_config`"""
 
@@ -269,7 +269,7 @@ class Atos(Arch):
 
     @classmethod
     def run(cls, cmd, tasks, cpus_per_task, threads_per_core, launch_cmd=None,
-            launch_user_options=None, logfile=None, env=None, gpu_setup=None,
+            launch_user_options=None, logfile=None, env=None, gpus_per_task=None,
             **kwargs):
         """Build job description using :attr:`cpu_config`"""
 
@@ -285,23 +285,22 @@ class Atos(Arch):
 
         launch_user_options = list(as_tuple(launch_user_options))
 
-        if gpu_setup is None:
-            gpu_setup = GPUSetup.GPU_NONE
-
         # If GPUs are used, request the GPU partition.
-        if gpu_setup != GPUSetup.GPU_NONE:
+        if gpus_per_task is not None and gpus_per_task > 0:
+            if cls.cpu_config.gpus_per_node // gpus_per_task <= 0:
+                raise ValueError("Not enough GPUs are available on the "
+                    "architecture %s!" % cls.__name__)
+
             launch_user_options += ['--qos=ng']
+            tasks_per_node = min(
+                tasks_per_node, 
+                cls.cpu_config.gpus_per_node // gpus_per_task
+            )
         elif tasks * cpus_per_task > 32:
             # By default, stuff on Atos runs on the GPIL nodes which allow only
             # up to 32 cores. If more resources are needed, the compute
             # partition should be requested.
             launch_user_options += ['--qos=np']
-
-
-        if gpu_setup == GPUSetup.GPU_ONE_TO_ONE:
-            # If one-to-one GPU mapping is used, limit the number of tasks per
-            # node to the number of GPUs per node.
-            tasks_per_node = min(tasks_per_node, cls.cpu_config.gpus_per_node)
 
         # Bind to cores
         bind = CpuBinding.BIND_CORES
@@ -309,7 +308,7 @@ class Atos(Arch):
         # Build job description
         job = Job(cls.cpu_config, tasks=tasks, tasks_per_node=tasks_per_node,
                   cpus_per_task=cpus_per_task, threads_per_core=threads_per_core,
-                  bind=bind, gpu_setup=gpu_setup)
+                  bind=bind, gpus_per_task=gpus_per_task)
 
         # Launch via generic run
         cls.run_job(cmd, job, launch_cmd=launch_cmd, launch_user_options=launch_user_options,
@@ -355,7 +354,7 @@ class Lumi(Arch):
 
     @classmethod
     def run(cls, cmd, tasks, cpus_per_task, threads_per_core, launch_cmd=None,
-            launch_user_options=None, logfile=None, env=None, gpu_setup=None,
+            launch_user_options=None, logfile=None, env=None, gpus_per_task=None,
             **kwargs):
         """Build job description using :attr:`cpu_config`"""
 
@@ -371,17 +370,19 @@ class Lumi(Arch):
 
         launch_user_options = list(as_tuple(launch_user_options))
 
-
-        if gpu_setup is None:
-            gpu_setup = GPUSetup.GPU_NONE
-
         # If GPUs are used, request the GPU partition.
         launch_user_options += ["--partition=%s" % cls.partition]
 
-        if gpu_setup == GPUSetup.GPU_ONE_TO_ONE:
-            # If one-to-one GPU mapping is used, limit the number of tasks per
-            # node to the number of GPUs per node.
-            tasks_per_node = min(tasks_per_node, cls.cpu_config.gpus_per_node)
+        # If GPUs are used, limit the number of tasks per node.
+        if gpus_per_task is not None and gpus_per_task > 0:
+            if cls.cpu_config.gpus_per_node // gpus_per_task <= 0:
+                raise ValueError("Not enough GPUs are available on the "
+                    "architecture %s!" % cls.__name__)
+
+            tasks_per_node = min(
+                tasks_per_node, 
+                cls.cpu_config.gpus_per_node // gpus_per_task
+            )
 
         # Bind to cores
         bind = CpuBinding.BIND_CORES
@@ -389,7 +390,7 @@ class Lumi(Arch):
         # Build job description
         job = Job(cls.cpu_config, tasks=tasks, tasks_per_node=tasks_per_node,
                   cpus_per_task=cpus_per_task, threads_per_core=threads_per_core,
-                  bind=bind, gpu_setup=gpu_setup)
+                  bind=bind, gpus_per_task=gpus_per_task)
 
         # Launch via generic run
         cls.run_job(cmd, job, launch_cmd=launch_cmd, launch_user_options=launch_user_options,
@@ -422,6 +423,14 @@ class LumiG(Lumi):
     partition = "standard-g"
 
     class LumiGCpuConfig(CpuConfiguration):
+        """
+        Single 64 core AMD EPYC 7A53 "Trento" CPU. One core per L3 region is 
+        deactivated, giving 56 usable cores in total.
+        The node is also equipped with four AMD MI250X GPUs which in turn 
+        contain two GPU dies (the SLURM scheduler treats this as eight distinct 
+        GPUs).
+        The CPU has 128GiB main memory and each MI250X has 2x64GB HBM memory.
+        """
         sockets_per_node = 1
         cores_per_socket = 56
         threads_per_core = 2
