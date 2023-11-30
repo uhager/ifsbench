@@ -91,5 +91,3 @@ def test_arch_gpu_run(watcher, arch, np, nt, gpus_per_task, hyperthread, expecte
     for string in expected:
         assert string in watcher.output
 
-
-

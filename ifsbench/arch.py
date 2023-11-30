@@ -293,7 +293,7 @@ class Atos(Arch):
 
             launch_user_options += ['--qos=ng']
             tasks_per_node = min(
-                tasks_per_node, 
+                tasks_per_node,
                 cls.cpu_config.gpus_per_node // gpus_per_task
             )
         elif tasks * cpus_per_task > 32:
@@ -380,7 +380,7 @@ class Lumi(Arch):
                     "architecture %s!" % cls.__name__)
 
             tasks_per_node = min(
-                tasks_per_node, 
+                tasks_per_node,
                 cls.cpu_config.gpus_per_node // gpus_per_task
             )
 
@@ -424,10 +424,10 @@ class LumiG(Lumi):
 
     class LumiGCpuConfig(CpuConfiguration):
         """
-        Single 64 core AMD EPYC 7A53 "Trento" CPU. One core per L3 region is 
+        Single 64 core AMD EPYC 7A53 "Trento" CPU. One core per L3 region is
         deactivated, giving 56 usable cores in total.
-        The node is also equipped with four AMD MI250X GPUs which in turn 
-        contain two GPU dies (the SLURM scheduler treats this as eight distinct 
+        The node is also equipped with four AMD MI250X GPUs which in turn
+        contain two GPU dies (the SLURM scheduler treats this as eight distinct
         GPUs).
         The CPU has 128GiB main memory and each MI250X has 2x64GB HBM memory.
         """

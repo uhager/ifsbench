@@ -133,7 +133,7 @@ from ifsbench import Job, CpuConfiguration, CpuBinding, CpuDistribution
       'threads_per_core': None, 'get_threads_per_core': 1,
       'gpus_per_task': 1, 'get_gpus_per_task': 1,
       'get_threads': 64, 'bind': None, 'distribute_remote': None, 'distribute_local': None}),
-    # Only specify number of tasks and tasks_per_node and an incomatible 
+    # Only specify number of tasks and tasks_per_node and an incomatible
     # number of GPUs:
     ({'sockets_per_node': 2, 'cores_per_socket': 8, 'threads_per_core': 2, 'gpus_per_node': 4},
      {'tasks': 64, 'tasks_per_node': 4, 'gpus_per_task': 2},

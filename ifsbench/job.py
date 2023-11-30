@@ -250,7 +250,7 @@ class Job:
             # If tasks_per_node was specified just return it.
             tasks_per_node = self.tasks_per_node
         else:
-            # If tasks_per_node wasn't specified, calculate it from the other 
+            # If tasks_per_node wasn't specified, calculate it from the other
             # values.
 
             if hasattr(self, 'tasks_per_socket'):
@@ -260,12 +260,12 @@ class Job:
             else:
                 raise ValueError('The number of tasks per node could not be determined!')
 
-            # If GPUs are used, make sure that tasks_per_node is compatible with 
+            # If GPUs are used, make sure that tasks_per_node is compatible with
             # the number of available GPUs.
             if self.get_gpus_per_task() > 0:
                 tasks_per_node = min(
                     tasks_per_node,
-                    self.cpu_config.gpus_per_node // self.get_gpus_per_task() 
+                    self.cpu_config.gpus_per_node // self.get_gpus_per_task()
                 )
 
         return tasks_per_node
