@@ -114,7 +114,8 @@ class SrunLauncher(Launcher):
         'tasks_per_node': '--ntasks-per-node={}',
         'tasks_per_socket': '--ntasks-per-socket={}',
         'cpus_per_task': '--cpus-per-task={}',
-        'threads_per_core': '--ntasks-per-core={}'
+        'threads_per_core': '--ntasks-per-core={}',
+        'gpus_per_task': '--gpus-per-task={}'
     }
 
     bind_options_map = {
@@ -151,6 +152,7 @@ class SrunLauncher(Launcher):
 
         return [(f'--distribution={cls.distribution_options_map[distribute_remote]}'
                  f':{cls.distribution_options_map[distribute_local]}')]
+
 
     @classmethod
     def get_launch_cmd(cls, job, user_options=None):
