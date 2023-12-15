@@ -91,3 +91,35 @@ def test_arch_gpu_run(watcher, arch, np, nt, gpus_per_task, hyperthread, expecte
     for string in expected:
         assert string in watcher.output
 
+@pytest.mark.parametrize('arch,np,nt,hyperthread,gpus_per_task,user_options,order', [
+    ('atos_ac', 64, 4, 1, 0, ['--qos=some_partition'], [
+        '--qos=np', '--qos=some_partition'
+    ]),
+    ('atos_ac', 64, 4, 1, 1, ['--qos=first_partition', '--qos=second_partition'], [
+        '--qos=ng', '--qos=first_partition', '--qos=second_partition'
+    ]),
+    ('lumi_g', 256, 4, 1, 2, ['--partition=lumi-c', '--gpus-per-task=0'], [
+        '--partition=standard-g', '--partition=lumi-c', '--gpus-per-task=0'
+    ]),
+])
+def test_arch_user_override(watcher, arch, np, nt, gpus_per_task, hyperthread,
+    user_options, order):
+    """
+    Verify that the launch user options are added to the end of the launcher
+    command (where they override previously set values).
+    """
+    obj = arch_registry[arch]
+
+    with watcher:
+        obj.run('cmd', np, nt, hyperthread, gpus_per_task=gpus_per_task,
+            launch_user_options=user_options, dryrun=True)
+
+    # The order-list contains some launcher flags that must appear in this order
+    # in the launch command. Check that all the values exist and that they are
+    # in the given order.
+    positions = []
+    for string in order:
+        assert string in watcher.output
+        positions.append(watcher.output.find(string))
+
+    assert positions == sorted(positions)

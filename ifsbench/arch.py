@@ -291,7 +291,7 @@ class Atos(Arch):
                 raise ValueError(f"Not enough GPUs are available on the "
                     f"architecture {cls.__name__}!")
 
-            launch_user_options += ['--qos=ng']
+            launch_user_options.insert(0, '--qos=ng')
             tasks_per_node = min(
                 tasks_per_node,
                 cls.cpu_config.gpus_per_node // gpus_per_task
@@ -300,7 +300,8 @@ class Atos(Arch):
             # By default, stuff on Atos runs on the GPIL nodes which allow only
             # up to 32 cores. If more resources are needed, the compute
             # partition should be requested.
-            launch_user_options += ['--qos=np']
+            launch_user_options.insert(0, '--qos=np')
+
 
         # Bind to cores
         bind = CpuBinding.BIND_CORES
@@ -368,10 +369,10 @@ class Lumi(Arch):
         max_tasks_per_node = cls.cpu_config.cores_per_node * threads_per_core // cpus_per_task
         tasks_per_node = kwargs.pop('tasks_per_node', min(tasks, max_tasks_per_node))
 
+        # Use the correct partition.
         launch_user_options = list(as_tuple(launch_user_options))
+        launch_user_options.insert(0, f"--partition={cls.partition}")
 
-        # If GPUs are used, request the GPU partition.
-        launch_user_options += [f"--partition={cls.partition}"]
 
         # If GPUs are used, limit the number of tasks per node.
         if gpus_per_task is not None and gpus_per_task > 0:
