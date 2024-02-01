@@ -153,9 +153,9 @@ def test_mpi_custom_options(cpu_config, launcher, cmd):
 
 
 @pytest.mark.parametrize('launcher,cmd', [
-    (SrunLauncher, set()),
-    (AprunLauncher, set()),
-    (MpirunLauncher, set())
+    (SrunLauncher, {'srun', '--ntasks=1'}),
+    (AprunLauncher, {'aprun', '-n 1'}),
+    (MpirunLauncher, {'mpirun', '-np 1'})
 ])
 def test_mpi_non_parallel(cpu_config, launcher, cmd):
     """A non-parallel :any:`Job` specification"""
