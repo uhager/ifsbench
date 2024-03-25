@@ -28,3 +28,10 @@ more "pythonic" flavour of tooling. The primary planned features are:
 
 #### Examples
 
+#### Coding style
+
+The code should be checked with pylint in order to conform with the standards
+specified in `.pylintrc`:
+```
+<build_dir>/ifsbench_env/bin/pylint --rcfile=.pylintrc ifsbench/ scripts/ tests/
+```
