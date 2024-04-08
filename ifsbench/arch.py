@@ -396,7 +396,6 @@ class Lumi(Arch):
                 env['MPICH_GPU_SUPPORT_ENABLED'] = '1'
                 env['MPICH_SMP_SINGLE_COPY_MODE'] = 'NONE'
                 env['MPICH_GPU_IPC_ENABLED'] = '0'
-                
 
         # Bind to cores
         bind = CpuBinding.BIND_CORES

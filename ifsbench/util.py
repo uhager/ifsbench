@@ -71,7 +71,7 @@ def execute(command, **kwargs):
 
     if dryrun:
         # Only print the environment when in dryrun mode.
-        info('[ifsbench] Environment: ' + str(run_env)) 
+        info('[ifsbench] Environment: ' + str(run_env))
         return
 
     cmd_args = {
