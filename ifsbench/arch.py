@@ -119,6 +119,11 @@ class Arch(ABC):
         assert isinstance(job, Job)
         assert job.cpu_config == cls.cpu_config
 
+        # Just pop a few arguments from kwargs that are used by some
+        # architectures but not by all. If we don't remove them here, they may
+        # cause trouble inside the subsequent "execute" call.
+        kwargs.pop('mpi_gpu_aware', False)
+
         if env is None:
             env = os.environ.copy()
 
@@ -384,6 +389,13 @@ class Lumi(Arch):
                 tasks_per_node,
                 cls.cpu_config.gpus_per_node // gpus_per_task
             )
+
+            use_gpu_mpi = kwargs.pop('mpi_gpu_aware', False)
+
+            if use_gpu_mpi:
+                env['MPICH_GPU_SUPPORT_ENABLED'] = '1'
+                env['MPICH_SMP_SINGLE_COPY_MODE'] = 'NONE'
+                env['MPICH_GPU_IPC_ENABLED'] = '0'
 
         # Bind to cores
         bind = CpuBinding.BIND_CORES

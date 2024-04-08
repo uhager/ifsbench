@@ -2,7 +2,10 @@
 Some sanity tests for :any:`Arch` implementations
 """
 
+import re
+
 import pytest
+
 from conftest import Watcher
 from ifsbench import logger, arch_registry
 
@@ -123,3 +126,35 @@ def test_arch_user_override(watcher, arch, np, nt, gpus_per_task, hyperthread,
         positions.append(watcher.output.find(string))
 
     assert positions == sorted(positions)
+
+
+@pytest.mark.parametrize('arch,np,gpus_per_task,mpi_gpu_aware, env_expected', [
+    ('atos_ac', 64, 0, True, {}),
+    ('atos_ac', 64, 4, True, {}),
+    ('atos_ac', 8, 0, False, {}),
+    ('lumi_g', 64, 8, True, {
+        'MPICH_GPU_SUPPORT_ENABLED': '1',
+        'MPICH_SMP_SINGLE_COPY_MODE': 'NONE',
+        'MPICH_GPU_IPC_ENABLED': '0'
+    }),
+    ('lumi_g', 64, 8, True, {}),
+])
+def test_arch_gpu_mpi_aware(watcher, arch, np, gpus_per_task, mpi_gpu_aware,
+    env_expected):
+    """
+    Verify that setting mpi_gpu_aware sets the right environment flags (and
+    that it doesn't crash).
+    """
+    obj = arch_registry[arch]
+
+    with watcher:
+        obj.run('cmd', np, 1, 1, gpus_per_task=gpus_per_task,
+            mpi_gpu_aware=mpi_gpu_aware, dryrun=True)
+
+    for key, value in env_expected.items():
+        # Match anything of the form key: value in the watcher output. Keep in
+        # mind that key or value might be surrounded by whitespaces or ' or ".
+        regex = f"{key}['\" ]*:['\" ]*{value}"
+        print(regex)
+        print(watcher.output)
+        assert re.search(regex, watcher.output) is not None
