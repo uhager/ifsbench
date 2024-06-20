@@ -1,4 +1,7 @@
 *~
 *.pyc
 
+# Ignore all build directories.
+build*/
+
 ifsbench.egg-info/*
