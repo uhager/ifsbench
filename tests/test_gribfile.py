@@ -5,13 +5,14 @@ from ifsbench import gribfile
 from ifsbench import GribFile
 
 
-def _test_data_dir() -> Path:
-    curr_path = Path(__file__).parent.resolve()
-    return curr_path / 'gribfiles'
+@pytest.fixture(name='here')
+def fixture_here():
+    """Return the full path of the test directory"""
+    return Path(__file__).parent.resolve() / 'gribfiles'
 
    
-def test_get_stats_pressurelevels_single_dataset():
-    input_path = _test_data_dir() / 'model_output_data_pl.grb2'
+def test_get_stats_pressurelevels_single_dataset(here):
+    input_path = here / 'model_output_data_pl.grb2'
 
     gf = GribFile(input_path)
     dfs = gf.get_stats()
@@ -33,8 +34,8 @@ def test_get_stats_pressurelevels_single_dataset():
                 assert d.sel(stat='min') < d.sel(stat='p5') < d.sel(stat='p10') < d.sel(stat='mean') < d.sel(stat='p90') < d.sel(stat='p95') < d.sel(stat='max')
 
                 
-def test_get_stats_two_datasets():
-    input_path = _test_data_dir() / 'model_output_data_rad.grb2'
+def test_get_stats_two_datasets(here):
+    input_path = here / 'model_output_data_rad.grb2'
 
     gf = GribFile(input_path)
     dfs = gf.get_stats()
@@ -64,9 +65,9 @@ def test_get_stats_two_datasets():
         assert d.sel(stat='min') <= d.sel(stat='p5') <= d.sel(stat='p10') < d.sel(stat='mean') < d.sel(stat='p90') < d.sel(stat='p95') <= d.sel(stat='max')
 
 
-def test_get_stats_unknown_stat_raises():
+def test_get_stats_unknown_stat_raises(here):
     stat_names = gribfile._STAT_NAMES
-    input_path = _test_data_dir() / 'model_output_data_rad.grb2'
+    input_path = here / 'model_output_data_rad.grb2'
     gf = GribFile(input_path)
 
     gribfile._STAT_NAMES =  ['x90']
@@ -77,8 +78,8 @@ def test_get_stats_unknown_stat_raises():
     gribfile._STAT_NAMES = stat_names
 
 
-def test_get_stats_keeps_stats():
-    input_path = _test_data_dir() / 'model_output_data_pl.grb2'
+def test_get_stats_keeps_stats(here):
+    input_path = here / 'model_output_data_pl.grb2'
     gf = GribFile(input_path)
     dfs = gf.get_stats()
 
