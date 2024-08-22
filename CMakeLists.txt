@@ -28,7 +28,7 @@ find_package( ecbuild 3.4 REQUIRED HINTS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CUR
 # Specify project and configuration options
 project( ifsbench VERSION 0.0.2 LANGUAGES NONE )
 
-ecbuild_find_package( eccodes VERSION 2.33.0 REQUIRED )
+ecbuild_find_package( NAME eccodes VERSION 2.33.0 )
 
 # Declare options
 ecbuild_add_option(

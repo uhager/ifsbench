@@ -11,6 +11,7 @@ def fixture_here():
     return Path(__file__).parent.resolve() / 'gribfiles'
 
    
+@pytest.mark.skipif(not gribfile.CFGRIB_AVAILABLE, reason='could not import cfgrib, likely missing eccodes.')
 def test_get_stats_pressurelevels_single_dataset(here):
     input_path = here / 'model_output_data_pl.grb2'
 
@@ -34,6 +35,7 @@ def test_get_stats_pressurelevels_single_dataset(here):
                 assert d.sel(stat='min') < d.sel(stat='p5') < d.sel(stat='p10') < d.sel(stat='mean') < d.sel(stat='p90') < d.sel(stat='p95') < d.sel(stat='max')
 
                 
+@pytest.mark.skipif(not gribfile.CFGRIB_AVAILABLE, reason='could not import cfgrib, likely missing eccodes.')
 def test_get_stats_two_datasets(here):
     input_path = here / 'model_output_data_rad.grb2'
 
@@ -65,6 +67,7 @@ def test_get_stats_two_datasets(here):
         assert d.sel(stat='min') <= d.sel(stat='p5') <= d.sel(stat='p10') < d.sel(stat='mean') < d.sel(stat='p90') < d.sel(stat='p95') <= d.sel(stat='max')
 
 
+@pytest.mark.skipif(not gribfile.CFGRIB_AVAILABLE, reason='could not import cfgrib, likely missing eccodes.')
 def test_get_stats_unknown_stat_raises(here):
     stat_names = gribfile._STAT_NAMES
     input_path = here / 'model_output_data_rad.grb2'
@@ -78,6 +81,7 @@ def test_get_stats_unknown_stat_raises(here):
     gribfile._STAT_NAMES = stat_names
 
 
+@pytest.mark.skipif(not gribfile.CFGRIB_AVAILABLE, reason='could not import cfgrib, likely missing eccodes.')
 def test_get_stats_keeps_stats(here):
     input_path = here / 'model_output_data_pl.grb2'
     gf = GribFile(input_path)

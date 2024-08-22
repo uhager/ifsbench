@@ -1,6 +1,15 @@
 import re
 
-import cfgrib
+try:
+    import eccodes
+    from pkg_resources import packaging
+    if packaging.version.parse(eccodes.__version__) < packaging.version.parse('2.33.0'):
+        raise ImportError('eccodes version too low.')
+    import cfgrib
+    CFGRIB_AVAILABLE = True
+except (RuntimeError, ImportError):
+    CFGRIB_AVAILABLE = False
+
 import pandas as pd
 import xarray as xr
 
@@ -21,6 +30,9 @@ _STAT_DIM_NAME = 'stat'
 class GribFile:
 
     def __init__(self, input_path: str):
+        if not CFGRIB_AVAILABLE:
+            raise RuntimeError('Cannot read GRIB files cfgrib or eccodes not available.')
+
         self._input_path = input_path
         self._stats = []
 
