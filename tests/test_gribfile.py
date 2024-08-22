@@ -1,20 +1,8 @@
 from pathlib import Path
+import pytest
 
-import xarray as xr
-
+from ifsbench import gribfile
 from ifsbench import GribFile
-
-
-def _read_grib(input_path: str, short_name: str) -> xr.Dataset:
-    ds = xr.open_dataset(
-        input_path,
-        engine='cfgrib',
-        backend_kwargs={
-            'filter_by_keys': {'shortName': short_name},
-            'indexpath': '',
-            'read_keys': ['packingError']
-        })
-    return ds
 
 
 def _test_data_dir() -> Path:
@@ -76,5 +64,25 @@ def test_get_stats_two_datasets():
         assert d.sel(stat='min') <= d.sel(stat='p5') <= d.sel(stat='p10') < d.sel(stat='mean') < d.sel(stat='p90') < d.sel(stat='p95') <= d.sel(stat='max')
 
 
+def test_get_stats_unknown_stat_raises():
+    stat_names = gribfile._STAT_NAMES
+    input_path = _test_data_dir() / 'model_output_data_rad.grb2'
+    gf = GribFile(input_path)
 
-            
+    gribfile._STAT_NAMES =  ['x90']
+
+    with pytest.raises(ValueError):
+        gf.get_stats()
+
+    gribfile._STAT_NAMES = stat_names
+
+
+def test_get_stats_keeps_stats():
+    input_path = _test_data_dir() / 'model_output_data_pl.grb2'
+    gf = GribFile(input_path)
+    dfs = gf.get_stats()
+
+    df_ret = dfs[0]
+    df_kept = gf._stats[0]
+
+    assert df_ret is df_kept
