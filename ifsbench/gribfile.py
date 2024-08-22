@@ -1,4 +1,5 @@
 import re
+from typing import List
 
 try:
     import eccodes
@@ -36,7 +37,7 @@ class GribFile:
         self._input_path = input_path
         self._stats = []
 
-    def get_stats(self) -> list[pd.DataFrame]:
+    def get_stats(self) -> List[pd.DataFrame]:
         """Create dataframe with statistics over location.
 
         Dimensions to calculate the statistics over are specified by
@@ -59,7 +60,7 @@ class GribFile:
         return self._stats
 
     @classmethod
-    def _read_grib(cls, input_path: str) -> list[xr.Dataset]:
+    def _read_grib(cls, input_path: str) -> List[xr.Dataset]:
         """Reads GRIB file and returns data as dataframe.
 
         Note that cfgrib can be fickle and the GRIB data needs to be to spec.
@@ -74,7 +75,7 @@ class GribFile:
         return cfgrib.open_datasets(input_path, backend_kwargs={'indexpath': ''})
 
     @classmethod
-    def _calc_stat(cls, ds: xr.Dataset, stat_name: str, stat_dims: list[str]) -> xr.Dataset:
+    def _calc_stat(cls, ds: xr.Dataset, stat_name: str, stat_dims: List[str]) -> xr.Dataset:
         """Creates datasets containing the statistical value specified by stat_name. """
         if stat_name == 'mean':
             return ds.mean(dim=stat_dims)
@@ -94,7 +95,7 @@ class GribFile:
         raise ValueError('Unknown stat requested: %s', stat_name)
     
     @classmethod
-    def _create_stat_ds(cls, ds: xr.Dataset, stat_name: str, stat_dims: list[str]) -> xr.Dataset:
+    def _create_stat_ds(cls, ds: xr.Dataset, stat_name: str, stat_dims: List[str]) -> xr.Dataset:
         ds_stat = cls._calc_stat(ds, stat_name, stat_dims)                               
         return ds_stat.assign_coords({_STAT_DIM_NAME: stat_name}).expand_dims(_STAT_DIM_NAME)
     
