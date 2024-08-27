@@ -12,6 +12,7 @@ from .cli import * # noqa
 from .darshanreport import * # noqa
 from .drhook import * # noqa
 from .files import * # noqa
+from .gribfile import * # noqa
 from .ifs import * # noqa
 from .job import * # noqa
 from .launcher import * # noqa
