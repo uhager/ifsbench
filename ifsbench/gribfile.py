@@ -4,8 +4,10 @@ from typing import List
 try:
     import eccodes
     from pkg_resources import packaging
+    # pylint: disable=no-member
     if packaging.version.parse(eccodes.__version__) < packaging.version.parse('2.33.0'):
         raise ImportError('eccodes version too low.')
+    # pylint: enable=no-member
     import cfgrib
     CFGRIB_AVAILABLE = True
 except (RuntimeError, ImportError):
