@@ -69,3 +69,15 @@ def test_grid_norms(node_path, nrows, ncolumns):
     assert isinstance(norms, pd.DataFrame)
 
     assert norms.shape == (nrows, ncolumns)
+
+@pytest.mark.parametrize(
+    'value, expected',
+    (
+        ('0.1e-2', 0.001),
+        ('0.1-2', 0.001),
+        ('-0.1', -0.1),
+    )
+)
+def test_sanitize_value(value, expected):
+    """ Test correct sanitisation to standard scientific format. """
+    assert expected == pd.to_numeric(NODEFile._sanitise_float(value))
