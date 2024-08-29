@@ -116,7 +116,7 @@ class NODEFile:
         # writing 0.1-2 instead of 0.1e-2. Python can't parse the
         # former. Therefore we do a little check here to detect values
         # that contain a "-" but no "e".
-        if '-' in value and ('e' not in value.lower()):
+        if '-' in value and ('e' not in value.lower()) and not value.startswith("-"):
             value = value.replace('-', 'e-')
         return value
 
