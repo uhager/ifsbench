@@ -318,7 +318,7 @@ def test_modify_grib_output_exists_allow_overwrite(here, tmp_path):
     open(output_path, 'w').close()
     os.utime(output_path, ns=(1000, 1000))
 
-    modify_grib_file(input_path, output_path, no_noise, overwrite_output_if_exists=True)
+    modify_grib_file(input_path, output_path, no_noise, overwrite_existing=True)
 
     # Confirm that file times have not changed and the file is empty,
     # i.e. nothing was written.

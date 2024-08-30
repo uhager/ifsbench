@@ -234,7 +234,7 @@ def modify_grib_file(
     output_path: str,
     base_modification: GribModification,
     parameter_config: Optional[Dict[str, GribModification]] = None,
-    overwrite_output_if_exists: bool = False,
+    overwrite_existing: bool = False,
 ) -> None:
     """Modifies grib data and writes modified GRIB file.
 
@@ -252,7 +252,7 @@ def modify_grib_file(
         raise RuntimeError(
             'Cannot modify GRIB files - pygrib or eccodes not available.'
         )
-    if not overwrite_output_if_exists and os.path.exists(output_path):
+    if not overwrite_existing and os.path.exists(output_path):
         error(
             'Output %s already exists and overwrite_output_if_exists is set to False.',
             output_path,
