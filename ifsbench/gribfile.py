@@ -246,7 +246,7 @@ def modify_grib_file(
         base_modification: Modification type to apply to all supported parameters
           unless otherwise specified in parameter_config.
         parameter_config: shortNames of parameters that are to be modified and the class instance to apply.
-        overwrite_output_if_exists: if output_path file exists, delete it. If False and file exists, exit.
+        overwrite_existing: if output_path file exists, delete it. If False and file exists, exit.
     """
     if not PYGRIB_AVAILABLE:
         raise RuntimeError(
@@ -254,7 +254,7 @@ def modify_grib_file(
         )
     if not overwrite_existing and os.path.exists(output_path):
         error(
-            'Output %s already exists and overwrite_output_if_exists is set to False.',
+            'Output %s already exists and overwrite_existing is set to False.',
             output_path,
         )
         return
