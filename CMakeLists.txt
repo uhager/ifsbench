@@ -25,6 +25,10 @@
 cmake_minimum_required( VERSION 3.17 FATAL_ERROR )
 find_package( ecbuild 3.4 REQUIRED HINTS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../ecbuild)
 
+# Note: don't specify a version number for eccodes as it will make bundle builds with
+# older eccodes versions fail even if the package is not marked as REQUIRED.
+find_package( eccodes )
+
 # Specify project and configuration options
 project( ifsbench VERSION 0.0.2 LANGUAGES NONE )
 
@@ -51,6 +55,10 @@ if( ${ENABLE_TESTS} )
 
     list( APPEND IFSBENCH_INSTALL_OPTIONS "tests" )
 
+endif()
+
+if( eccodes_FOUND )
+  list( APPEND IFSBENCH_INSTALL_OPTIONS "grib" )
 endif()
 
 # Install ifsbench with dependencies
