@@ -26,7 +26,7 @@ cmake_minimum_required( VERSION 3.17 FATAL_ERROR )
 find_package( ecbuild 3.4 REQUIRED HINTS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../ecbuild)
 
 # Specify project and configuration options
-project( ifsbench VERSION 0.0.2 LANGUAGES NONE )
+project( ifsbench LANGUAGES NONE )
 
 # Declare options
 ecbuild_add_option(
