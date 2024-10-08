@@ -33,13 +33,16 @@ Johannes Bulin (johannes.bulin@ecmwf.int)
 License: [Apache License 2.0](LICENSE) In applying this licence, ECMWF does not waive the privileges and immunities 
 granted to it by virtue of its status as an intergovernmental organisation nor does it submit to any jurisdiction.  
 
+## Contributing
+
+Contributions to `ifsbench` are welcome. In order to do so, please open an issue where
+a feature request or bug can be discussed. Then create a pull request with your
+contribution and sign the
+[contributors license agreement (CLA)](http://claassistant.ecmwf.int/ecmwf-ifs/ifsbench).
+
 ## Installation
 
-`ifsbench` can be installed as a Python module using the standard `pip`
-approach.
-Additionally, CMake can be used to build a virtual Python environment 
-with `ifsbench` installed.
-
+See [INSTALL.md](INSTALL.md).
 
 ## Coding style
 

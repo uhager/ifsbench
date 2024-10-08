@@ -7,7 +7,7 @@ jobs:
     pylint:
         strategy:
             matrix:
-                python-version: ['3.8', '3.9', '3.10', '3.11']
+                python-version: ['3.11']
 
         runs-on: ubuntu-latest
 
@@ -25,7 +25,7 @@ jobs:
               python -m pip install -e '.[tests]'
 
           - name: Code check
-            run:  pylint --rcfile=.pylintrc --exit-zero --output-format=parseable:pylint.log,text tests ifsbench scripts
+            run:  pylint --rcfile=.pylintrc --output-format=parseable:pylint.log,text tests ifsbench scripts
 
     pytest:
         strategy:
