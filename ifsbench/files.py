@@ -5,7 +5,6 @@ Data structures to represent IFS input files
 from collections import defaultdict
 from hashlib import sha256
 from pathlib import Path
-from subprocess import CalledProcessError
 import glob
 import yaml
 
@@ -116,7 +115,7 @@ class InputFile:
         chunk_size = 4*1024*1024
         sha = sha256()
         
-        with open(filepath, 'rb') as f:
+        with filepath.open('rb') as f:
             chunk = f.read(chunk_size)
             while chunk:
                 sha.update(chunk)
@@ -271,7 +270,7 @@ class ExperimentFiles:
         for path, src_dir in candidates:
             try:
                 candidate_file = InputFile(path, src_dir)
-            except CalledProcessError:
+            except OSError:
                 continue
             if candidate_file.checksum == input_file.checksum:
                 return candidate_file
