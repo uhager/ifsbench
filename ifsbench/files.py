@@ -3,10 +3,9 @@ Data structures to represent IFS input files
 """
 
 from collections import defaultdict
+from hashlib import sha256
 from pathlib import Path
-from subprocess import CalledProcessError
 import glob
-import tempfile
 import yaml
 
 from .logging import header, success, warning
@@ -108,15 +107,21 @@ class InputFile:
     @staticmethod
     def _sha256sum(filepath):
         """Create SHA-256 checksum for the file at the given path"""
+
         filepath = Path(filepath)
-        with tempfile.TemporaryDirectory(prefix='ifsbench') as tmp_dir:
-            logfile = Path(tmp_dir)/'checksum.sha256'
-            cmd = ['sha256sum', str(filepath)]
-            with logfile.open('w', encoding='utf-8') as f:
-                execute(cmd, stdout=f)
-            checksum, name = logfile.read_text().split()
-        assert name == str(filepath)
-        return checksum
+
+        # Use 4MB chunks for reading the file (reading it completely into
+        # memory will be a bad idea for large GRIB files).
+        chunk_size = 4*1024*1024
+        sha = sha256()
+        
+        with filepath.open('rb') as f:
+            chunk = f.read(chunk_size)
+            while chunk:
+                sha.update(chunk)
+                chunk = f.read(chunk_size)
+
+        return sha.hexdigest()
 
     @staticmethod
     def _size(filepath):
@@ -265,7 +270,7 @@ class ExperimentFiles:
         for path, src_dir in candidates:
             try:
                 candidate_file = InputFile(path, src_dir)
-            except CalledProcessError:
+            except OSError:
                 continue
             if candidate_file.checksum == input_file.checksum:
                 return candidate_file
