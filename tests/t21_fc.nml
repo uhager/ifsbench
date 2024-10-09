@@ -73,7 +73,7 @@ YS_NL%NREQIN=-1,
 /
  &NAERAD
  NRPROMA=-8,
- CRTABLEDIR="/home/rd/rdx/data/ifs/",
+ CRTABLEDIR="/myhome",
  LAER3D=.false.,
  /
  &NAMFPC

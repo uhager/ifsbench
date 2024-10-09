@@ -1,14 +1,12 @@
-## IFSBench - A pythonic benchmarking package for IFS development
+# IFSBench - A pythonic benchmarking package for IFS development
 
 **NOTE**: _This is work-in-progress and represents a prototype, not a full solution!_
 
-IFSBench is a prototype tool that aims to bring the RAPS-like ease of
-testing and performance benchmarking for a select set of tests into
-the bundle-based day-to-day IFS development workflow. It's basic
-conceptual idea is equivalent to the current `ifs-test` suite, but it
-is based on Python wrapper classes and tools to create a set of
-lightweight benchmark scripts that provide additional features and a
-more "pythonic" flavour of tooling. The primary planned features are:
+IFSBench is a prototype tool that aims to provide Python-based
+testing and performance benchmarking capabilities for IFS development
+workflows. It is based on Python wrapper classes and tools to create
+a set of lightweight benchmark scripts that provide additional features
+and a more "pythonic" flavour of tooling. The primary planned features are:
 
 * Configurable per-test benchmark scripts with an improved CLI
   (command-line interface).
@@ -24,11 +22,29 @@ more "pythonic" flavour of tooling. The primary planned features are:
   commonly accessible formats (again based on pandas.DataFrames), as
   well as the traditional test-based output format.
 
-#### Installation
+## Contact
 
-#### Examples
+Michael Lange (michael.lange@ecmwf.int),
+Balthasar Reuter (balthasar.reuter@ecmwf.int),
+Johannes Bulin (johannes.bulin@ecmwf.int)
 
-#### Coding style
+## Licence
+
+License: [Apache License 2.0](LICENSE) In applying this licence, ECMWF does not waive the privileges and immunities 
+granted to it by virtue of its status as an intergovernmental organisation nor does it submit to any jurisdiction.  
+
+## Contributing
+
+Contributions to `ifsbench` are welcome. In order to do so, please open an issue where
+a feature request or bug can be discussed. Then create a pull request with your
+contribution and sign the
+[contributors license agreement (CLA)](http://claassistant.ecmwf.int/ecmwf-ifs/ifsbench).
+
+## Installation
+
+See [INSTALL.md](INSTALL.md).
+
+## Coding style
 
 The code should be checked with pylint in order to conform with the standards
 specified in `.pylintrc`:
