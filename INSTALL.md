@@ -3,7 +3,6 @@
 There are multiple ways to install ifsbench:
 - via `pip install` as a pure Python package
 - via CMake/ecbuild to enable installation as part of a CMake project
-- manually
 
 ## Requirements
 
@@ -11,7 +10,7 @@ There are multiple ways to install ifsbench:
 
 ## Installation without prior download
 
-The easiest way to obtain a useable installation of > with the fparser frontend does not
+The easiest way to obtain a useable installation of ifsbench does not
 require downloading the source code. Simply run the following commands:
 
 ```bash
@@ -22,7 +21,7 @@ source ifsbench_env/bin/activate  # Activate the virtual environment
 pip install "ifsbench @ git+https://github.com/ecmwf-ifs/ifsbench.git"
 ```
 
-This makes the Python package available and installs the scripts `ifs-bench.py` script.
+This makes the Python package available and installs the `ifs-bench.py` script.
 
 
 ## Installation from source
@@ -54,7 +53,8 @@ pip install .
 
 ### Installation using CMake/ecbuild
 
-ifsbench can be installed using [ecbuild](https://github.com/ecmwf/ecbuild) (a set of CMake macros and a wrapper around CMake). This requires ecbuild 3.4+ and CMake 3.17+.
+ifsbench can be installed using [ecbuild](https://github.com/ecmwf/ecbuild) (a set of CMake macros and a wrapper around CMake). 
+This requires ecbuild 3.4+ and CMake 3.17+.
 
 ```bash
 ecbuild <path-to-ifsbench>
@@ -93,47 +93,4 @@ projects :
   - ifsbench :
     git     : https://github.com/ecmwf-ifs/ifsbench
     version : main
-
-```
-
-See the [CLOUDSC dwarf](https://github.com/ecmwf-ifs/dwarf-p-cloudsc) for an
-example how this can be used.
-
-## Manual installation
-
-The following outlines the manual steps for installing ifsbench using a virtual
-environment. This installation method is not recommended but may be used when
-maximum control over all steps is required or all of the above are not working.
-You can create an empty directory and copy-paste the following steps to obtain a
-working version:
-
-### 1. Clone the ifsbench repository
-
-```bash
-git clone https://github.com/ecmwf-ifs/ifsbench
-```
-
-### 2. Create and activate virtual environment
-
-```bash
-python3 -m venv ifsbench_env
-source ifsbench_env/bin/activate
-pip install --upgrade pip
-```
-
-Note that we need to make sure that we use a recent pip version (21.3 or newer)
-that has support for editable installs using `pyproject.toml`.
-
-### 3.  Install ifsbench and Python dependencies
-
-```bash
-cd ifsbench
-pip install -e .[tests]
-```
-
-
-### 4.  Verify everything is working
-
-```bash
-py.test .
 ```
