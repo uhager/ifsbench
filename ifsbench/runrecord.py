@@ -21,7 +21,10 @@ __all__ = ['RunRecord']
 
 def _h5store(filename, key, df, **kwargs):
     """
+    From the pandas cookbook: https://pandas.pydata.org/pandas-docs/dev/user_guide/cookbook.html.
+    More information on this here:
     https://stackoverflow.com/questions/29129095/save-additional-attributes-in-pandas-dataframe/29130146#29130146
+
     """
     store = pd.HDFStore(filename)
     store.put(key, df)
@@ -31,6 +34,8 @@ def _h5store(filename, key, df, **kwargs):
 
 def _h5load(store, key):
     """
+    From the pandas cookbook: https://pandas.pydata.org/pandas-docs/dev/user_guide/cookbook.html.
+    More information on this here:
     https://stackoverflow.com/questions/29129095/save-additional-attributes-in-pandas-dataframe/29130146#29130146
     """
     data = store[key]

@@ -203,10 +203,11 @@ def Timer(name=None):
 
 def as_tuple(item, dtype=None, length=None):
     """
-    Force item to a tuple.
-
-    Partly extracted from: https://github.com/OP2/PyOP2/.
+    Force item to a tuple, even if `None` is provided.
     """
+    # Stop complaints about `type` in this function
+    # pylint: disable=redefined-builtin
+
     # Empty list if we get passed None
     if item is None:
         t = ()
@@ -220,9 +221,9 @@ def as_tuple(item, dtype=None, length=None):
         except (TypeError, NotImplementedError):
             t = (item,) * (length or 1)
     if length and not len(t) == length:
-        raise ValueError(f'Tuple needs to be of length {length}')
+        raise ValueError(f'Tuple needs to be of length {length: d}')
     if dtype and not all(isinstance(i, dtype) for i in t):
-        raise TypeError('Items need to be of type {dtype}')
+        raise TypeError(f'Items need to be of type {dtype}')
     return t
 
 
@@ -274,7 +275,8 @@ def auto_post_mortem_debugger(type, value, tb):  # pylint: disable=redefined-bui
 
     Activate by setting ``sys.excepthook = auto_post_mortem_debugger``
 
-    Adapted from https://code.activestate.com/recipes/65287/
+    Adapted from 
+    https://code.activestate.com/recipes/65287-automatically-start-the-debugger-on-an-exception/
     """
     is_interactive = hasattr(sys, 'ps1')
     no_tty = not sys.stderr.isatty() or not sys.stdin.isatty() or not sys.stdout.isatty()
