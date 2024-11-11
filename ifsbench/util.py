@@ -87,7 +87,7 @@ def execute(command, **kwargs):
 
     if logfile:
         # If we're file-logging, intercept via pipe
-        _log_file = Path(logfile).open('w', encoding='utf-8')
+        _log_file = Path(logfile).open('w', encoding='utf-8') # pylint: disable=consider-using-with
         cmd_args['stdout'] = PIPE
     else:
         _log_file = None
@@ -239,8 +239,7 @@ def is_iterable(o):
         iter(o)
     except TypeError:
         return False
-    else:
-        return True
+    return True
 
 
 def flatten(l):
@@ -275,7 +274,7 @@ def auto_post_mortem_debugger(type, value, tb):  # pylint: disable=redefined-bui
 
     Activate by setting ``sys.excepthook = auto_post_mortem_debugger``
 
-    Adapted from 
+    Adapted from
     https://code.activestate.com/recipes/65287-automatically-start-the-debugger-on-an-exception/
     """
     is_interactive = hasattr(sys, 'ps1')

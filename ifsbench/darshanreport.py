@@ -71,9 +71,15 @@ def open_darshan_logfile(filepath):
                     execute(['darshan-parser', str(filepath)], stdout=logfile)
             except CalledProcessError as e:
                 if logpath.stat().st_size > 0:
-                    warning('darshan-parser exited with non-zero exit code. Continue with potentially incomplete file...')
+                    warning((
+                        'darshan-parser exited with non-zero exit code. '
+                        'Continue with potentially incomplete file...'
+                    ))
                 else:
-                    error('darshan-parser exited with non-zero exit code and did not produce an output file.')
+                    error((
+                        'darshan-parser exited with non-zero exit code. '
+                        'No output file produced.'
+                    ))
                     raise e
 
             filepath = logpath

@@ -76,7 +76,7 @@ class colors:
 
 
 # Set colours on true terminals
-if sys.stdout.isatty:
+if sys.stdout.isatty():
     colors.enable()
 else:
     colors.disable()

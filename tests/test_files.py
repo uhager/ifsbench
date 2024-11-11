@@ -116,7 +116,7 @@ def test_input_file(here):
     assert the_file == also_the_file
 
     with pytest.raises(OSError):
-        no_exist_file = InputFile('/i_dont_exist', compute_metadata=True)
+        _ = InputFile('/i_dont_exist', compute_metadata=True)
 
 
 def test_experiment_files(here):
