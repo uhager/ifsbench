@@ -10,9 +10,6 @@ on:
     tags:
     - '**'
  
-  # Trigger the workflow when a branch or tag is deleted
-  delete: ~
- 
 jobs:
  
   # Calls a reusable CI workflow to sync the current with a remote repository.
