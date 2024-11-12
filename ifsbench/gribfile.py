@@ -17,6 +17,10 @@ import xarray as xr
 from .logging import error, warning
 
 
+CFGRIB_AVAILABLE = False
+ECCODES_AVAILABLE = False
+PYGRIB_AVAILABLE = False
+
 try:
     import eccodes
     from pkg_resources import packaging
@@ -27,13 +31,7 @@ try:
     # pylint: enable=no-member
     ECCODES_AVAILABLE = True
 except (RuntimeError, ImportError):
-    ECCODES_AVAILABLE = False
-    CFGRIB_AVAILABLE = False
-    PYGRIB_AVAILABLE = False
-
-    class gribmessage:
-        pass
-
+    pass
 
 if ECCODES_AVAILABLE:
     try:
@@ -41,20 +39,21 @@ if ECCODES_AVAILABLE:
 
         CFGRIB_AVAILABLE = True
     except (RuntimeError, ImportError):
-        CFGRIB_AVAILABLE = False
+        pass
     try:
         from pygrib import open as pgopen
         from pygrib import gribmessage
 
         PYGRIB_AVAILABLE = True
     except (RuntimeError, ImportError):
-        PYGRIB_AVAILABLE = False
+        pass
 
-        # pylint: disable=function-redefined
-        class gribmessage:
-            pass
+if not PYGRIB_AVAILABLE:
+    # pylint: disable=function-redefined
+    class gribmessage:
+        pass
 
-        # pylint: enable=function-redefined
+    # pylint: enable=function-redefined
 
 
 __all__ = [
@@ -82,7 +81,7 @@ class GribFile:
     def __init__(self, input_path: str):
         if not CFGRIB_AVAILABLE:
             raise RuntimeError(
-                'Cannot read GRIB files cfgrib or eccodes not available.'
+                'Cannot read GRIB files. cfgrib or eccodes not available.'
             )
 
         self._input_path = input_path
@@ -126,6 +125,9 @@ class GribFile:
 
         Returns: List of datasets containing the data from the file.
         """
+        if not CFGRIB_AVAILABLE:
+            raise RuntimeError(f'Cannot read grib file {input_path}. cfgrib is not installed.')
+        # pylint: disable=possibly-used-before-assignment
         return cfgrib.open_datasets(input_path, backend_kwargs={'indexpath': ''})
 
     @classmethod
@@ -266,6 +268,7 @@ def modify_grib_file(
         )
         return
     with open(output_path, 'wb') as outfile:
+        # pylint: disable=possibly-used-before-assignment
         grbs = pgopen(input_path)
         for grb in grbs:
             grb_mod = _handle_grib_message(grb, base_modification, parameter_config)

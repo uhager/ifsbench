@@ -121,7 +121,7 @@ class InputFile:
         # memory will be a bad idea for large GRIB files).
         chunk_size = 4*1024*1024
         sha = sha256()
-        
+
         with filepath.open('rb') as f:
             chunk = f.read(chunk_size)
             while chunk:

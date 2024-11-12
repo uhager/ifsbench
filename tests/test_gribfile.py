@@ -299,7 +299,8 @@ def test_modify_grib_output_exists(here, tmp_path):
     no_noise = NoGribModification()
 
     # Create the output and set its mtime and atime to the past.
-    open(output_path, 'w').close()
+    with output_path.open(mode='w'):
+        pass
     os.utime(output_path, ns=(1000, 1000))
 
     modify_grib_file(input_path, output_path, no_noise)
@@ -322,7 +323,8 @@ def test_modify_grib_output_exists_allow_overwrite(here, tmp_path):
     no_noise = NoGribModification()
 
     # Create the output and set its mtime and atime to the past.
-    open(output_path, 'w').close()
+    with output_path.open(mode='w'):
+        pass
     os.utime(output_path, ns=(1000, 1000))
 
     modify_grib_file(input_path, output_path, no_noise, overwrite_existing=True)
