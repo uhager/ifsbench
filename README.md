@@ -1,5 +1,9 @@
 # IFSBench - A pythonic benchmarking package for IFS development
 
+[![license](https://img.shields.io/github/license/ecmwf-ifs/ifsbench)](https://www.apache.org/licenses/LICENSE-2.0.html)
+[![pytest](https://github.com/ecmwf-ifs/ifsbench/actions/workflows/pytest.yaml/badge.svg)](https://github.com/ecmwf-ifs/ifsbench/actions/workflows/pytest.yaml)
+[![codecov](https://codecov.io/github/ecmwf-ifs/ifsbench/graph/badge.svg?token=K0617536LF)](https://codecov.io/github/ecmwf-ifs/ifsbench)
+
 **NOTE**: _This is work-in-progress and represents a prototype, not a full solution!_
 
 IFSBench is a prototype tool that aims to provide Python-based
@@ -30,8 +34,8 @@ Johannes Bulin (johannes.bulin@ecmwf.int)
 
 ## Licence
 
-License: [Apache License 2.0](LICENSE) In applying this licence, ECMWF does not waive the privileges and immunities 
-granted to it by virtue of its status as an intergovernmental organisation nor does it submit to any jurisdiction.  
+License: [Apache License 2.0](LICENSE) In applying this licence, ECMWF does not waive the privileges and immunities
+granted to it by virtue of its status as an intergovernmental organisation nor does it submit to any jurisdiction.
 
 ## Contributing
 
