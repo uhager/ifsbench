@@ -10,7 +10,6 @@ from collections import OrderedDict
 from enum import Enum, unique
 import re
 import pandas as pd
-import numpy as np
 
 from ifsbench.logging import debug
 
@@ -185,17 +184,17 @@ class DrHookRecord:
 
         # Normalize statistics across processes and threads
         grp = data.groupby(['routine'])
-        data['avgPercent'] = grp['percent'].transform(np.mean)
-        data['avgTime'] = grp['self'].transform(np.mean)
-        data['minTime'] = grp['self'].transform(np.min)
-        data['maxTime'] = grp['self'].transform(np.max)
-        data['stddev'] = grp['self'].transform(np.std)
-        data['avgTimeTotal'] = grp['total'].transform(np.mean)
-        data['minTimeTotal'] = grp['total'].transform(np.min)
-        data['maxTimeTotal'] = grp['total'].transform(np.max)
-        data['numCalls'] = grp['calls'].transform(np.sum)
-        data['cumulative'] = grp['cumul'].transform(np.max)
-        data['thread'] = grp['thread'].transform(np.max)
+        data['avgPercent'] = grp['percent'].transform('mean')
+        data['avgTime'] = grp['self'].transform('mean')
+        data['minTime'] = grp['self'].transform('min')
+        data['maxTime'] = grp['self'].transform('max')
+        data['stddev'] = grp['self'].transform('std')
+        data['avgTimeTotal'] = grp['total'].transform('mean')
+        data['minTimeTotal'] = grp['total'].transform('min')
+        data['maxTimeTotal'] = grp['total'].transform('max')
+        data['numCalls'] = grp['calls'].transform('sum')
+        data['cumulative'] = grp['cumul'].transform('max')
+        data['thread'] = grp['thread'].transform('max')
 
         # Drop raw per-process/thread values and compute imbalance
         data.drop(['percent', 'self', 'total', 'cumul', 'calls'], axis=1, inplace=True)
