@@ -11,9 +11,11 @@ __all__ = ['DataHandler']
 
 class DataHandler(ABC):
     """
-    Base class for data pipeline steps. Each DataHandler object describes one
-    step in the data pipeline. Multiple DataHandler objects can be executed
-    sequentially to perform specific data setup tasks.
+    Base class for data pipeline steps.
+
+    Each DataHandler object describes one step in the data pipeline. Multiple
+    DataHandler objects can be executed sequentially to perform specific data
+    setup tasks.
     """
 
 
@@ -30,20 +32,3 @@ class DataHandler(ABC):
             unless absolute paths are given.
         """
         return NotImplemented
-
-    # @abstractmethod
-    # def to_dict(self):
-    #     """
-    #     Convert this object to a dictionary. It's class name and module name
-    #     should be given as the "class" and "module" entry, respectively.
-    #     """
-    #     return NotImplemented
-
-    # @classmethod
-    # @abstractmethod
-    # def from_dict(cls, data):
-    #     """
-    #     Convert a dictionary to an object of this type. This is the inverse
-    #     function to "to_dict".
-    #     """
-    #     return NotImplemented

@@ -10,41 +10,40 @@ import pathlib
 
 import f90nml
 
-from .datahandler import DataHandler
-from ..logging import debug, info
+from ifsbench.data.datahandler import DataHandler
+from ifsbench.logging import debug, info
 
 
-__all__ = ['NamelistOverride', 'NamelistHandler']
+__all__ = ['NamelistOverride', 'NamelistHandler', 'NamelistOperation']
 
+class NamelistOperation(Enum):
+    SET = auto()
+    APPEND = auto()
+    DELETE = auto()
 
 class NamelistOverride:
     """
     Specify changes that will be applied to a namelist.
+
+    Parameters
+    ----------
+    key: str or iterable of str
+        The namelist entry that will be modified. Can be either a string
+        where '/' separates the namelist name and the entry key or an iterable
+        of strings of length two.
+
+    mode: NamelistOperation
+        What kind of operation is specified. Can be
+            * Set a certain entry.
+            * Append to an array entry.
+            * Delete an entry.
+
+    value: str or None
+        The value that is set (SET operation) or appended (APPEND).
     """
-    class NamelistOperation(Enum):
-        SET = auto()
-        APPEND = auto()
-        DELETE = auto()
+
 
     def __init__(self, key, mode, value=None):
-        """
-        Parameters
-        ----------
-        key: str or iterable of str
-            The namelist entry that will be modified. Can be either a string
-            where '/' separates the namelist name and the entry key or an iterable
-            of strings of length two.
-
-        mode: NamelistOverride.NamelistOperation
-            What kind of operation is specified. Can be
-                * Set a certain entry.
-                * Append to an array entry.
-                * Delete an entry.
-
-        value:
-            The value that is set (SET operation) or appended (APPEND).
-        """
-
         if isinstance(key, str):
             self._keys = key.split('/')
         else:
@@ -57,7 +56,7 @@ class NamelistOverride:
         self._value = value
 
         if self._value is None:
-            if self._mode in (self.NamelistOperation.SET, self.NamelistOperation.APPEND):
+            if self._mode in (NamelistOperation.SET, NamelistOperation.APPEND):
                 raise ValueError("The new value must not be None!")
 
     def apply(self, namelist):
@@ -66,12 +65,12 @@ class NamelistOverride:
 
         Parameters
         ----------
-        namelist: f90nml.Namelist
+        namelist: :any:`f90nml.Namelist`
             The namelist to which the changes are applied.
         """
 
         if self._keys[0] not in namelist:
-            if self._mode == self.NamelistOperation.DELETE:
+            if self._mode == NamelistOperation.DELETE:
                 return
 
             namelist[self._keys[0]] = {}
@@ -79,10 +78,10 @@ class NamelistOverride:
         namelist = namelist[self._keys[0]]
         key = self._keys[-1]
 
-        if self._mode == self.NamelistOperation.SET:
+        if self._mode == NamelistOperation.SET:
             debug(f"Set namelist entry {str(self._keys)} = {str(self._value)}.")
             namelist[key] = self._value
-        elif self._mode == self.NamelistOperation.APPEND:
+        elif self._mode == NamelistOperation.APPEND:
             if key not in namelist:
                 namelist[key] = []
 
@@ -105,7 +104,7 @@ class NamelistOverride:
 
             namelist[key].append(self._value)
 
-        elif self._mode == self.NamelistOperation.DELETE:
+        elif self._mode == NamelistOperation.DELETE:
             if key in namelist:
                 debug(f"Delete namelist entry {str(self._keys)}.")
                 del namelist[key]
@@ -113,26 +112,24 @@ class NamelistOverride:
 class NamelistHandler(DataHandler):
     """
     DataHandler specialisation that can modify Fortran namelists.
+
+    Parameters
+    ----------
+    input_path: str or :any:`pathlib.Path`
+        The path to the namelist that will be modified. If a relative path
+        is given, this will be relative to the ``wdir`` argument in
+        :meth:`execute`.
+
+    output_path: str or :any:`pathlib.Path`
+        The path to which the updated namelist will be written. If a relative
+        path is given, this will be relative to the ``wdir`` argument in
+        :meth:`execute`.
+
+    overrides: iterable of :class:`NamelistOverride`
+        The NamelistOverrides that will be applied.
     """
 
     def __init__(self, input_path, output_path, overrides):
-        """
-        Initialise the handler.
-
-        Parameters
-        ----------
-        input_path: str or `pathlib.Path`
-            The path to the namelist that will be modified. If a relative path
-            is given, this will be relative to the `wdir` argument in `execute`.
-
-        output_path: str, `pathlib.Path` or `None`
-            The path to which the updated namelist will be written. If a relative path
-            is given, this will be relative to the `wdir` argument in `execute`.
-            If None is given, this will re extracted to `wdir`.
-
-        overrides: iterable of NamelistOverride
-            The NamelistOverrides that will be applied.
-        """
 
         self._input_path = pathlib.Path(input_path)
         self._output_path = pathlib.Path(output_path)
@@ -143,6 +140,8 @@ class NamelistHandler(DataHandler):
                 raise ValueError("Namelist overrides must be NamelistOverride objects!")
 
     def execute(self, wdir, **kwargs):
+        wdir = pathlib.Path(wdir)
+
         if self._input_path.is_absolute():
             input_path = self._input_path
         else:

@@ -16,7 +16,7 @@ from f90nml import Namelist
 import pytest
 
 from ifsbench.data import (
-    NamelistHandler, NamelistOverride
+    NamelistHandler, NamelistOverride, NamelistOperation
 )
 
 @pytest.fixture(name = 'initial_namelist')
@@ -35,16 +35,16 @@ def fixture_namelist():
 
 
 @pytest.mark.parametrize('key,mode,value,success', [
-    ('namelist1', NamelistOverride.NamelistOperation.APPEND, None, False),
-    ('namelist1', NamelistOverride.NamelistOperation.SET, None, False),
-    ('namelist1', NamelistOverride.NamelistOperation.DELETE, None, False),
-    ('namelist1/entry', NamelistOverride.NamelistOperation.DELETE, None, True),
-    ('namelist1/entry', NamelistOverride.NamelistOperation.SET, None, False),
-    ('namelist1/entry', NamelistOverride.NamelistOperation.APPEND, None, False),
-    ('namelist1/entry', NamelistOverride.NamelistOperation.SET, 2, True),
-    ('namelist1/entry', NamelistOverride.NamelistOperation.APPEND, 3, True),
-    (('namelist1', 'entry'), NamelistOverride.NamelistOperation.SET, 2, True),
-    (('namelist1', 'entry'), NamelistOverride.NamelistOperation.APPEND, 3, True),
+    ('namelist1', NamelistOperation.APPEND, None, False),
+    ('namelist1', NamelistOperation.SET, None, False),
+    ('namelist1', NamelistOperation.DELETE, None, False),
+    ('namelist1/entry', NamelistOperation.DELETE, None, True),
+    ('namelist1/entry', NamelistOperation.SET, None, False),
+    ('namelist1/entry', NamelistOperation.APPEND, None, False),
+    ('namelist1/entry', NamelistOperation.SET, 2, True),
+    ('namelist1/entry', NamelistOperation.APPEND, 3, True),
+    (('namelist1', 'entry'), NamelistOperation.SET, 2, True),
+    (('namelist1', 'entry'), NamelistOperation.APPEND, 3, True),
 ])
 def test_extracthandler_init(key, mode, value, success):
     """
@@ -75,7 +75,7 @@ def test_extracthandler_apply_set(initial_namelist, key, value):
 
     namelist = Namelist(initial_namelist)
 
-    override = NamelistOverride(key, NamelistOverride.NamelistOperation.SET, value)
+    override = NamelistOverride(key, NamelistOperation.SET, value)
 
     override.apply(namelist)
 
@@ -102,7 +102,7 @@ def test_extracthandler_apply_append(initial_namelist, key, value, success):
 
     namelist = Namelist(initial_namelist)
 
-    override = NamelistOverride(key, NamelistOverride.NamelistOperation.APPEND, value)
+    override = NamelistOverride(key, NamelistOperation.APPEND, value)
 
     if success:
         override.apply(namelist)
@@ -138,7 +138,7 @@ def test_extracthandler_apply_delete(initial_namelist, key):
 
     namelist = Namelist(initial_namelist)
 
-    override = NamelistOverride(key, NamelistOverride.NamelistOperation.DELETE)
+    override = NamelistOverride(key, NamelistOperation.DELETE)
 
     override.apply(namelist)
 
@@ -167,11 +167,11 @@ def test_extracthandler_apply_delete(initial_namelist, key):
     ([], True),
     ('Test', False),
     (2, False),
-    ([NamelistOverride('namelist/entry', NamelistOverride.NamelistOperation.SET, 5)], True),
+    ([NamelistOverride('namelist/entry', NamelistOperation.SET, 5)], True),
     ([
-        NamelistOverride('namelist/entry', NamelistOverride.NamelistOperation.SET, 5),
-        NamelistOverride('namelist/entry2', NamelistOverride.NamelistOperation.APPEND, 2),
-        NamelistOverride('namelist/entry', NamelistOverride.NamelistOperation.DELETE),
+        NamelistOverride('namelist/entry', NamelistOperation.SET, 5),
+        NamelistOverride('namelist/entry2', NamelistOperation.APPEND, 2),
+        NamelistOverride('namelist/entry', NamelistOperation.DELETE),
 
     ], True),
 ])
@@ -201,11 +201,11 @@ def test_namelisthandler_init(input_path, input_valid, output_path, output_valid
 @pytest.mark.parametrize('output_relative', [True, False])
 @pytest.mark.parametrize('overrides', [
     [],
-    [NamelistOverride('namelist/entry', NamelistOverride.NamelistOperation.SET, 5)],
+    [NamelistOverride('namelist/entry', NamelistOperation.SET, 5)],
     [
-        NamelistOverride('namelist/entry', NamelistOverride.NamelistOperation.SET, 5),
-        NamelistOverride('namelist/entry2', NamelistOverride.NamelistOperation.APPEND, 2),
-        NamelistOverride('namelist/entry', NamelistOverride.NamelistOperation.DELETE),
+        NamelistOverride('namelist/entry', NamelistOperation.SET, 5),
+        NamelistOverride('namelist/entry2', NamelistOperation.APPEND, 2),
+        NamelistOverride('namelist/entry', NamelistOperation.DELETE),
 
     ],
 ])

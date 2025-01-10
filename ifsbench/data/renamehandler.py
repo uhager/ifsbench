@@ -10,65 +10,63 @@ from pathlib import Path
 import re
 import shutil
 
-from .datahandler import DataHandler
-from ..logging import debug
+from ifsbench.data.datahandler import DataHandler
+from ifsbench.logging import debug
 
-__all__ = ['RenameHandler']
+__all__ = ['RenameHandler', 'RenameMode']
+
+
+class RenameMode(Enum):
+    """
+    Enumeration of available rename operations.
+
+    Attributes
+    ----------
+    COPY :
+        Copy the file from its current place to the new location.
+    SYMLINK :
+        Create a symlink in the new location, pointing to its current
+        location.
+    MOVE :
+        Move the file from its current place to the new location.
+    """
+    COPY = auto()
+    SYMLINK = auto()
+    MOVE = auto()
+
 
 class RenameHandler(DataHandler):
     """
     DataHandler specialisation that can move/rename files by using regular
-    expressions (as in re.sub).
+    expressions (as in :any:`re.sub`).
+
+    Parameters
+    ----------
+    pattern: str
+        The pattern that will be replaced. Corresponds to ``pattern`` in
+        :any:`re.sub`.
+
+    repl: str
+        The replacement pattern. Corresponds to ``repl`` in :any:`re.sub`.
+
+    mode: :class:`RenameMode`
+        Specifies how the renaming is done (copy, move, symlink).
     """
 
-    class RenameMode(Enum):
-        """
-        Enumeration of available rename operations.
-
-        Attributes
-        ----------
-        COPY :
-            Copy the file from its current place to the new location.
-        SYMLINK :
-            Create a symlink in the new location, pointing to its current
-            location.
-        MOVE :
-            Move the file from its current place to the new location.
-        """
-        COPY = auto()
-        SYMLINK = auto()
-        MOVE = auto()
-
     def __init__(self, pattern, repl, mode=RenameMode.SYMLINK):
-        """
-        Initialise the handler.
-
-        Parameters
-        ----------
-        pattern: str
-            The pattern that will be replaced. Corresponds to `pattern` in
-            `re.sub`.
-
-        repl: str
-            The replacement pattern. Corresponds to `repl` in `re.sub`.
-
-        mode:   `RenameHandler.RenameMode`
-            Specifies how the renaming is done (copy, move, symlink).
-
-        mode:   `RenameHandler.RenameMode`
-            Specifies how the renaming is done (copy, move, symlink).
-        """
         self._pattern = str(pattern)
         self._repl = str(repl)
         self._mode = mode
 
 
     def execute(self, wdir, **kwargs):
+        wdir = Path(wdir)
+
         # We create a dictionary first, that stores the paths that will be
         # modified.
         path_mapping = {}
 
-        for f in list(wdir.rglob('*')):
+        for f in wdir.rglob('*'):
             if f.is_dir():
                 continue
 
@@ -100,15 +98,15 @@ class RenameHandler(DataHandler):
 
             dest.parent.mkdir(parents=True, exist_ok=True)
 
-            if self._mode == self.RenameMode.COPY:
+            if self._mode == RenameMode.COPY:
                 debug(f"Copy {source} to {dest}.")
 
                 shutil.copy(source, dest)
-            elif self._mode == self.RenameMode.SYMLINK:
+            elif self._mode == RenameMode.SYMLINK:
                 debug(f"Symlink {source} to {dest}.")
 
                 dest.symlink_to(source)
-            elif self._mode == self.RenameMode.MOVE:
+            elif self._mode == RenameMode.MOVE:
                 debug(f"Move {source} to {dest}.")
 
                 source.rename(dest)

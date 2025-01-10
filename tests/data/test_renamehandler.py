@@ -12,37 +12,37 @@ Tests for all classes that represent benchmark files
 import pytest
 
 from ifsbench.data import (
-    RenameHandler
+    RenameHandler, RenameMode
 )
 
 @pytest.mark.parametrize('pattern,repl,mode,files_in,files_out', [
-    (r'file', r'data', RenameHandler.RenameMode.MOVE,
+    (r'file', 'data', RenameMode.MOVE,
         ['data/data.txt','data1/data1.txt'],
         ['data/data.txt','data1/data1.txt'],
     ),
-    (r'(?P<name>data[^/]*.txt)', r'new_dir/\g<name>', RenameHandler.RenameMode.COPY,
+    (r'(?P<name>data[^/]*.txt)', r'new_dir/\g<name>', RenameMode.COPY,
         ['data/data.txt','data1/data1.txt'],
         ['data/data.txt','data1/new_dir/data1.txt', 'data/data.txt','data1/new_dir/data1.txt'],
     ),
-    (r'data[^/]*/', r'', RenameHandler.RenameMode.SYMLINK,
+    (r'data[^/]*/', '', RenameMode.SYMLINK,
         ['data/data.txt','data1/data1.txt', 'data2/data1.txt'],
         None,
     ),
-    (r'(?P<name>data[^/]*.txt)', r'newdir/\g<name>', RenameHandler.RenameMode.SYMLINK,
+    (r'(?P<name>data[^/]*.txt)', r'newdir/\g<name>', RenameMode.SYMLINK,
         ['data/data.txt','data1/data1.txt', 'data2/data1.txt'],
         ['data/data.txt','data1/data1.txt', 'data2/data1.txt',
             'data/newdir/data.txt','data1/newdir/data1.txt',
             'data2/newdir/data1.txt'],
     ),
-    (r'data[^/]*/', r'', RenameHandler.RenameMode.MOVE,
+    (r'data[^/]*/', '', RenameMode.MOVE,
         ['data/data.txt','data1/data1.txt', 'data1/data2.txt'],
         ['data.txt', 'data1.txt', 'data2.txt'],
     ),
-    (r'data[12]/', r'data/', RenameHandler.RenameMode.MOVE,
+    (r'data[12]/', 'data/', RenameMode.MOVE,
         ['data/data.txt','data1/data.txt', 'data1/data2.txt'],
         ['data/data.txt', 'data/data2.txt'],
     ),
-    (r'replacement$', r'dummypath', RenameHandler.RenameMode.COPY,
+    (r'replacement$', 'dummypath', RenameMode.COPY,
         ['dummypath/somedata.tar.gz','replacement'],
         ['dummypath', 'replacement'],
     ),
