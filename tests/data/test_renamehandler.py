@@ -9,6 +9,8 @@
 Tests for all classes that represent benchmark files
 """
 
+import re
+
 import pytest
 
 from ifsbench.data import (
@@ -28,7 +30,7 @@ from ifsbench.data import (
         ['data/data.txt','data1/data1.txt', 'data2/data1.txt'],
         None,
     ),
-    (r'(?P<name>data[^/]*.txt)', r'newdir/\g<name>', RenameMode.SYMLINK,
+    (re.compile(r'(?P<name>data[^/]*.txt)'), r'newdir/\g<name>', RenameMode.SYMLINK,
         ['data/data.txt','data1/data1.txt', 'data2/data1.txt'],
         ['data/data.txt','data1/data1.txt', 'data2/data1.txt',
             'data/newdir/data.txt','data1/newdir/data1.txt',
@@ -42,7 +44,7 @@ from ifsbench.data import (
         ['data/data.txt','data1/data.txt', 'data1/data2.txt'],
         ['data/data.txt', 'data/data2.txt'],
     ),
-    (r'replacement$', 'dummypath', RenameMode.COPY,
+    (re.compile(r'replacement$'), 'dummypath', RenameMode.COPY,
         ['dummypath/somedata.tar.gz','replacement'],
         ['dummypath', 'replacement'],
     ),

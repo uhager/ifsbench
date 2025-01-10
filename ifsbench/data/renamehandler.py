@@ -42,7 +42,7 @@ class RenameHandler(DataHandler):
 
     Parameters
     ----------
-    pattern: str
+    pattern: str or :any:`re.Pattern`
         The pattern that will be replaced. Corresponds to ``pattern`` in
         :any:`re.sub`.
 
@@ -54,7 +54,10 @@ class RenameHandler(DataHandler):
     """
 
     def __init__(self, pattern, repl, mode=RenameMode.SYMLINK):
-        self._pattern = str(pattern)
+        if isinstance(pattern, re.Pattern):
+            self._pattern = pattern
+        else:
+            self._pattern = re.compile(pattern)
         self._repl = str(repl)
         self._mode = mode
 
@@ -70,7 +73,7 @@ class RenameHandler(DataHandler):
             if f.is_dir():
                 continue
 
-            dest = Path(re.sub(self._pattern, self._repl, str(f.relative_to(wdir))))
+            dest = Path(self._pattern.sub(self._repl, str(f.relative_to(wdir))))
             dest = (wdir/dest).resolve()
 
             if f != dest:
