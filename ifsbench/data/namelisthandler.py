@@ -5,23 +5,26 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-from enum import auto, Enum
+from enum import auto, StrEnum
 import pathlib
+from typing import Optional, Self, Union
+
 
 import f90nml
 
+from ifsbench.config_mixin import CONF,ConfigMixin
 from ifsbench.data.datahandler import DataHandler
 from ifsbench.logging import debug, info
 
 
 __all__ = ['NamelistOverride', 'NamelistHandler', 'NamelistOperation']
 
-class NamelistOperation(Enum):
+class NamelistOperation(StrEnum):
     SET = auto()
     APPEND = auto()
     DELETE = auto()
 
-class NamelistOverride:
+class NamelistOverride(ConfigMixin):
     """
     Specify changes that will be applied to a namelist.
 
@@ -43,21 +46,41 @@ class NamelistOverride:
     """
 
 
-    def __init__(self, key, mode, value=None):
-        if isinstance(key, str):
-            self._keys = key.split('/')
-        else:
-            self._keys = tuple(key)
+    def __init__(self, namelist: str, entry: str, mode: NamelistOperation, value: CONF=None):
 
-        if len(self._keys) != 2:
-            raise ValueError("The key object must be of length two.")
-
+        self.set_config_from_init_locals(locals())
+        self._keys = (namelist, entry)
         self._mode = mode
         self._value = value
 
         if self._value is None:
             if self._mode in (NamelistOperation.SET, NamelistOperation.APPEND):
                 raise ValueError("The new value must not be None!")
+
+    @classmethod
+    def from_keytuple(cls, key: tuple[str,str], mode: NamelistOperation, value: CONF=None) -> Self:
+        if len(key) != 2:
+            raise ValueError(f"The key tuple must be of length two, found key {key}.")
+        return cls(key[0], key[1], mode, value)
+
+    @classmethod
+    def from_keystring(cls, key: str, mode: NamelistOperation, value: CONF=None) -> Self:
+        keys = key.split('/')
+        if len(keys) != 2:
+            raise ValueError(f"The key string must contain single '/', found key {key}.")
+        return cls(keys[0], keys[1], mode, value)
+
+    @classmethod
+    def from_config(cls, config: dict[str,CONF]):
+        cls.validate_config(config)
+        value = config['value'] if 'value' in config else None
+        return cls(config['namelist'], config['entry'], config['mode'], value)
+
+
+    @classmethod
+    def config_format(cls):
+        return cls._format_from_init()
+        
 
     def apply(self, namelist):
         """
@@ -109,7 +132,7 @@ class NamelistOverride:
                 debug(f"Delete namelist entry {str(self._keys)}.")
                 del namelist[key]
 
-class NamelistHandler(DataHandler):
+class NamelistHandler(DataHandler, ConfigMixin):
     """
     DataHandler specialisation that can modify Fortran namelists.
 
@@ -129,7 +152,10 @@ class NamelistHandler(DataHandler):
         The NamelistOverrides that will be applied.
     """
 
-    def __init__(self, input_path, output_path, overrides):
+    def __init__(self, input_path: str, output_path: str, overrides: list[NamelistOverride]):
+
+        override_confs = [no.get_config() for no in overrides]
+        self.set_config({'input_path': input_path, 'output_path': output_path, 'overrides': override_confs})
 
         self._input_path = pathlib.Path(input_path)
         self._output_path = pathlib.Path(output_path)
@@ -138,6 +164,21 @@ class NamelistHandler(DataHandler):
         for override in self._overrides:
             if not isinstance(override, NamelistOverride):
                 raise ValueError("Namelist overrides must be NamelistOverride objects!")
+
+    @classmethod
+    def config_format(cls) -> dict[str,type|dict]:
+        return {'input_path': str, 'output_path': str, 'overrides': [{str: CONF, }, ]}
+
+
+    @classmethod
+    def from_config(cls, config: dict[str,CONF]) -> Self:
+        cls.validate_config(config)
+        input_path = config['input_path']
+        output_path = config['output_path']
+        override_configs = config['overrides']
+        overrides = [NamelistOverride.from_config(oc) for oc in override_configs]
+        return cls(input_path, output_path, overrides)
+
 
     def execute(self, wdir, **kwargs):
         wdir = pathlib.Path(wdir)

@@ -15,38 +15,36 @@ from pathlib import Path
 from f90nml import Namelist
 import pytest
 
-from ifsbench.data import (
-    NamelistHandler, NamelistOverride, NamelistOperation
-)
+from ifsbench.data import NamelistHandler, NamelistOverride, NamelistOperation
 
-@pytest.fixture(name = 'initial_namelist')
+
+@pytest.fixture(name='initial_namelist')
 def fixture_namelist():
     namelist = Namelist()
 
-    namelist['namelist1'] = {
-        'int': 2,
-        'str': 'test',
-        'list': [2, 3, 'entry']
-    }
+    namelist['namelist1'] = {'int': 2, 'str': 'test', 'list': [2, 3, 'entry']}
 
     namelist['namelist2'] = {'int': 5}
 
     return namelist
 
 
-@pytest.mark.parametrize('key,mode,value,success', [
-    ('namelist1', NamelistOperation.APPEND, None, False),
-    ('namelist1', NamelistOperation.SET, None, False),
-    ('namelist1', NamelistOperation.DELETE, None, False),
-    ('namelist1/entry', NamelistOperation.DELETE, None, True),
-    ('namelist1/entry', NamelistOperation.SET, None, False),
-    ('namelist1/entry', NamelistOperation.APPEND, None, False),
-    ('namelist1/entry', NamelistOperation.SET, 2, True),
-    ('namelist1/entry', NamelistOperation.APPEND, 3, True),
-    (('namelist1', 'entry'), NamelistOperation.SET, 2, True),
-    (('namelist1', 'entry'), NamelistOperation.APPEND, 3, True),
-])
-def test_extracthandler_init(key, mode, value, success):
+@pytest.mark.parametrize(
+    'key,mode,value,success',
+    [
+        ('namelist1', NamelistOperation.APPEND, None, False),
+        ('namelist1', NamelistOperation.SET, None, False),
+        ('namelist1', NamelistOperation.DELETE, None, False),
+        ('namelist1/entry', NamelistOperation.DELETE, None, True),
+        ('namelist1/entry', NamelistOperation.SET, None, False),
+        ('namelist1/entry', NamelistOperation.APPEND, None, False),
+        ('namelist1/entry', NamelistOperation.SET, 2, True),
+        ('namelist1/entry', NamelistOperation.APPEND, 3, True),
+        (('namelist1', 'entry'), NamelistOperation.SET, 2, True),
+        (('namelist1', 'entry'), NamelistOperation.APPEND, 3, True),
+    ],
+)
+def test_namelistoverride_init(key, mode, value, success):
     """
     Initialise the NamelistOverride and make sure that only correct values are
     accepted.
@@ -58,24 +56,68 @@ def test_extracthandler_init(key, mode, value, success):
         context = pytest.raises(ValueError)
 
     with context:
-        NamelistOverride(key, mode, value)
+        if isinstance(key, tuple):
+            NamelistOverride.from_keytuple(key, mode, value)
+        else:
+            NamelistOverride.from_keystring(key, mode, value)
 
 
-@pytest.mark.parametrize('key,value', [
-    (('namelist1', 'int'), 5),
-    (('namelist1', 'list'), [0, 2]),
-    (('namelist2', 'int'), 'not an int'),
-    (('namelist2', 'newvalue'), 5),
-    (('namelist3', 'anothervalue'), [2,3,4]),
-])
-def test_extracthandler_apply_set(initial_namelist, key, value):
+@pytest.mark.parametrize(
+    'key,mode,value',
+    [
+        (('namelist1', 'entry'), NamelistOperation.DELETE, None),
+        (('namelist1', 'entry'), NamelistOperation.SET, 2),
+        (('namelist1', 'entry'), NamelistOperation.APPEND, 3),
+    ],
+)
+def test_namelistoverride_from_config(key, mode, value):
+    in_conf = {'namelist': key[0], 'entry': key[1], 'mode': mode}
+    if value:
+        in_conf['value'] = value
+
+    nov = NamelistOverride.from_config(in_conf)
+    out_conf = nov.get_config()
+
+    expected = in_conf.copy()
+    expected['value'] = value
+    assert out_conf == expected
+
+
+@pytest.mark.parametrize(
+    'key,mode,value',
+    [
+        (('namelist1', 'entry'), NamelistOperation.DELETE, None),
+        (('namelist1', 'entry'), NamelistOperation.SET, 2),
+        (('namelist1', 'entry'), NamelistOperation.APPEND, 3),
+    ],
+)
+def test_namelistoverride_get_config(key, mode, value):
+    nov = NamelistOverride(key[0], key[1], mode, value)
+
+    conf = nov.get_config()
+
+    expected = {'namelist': key[0], 'entry': key[1], 'mode': mode, 'value': value}
+    assert conf == expected
+
+
+@pytest.mark.parametrize(
+    'key,value',
+    [
+        (('namelist1', 'int'), 5),
+        (('namelist1', 'list'), [0, 2]),
+        (('namelist2', 'int'), 'not an int'),
+        (('namelist2', 'newvalue'), 5),
+        (('namelist3', 'anothervalue'), [2, 3, 4]),
+    ],
+)
+def test_namelistoverride_apply_set(initial_namelist, key, value):
     """
     Initialise the NamelistOverride and make sure that only correct values are accepted.
     """
 
     namelist = Namelist(initial_namelist)
 
-    override = NamelistOverride(key, NamelistOperation.SET, value)
+    override = NamelistOverride(key[0], key[1], NamelistOperation.SET, value)
 
     override.apply(namelist)
 
@@ -86,23 +128,27 @@ def test_extracthandler_apply_set(initial_namelist, key, value):
             if (name, name2) != key:
                 assert entry[name2] == initial_namelist[name][name2]
 
-@pytest.mark.parametrize('key,value,success', [
-    (('namelist1', 'int'), 5, False),
-    (('namelist1', 'list'), 3, True),
-    (('namelist1', 'list'), [2, 4], False),
-    (('namelist1', 'list'), 5, True),
-    (('namelist1', 'list'), 'Hello', False),
-    (('namelist2', 'int'), 'not an int', False),
-    (('namelist3', 'new_list'), 'not an int', True)
-])
-def test_extracthandler_apply_append(initial_namelist, key, value, success):
+
+@pytest.mark.parametrize(
+    'key,value,success',
+    [
+        (('namelist1', 'int'), 5, False),
+        (('namelist1', 'list'), 3, True),
+        (('namelist1', 'list'), [2, 4], False),
+        (('namelist1', 'list'), 5, True),
+        (('namelist1', 'list'), 'Hello', False),
+        (('namelist2', 'int'), 'not an int', False),
+        (('namelist3', 'new_list'), 'not an int', True),
+    ],
+)
+def test_namelistoverride_apply_append(initial_namelist, key, value, success):
     """
     Initialise the NamelistOverride and make sure that only correct values are accepted.
     """
 
     namelist = Namelist(initial_namelist)
 
-    override = NamelistOverride(key, NamelistOperation.APPEND, value)
+    override = NamelistOverride(key[0], key[1], NamelistOperation.APPEND, value)
 
     if success:
         override.apply(namelist)
@@ -116,29 +162,31 @@ def test_extracthandler_apply_append(initial_namelist, key, value, success):
     else:
         assert namelist[key[0]][key[1]] == [value]
 
-
     for name, entry in namelist.items():
         for name2 in entry.keys():
             if (name, name2) != key:
                 assert entry[name2] == initial_namelist[name][name2]
 
 
-@pytest.mark.parametrize('key', [
-    ('namelist1', 'int'),
-    ('namelist1', 'list'),
-    ('namelist1', 'list'),
-    ('namelist2', 'int'),
-    ('doesnot', 'exist'),
-    ('namelist1', 'missing'),
-])
-def test_extracthandler_apply_delete(initial_namelist, key):
+@pytest.mark.parametrize(
+    'key',
+    [
+        ('namelist1', 'int'),
+        ('namelist1', 'list'),
+        ('namelist1', 'list'),
+        ('namelist2', 'int'),
+        ('doesnot', 'exist'),
+        ('namelist1', 'missing'),
+    ],
+)
+def test_namelistoverride_apply_delete(initial_namelist, key):
     """
     Initialise the NamelistOverride and make sure that only correct values are accepted.
     """
 
     namelist = Namelist(initial_namelist)
 
-    override = NamelistOverride(key, NamelistOperation.DELETE)
+    override = NamelistOverride(key[0], key[1], NamelistOperation.DELETE)
 
     override.apply(namelist)
 
@@ -151,31 +199,44 @@ def test_extracthandler_apply_delete(initial_namelist, key):
                 assert namelist[name][name2] == initial_namelist[name][name2]
 
 
-@pytest.mark.parametrize('input_path,input_valid', [
-    (Path('somewhere/fort.4'), True),
-    ('somewhere/namelist', True),
-    (None, False),
-    (2, False)
-])
-@pytest.mark.parametrize('output_path,output_valid', [
-    (Path('somewhere/new_fort.4'), True),
-    ('somewhere/namelist', True),
-    (None, False),
-    (2, False)
-])
-@pytest.mark.parametrize('overrides, overrides_valid', [
-    ([], True),
-    ('Test', False),
-    (2, False),
-    ([NamelistOverride('namelist/entry', NamelistOperation.SET, 5)], True),
-    ([
-        NamelistOverride('namelist/entry', NamelistOperation.SET, 5),
-        NamelistOverride('namelist/entry2', NamelistOperation.APPEND, 2),
-        NamelistOverride('namelist/entry', NamelistOperation.DELETE),
-
-    ], True),
-])
-def test_namelisthandler_init(input_path, input_valid, output_path, output_valid, overrides, overrides_valid):
+@pytest.mark.parametrize(
+    'input_path,input_valid',
+    [
+        (Path('somewhere/fort.4'), True),
+        ('somewhere/namelist', True),
+        (None, False),
+        (2, False),
+    ],
+)
+@pytest.mark.parametrize(
+    'output_path,output_valid',
+    [
+        (Path('somewhere/new_fort.4'), True),
+        ('somewhere/namelist', True),
+        (None, False),
+        (2, False),
+    ],
+)
+@pytest.mark.parametrize(
+    'overrides, overrides_valid',
+    [
+        ([], True),
+        ('Test', False),
+        (2, False),
+        ([NamelistOverride('namelist', 'entry', NamelistOperation.SET, 5)], True),
+        (
+            [
+                NamelistOverride('namelist', 'entry', NamelistOperation.SET, 5),
+                NamelistOverride('namelist', 'entry2', NamelistOperation.APPEND, 2),
+                NamelistOverride('namelist', 'entry', NamelistOperation.DELETE),
+            ],
+            True,
+        ),
+    ],
+)
+def test_namelisthandler_init(
+    input_path, input_valid, output_path, output_valid, overrides, overrides_valid
+):
     """
     Initialise the NamelistHandler and make sure that only correct values are accepted.
     """
@@ -188,31 +249,51 @@ def test_namelisthandler_init(input_path, input_valid, output_path, output_valid
         NamelistHandler(input_path, output_path, overrides)
 
 
+def test_namelisthandler_from_config_get_config():
+    config = {
+        'input_path': 'in_path',
+        'output_path': 'out_path',
+        'overrides': [
+            {'namelist': 'nl1', 'entry': 'e1', 'mode': NamelistOperation.SET, 'value': 5},
+            {'namelist': 'nl2', 'entry': 'e2', 'mode': NamelistOperation.DELETE},
+        ],
+    }
+    nh = NamelistHandler.from_config(config)
+    expected = config.copy()
+    expected['overrides'][1]['value'] = None
+    assert nh.get_config() == config
 
-@pytest.mark.parametrize('input_path', [
-    Path('somewhere/fort.4'),
-    'somewhere/namelist'
-])
+@pytest.mark.parametrize('input_path', [Path('somewhere/fort.4'), 'somewhere/namelist'])
 @pytest.mark.parametrize('input_relative', [True, False])
-@pytest.mark.parametrize('output_path', [
-    Path('somewhere_else/new_fort.4'),
-    'somewhere/namelist',
-])
-@pytest.mark.parametrize('output_relative', [True, False])
-@pytest.mark.parametrize('overrides', [
-    [],
-    [NamelistOverride('namelist/entry', NamelistOperation.SET, 5)],
+@pytest.mark.parametrize(
+    'output_path',
     [
-        NamelistOverride('namelist/entry', NamelistOperation.SET, 5),
-        NamelistOverride('namelist/entry2', NamelistOperation.APPEND, 2),
-        NamelistOverride('namelist/entry', NamelistOperation.DELETE),
-
+        Path('somewhere_else/new_fort.4'),
+        'somewhere/namelist',
     ],
-])
-
-def test_namelisthandler_execute(tmp_path, initial_namelist, input_path,
-                                 input_relative, output_path, output_relative,
-                                 overrides):
+)
+@pytest.mark.parametrize('output_relative', [True, False])
+@pytest.mark.parametrize(
+    'overrides',
+    [
+        [],
+        [NamelistOverride('namelist', 'entry', NamelistOperation.SET, 5)],
+        [
+            NamelistOverride('namelist', 'entry', NamelistOperation.SET, 5),
+            NamelistOverride('namelist', 'entry2', NamelistOperation.APPEND, 2),
+            NamelistOverride('namelist', 'entry', NamelistOperation.DELETE),
+        ],
+    ],
+)
+def test_namelisthandler_execute(
+    tmp_path,
+    initial_namelist,
+    input_path,
+    input_relative,
+    output_path,
+    output_relative,
+    overrides,
+):
     """
     Test that the execute function modifies the namelists correctly.
 
@@ -245,29 +326,28 @@ def test_namelisthandler_execute(tmp_path, initial_namelist, input_path,
     # both).
     if not input_relative:
         if isinstance(input_path, str):
-            input_path = str((tmp_path/input_path).resolve())
+            input_path = str((tmp_path / input_path).resolve())
         else:
-            input_path = (tmp_path/input_path).resolve()
+            input_path = (tmp_path / input_path).resolve()
 
     if not output_relative:
         if isinstance(output_path, str):
-            output_path = str((tmp_path/output_path).resolve())
+            output_path = str((tmp_path / output_path).resolve())
         else:
-            output_path = (tmp_path/output_path).resolve()
+            output_path = (tmp_path / output_path).resolve()
 
     # Create the initial namelist.
 
-    abs_input_path = tmp_path/output_path
+    abs_input_path = tmp_path / output_path
 
     abs_input_path.parent.mkdir(parents=True, exist_ok=True)
     initial_namelist.write(abs_input_path)
-
 
     # Actually extract the archive.
     handler = NamelistHandler(input_path, output_path, overrides)
     handler.execute(tmp_path)
 
     if output_relative:
-        assert (tmp_path/output_path).exists()
+        assert (tmp_path / output_path).exists()
     else:
         assert Path(output_path).exists()

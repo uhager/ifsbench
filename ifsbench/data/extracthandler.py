@@ -7,14 +7,16 @@
 
 import pathlib
 import shutil
+from typing import Optional, Self
 
+from ifsbench.config_mixin import CONF,ConfigMixin
 from ifsbench.data.datahandler import DataHandler
 from ifsbench.logging import debug
 
 __all__ = ['ExtractHandler']
 
 
-class ExtractHandler(DataHandler):
+class ExtractHandler(DataHandler,ConfigMixin):
     """
     DataHandler that extracts a given archive to a specific directory.
 
@@ -31,12 +33,25 @@ class ExtractHandler(DataHandler):
         :meth:`execute`.
     """
 
-    def __init__(self, archive_path, target_dir=None):
+    def __init__(self, archive_path: str, target_dir: Optional[str]=None):
+        self.set_config_from_init_locals(locals())
         self._archive_path = pathlib.Path(archive_path)
         if target_dir is None:
             self._target_dir = None
         else:
             self._target_dir = pathlib.Path(target_dir)
+
+    @classmethod
+    def config_format(cls):
+        return cls._format_from_init()
+
+    @classmethod
+    def from_config(cls, config: dict[str,CONF]) -> Self:
+        cls.validate_config(config)
+        archive_path = config['archive_path']
+        target_dir = config['target_dir'] if 'target_dir' in config else None
+        return cls(archive_path, target_dir)
+
 
     def execute(self, wdir, **kwargs):
         wdir = pathlib.Path(wdir)

@@ -146,3 +146,20 @@ def test_extracthandler_execute(tmp_path, archive, archive_path, archive_relativ
 
     for path in archive:
         assert (extract_path/path).exists()
+
+
+def test_from_config_succeeds():
+    in_conf = {'archive_path': 'arch/path', 'target_dir': 'target/dir'}
+    eh = ExtractHandler.from_config(in_conf)
+    out_conf = eh.get_config()
+
+    assert out_conf == in_conf
+
+
+def test_from_config_target_dir_null_succeeds():
+    in_conf = {'archive_path': 'arch/path'}
+    eh = ExtractHandler.from_config(in_conf)
+    out_conf = eh.get_config()
+
+    expected = {'archive_path': 'arch/path', 'target_dir': None}
+    assert out_conf ==  expected
