@@ -7,7 +7,7 @@
 
 import pathlib
 import shutil
-from typing import Any, Dict, Optional, Self
+from typing import Any, Dict, Optional
 
 from ifsbench.config_mixin import CONF, ConfigMixin
 from ifsbench.data.datahandler import DataHandler
@@ -46,7 +46,7 @@ class ExtractHandler(DataHandler, ConfigMixin):
         return cls._format_from_init()
 
     @classmethod
-    def from_config(cls, config: dict[str, CONF]) -> Self:
+    def from_config(cls, config: dict[str, CONF]) -> 'ExtractHandler':
         cls.validate_config(config)
         archive_path = config['archive_path']
         target_dir = config['target_dir'] if 'target_dir' in config else None

@@ -7,7 +7,7 @@
 
 from enum import auto, StrEnum
 import pathlib
-from typing import Any, Dict, Self
+from typing import Any, Dict
 
 
 import f90nml
@@ -63,7 +63,7 @@ class NamelistOverride(ConfigMixin):
     @classmethod
     def from_keytuple(
         cls, key: tuple[str, str], mode: NamelistOperation, value: CONF = None
-    ) -> Self:
+    ) -> 'NamelistOverride':
         if len(key) != 2:
             raise ValueError(f"The key tuple must be of length two, found key {key}.")
         return cls(key[0], key[1], mode, value)
@@ -71,7 +71,7 @@ class NamelistOverride(ConfigMixin):
     @classmethod
     def from_keystring(
         cls, key: str, mode: NamelistOperation, value: CONF = None
-    ) -> Self:
+    ) -> 'NamelistOverride':
         keys = key.split('/')
         if len(keys) != 2:
             raise ValueError(
@@ -80,7 +80,7 @@ class NamelistOverride(ConfigMixin):
         return cls(keys[0], keys[1], mode, value)
 
     @classmethod
-    def from_config(cls, config: dict[str, CONF]) -> Self:
+    def from_config(cls, config: dict[str, CONF]) -> 'NamelistOverride':
         cls.validate_config(config)
         value = config['value'] if 'value' in config else None
         return cls(config['namelist'], config['entry'], config['mode'], value)
@@ -196,7 +196,7 @@ class NamelistHandler(DataHandler, ConfigMixin):
         }
 
     @classmethod
-    def from_config(cls, config: dict[str, CONF]) -> Self:
+    def from_config(cls, config: dict[str, CONF]) -> 'NamelistHandler':
         cls.validate_config(config)
         input_path = config['input_path']
         output_path = config['output_path']
