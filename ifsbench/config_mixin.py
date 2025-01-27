@@ -16,6 +16,20 @@ def _config_from_locals(config: dict[str, Any]) -> None:
 
 
 class ConfigMixin(ABC):
+    """
+    Base class for handling configurations in a format that can be used for storage.
+
+    The contents of the config are based on the parameters required by the implementing
+    classes constructor. Because of this, additional entries cannot be added to an existing config.
+    However, the values of individual entries can be updated with a value of the same type.
+
+    The required format can be either created based on the constructor, or explicitly set by
+    implementing the `config_format` method.
+
+    Parameters
+    ----
+    config: dictionary containing parameter names and their values
+    """
 
     _config = None
 
