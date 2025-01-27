@@ -75,6 +75,16 @@ def test_set_config_succeeds():
     assert config == expected
 
 
+def test_set_config_already_set_fails():
+
+    tc = TestConfigSet(field1=VALUE1, field2=VALUE2, field3=VALUE3)
+    config = {'field1': VALUE1, 'field2': VALUE2, 'field3': VALUE3}
+
+    with pytest.raises(ValueError) as exceptinfo:
+        tc.set_config(config)
+    assert str(exceptinfo.value) == f'Config already set.'
+
+
 def test_set_config_from_init_locals_succeeds():
 
     tc = TestConfigFromLocals(field1=VALUE1, field2=VALUE2, field3=VALUE3)
@@ -272,4 +282,38 @@ def test_validate_config_list_wrong_type_fails():
     assert (
         str(exceptinfo.value)
         == f'list entries for "field3" have type <class \'str\'>, expected <class \'dict\'>'
+    )
+
+
+def test_update_config_succeeds():
+    tc = TestConfigFromLocals(field1=VALUE1, field2=VALUE2, field3=VALUE3)
+    config = tc.get_config().copy()
+
+    tc.update_config('field1', 5)
+
+    out_conf = tc.get_config()
+    config['field1'] = 5
+
+    assert out_conf == config
+
+
+def test_update_config_new_field_fails():
+    tc = TestConfigFromLocals(field1=VALUE1, field2=VALUE2, field3=VALUE3)
+
+    with pytest.raises(ValueError) as exceptinfo:
+        tc.update_config('field4', 5)
+    assert (
+        str(exceptinfo.value)
+        == f'field4 not part of config {tc.get_config()}, not setting'
+    )
+
+
+def test_update_config_wrong_type_fails():
+    tc = TestConfigFromLocals(field1=VALUE1, field2=VALUE2, field3=VALUE3)
+
+    with pytest.raises(ValueError) as exceptinfo:
+        tc.update_config('field1', 3.3)
+    assert (
+        str(exceptinfo.value)
+        == f'Cannot update config: wrong type <class \'float\'> for field field1'
     )

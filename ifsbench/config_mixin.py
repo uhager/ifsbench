@@ -41,9 +41,7 @@ class ConfigMixin(ABC):
     @classmethod
     def _format_from_init(cls) -> dict[str, type | dict]:
         format = dict(get_type_hints(cls.__init__, include_extras=False))
-        print(f'format initial={format}, type={type(format)}')
         format = _config_from_locals(format)
-        print(f'format cleaned: {format}')
         return format
 
     def set_config_from_init_locals(self, config: dict[str, Any]):
