@@ -4,9 +4,7 @@ from typing import Any, get_args, get_origin, get_type_hints, Optional, TypeVar,
 __all__ = ['ConfigMixin', 'CONF']
 
 
-CONF = Union[
-    int, float, str, bool, dict, list, None
-]
+CONF = Union[int, float, str, bool, dict, list, None]
 
 
 def _config_from_locals(config: dict[str, Any]) -> None:
@@ -74,7 +72,7 @@ class ConfigMixin(ABC):
             if key not in format:
                 raise ValueError(f'unexpected key "{key}" in config, expected {format}')
 
-        for key, value in format.items(): 
+        for key, value in format.items():
 
             if (key not in config) and (type(None) not in get_args(value)):
                 # format key has to be in config unless it's optional

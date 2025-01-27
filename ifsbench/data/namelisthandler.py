@@ -12,17 +12,19 @@ from typing import Optional, Self, Union
 
 import f90nml
 
-from ifsbench.config_mixin import CONF,ConfigMixin
+from ifsbench.config_mixin import CONF, ConfigMixin
 from ifsbench.data.datahandler import DataHandler
 from ifsbench.logging import debug, info
 
 
 __all__ = ['NamelistOverride', 'NamelistHandler', 'NamelistOperation']
 
+
 class NamelistOperation(StrEnum):
     SET = auto()
     APPEND = auto()
     DELETE = auto()
+
 
 class NamelistOverride(ConfigMixin):
     """
@@ -45,8 +47,9 @@ class NamelistOverride(ConfigMixin):
         The value that is set (SET operation) or appended (APPEND).
     """
 
-
-    def __init__(self, namelist: str, entry: str, mode: NamelistOperation, value: CONF=None):
+    def __init__(
+        self, namelist: str, entry: str, mode: NamelistOperation, value: CONF = None
+    ):
 
         self.set_config_from_init_locals(locals())
         self._keys = (namelist, entry)
@@ -58,29 +61,33 @@ class NamelistOverride(ConfigMixin):
                 raise ValueError("The new value must not be None!")
 
     @classmethod
-    def from_keytuple(cls, key: tuple[str,str], mode: NamelistOperation, value: CONF=None) -> Self:
+    def from_keytuple(
+        cls, key: tuple[str, str], mode: NamelistOperation, value: CONF = None
+    ) -> Self:
         if len(key) != 2:
             raise ValueError(f"The key tuple must be of length two, found key {key}.")
         return cls(key[0], key[1], mode, value)
 
     @classmethod
-    def from_keystring(cls, key: str, mode: NamelistOperation, value: CONF=None) -> Self:
+    def from_keystring(
+        cls, key: str, mode: NamelistOperation, value: CONF = None
+    ) -> Self:
         keys = key.split('/')
         if len(keys) != 2:
-            raise ValueError(f"The key string must contain single '/', found key {key}.")
+            raise ValueError(
+                f"The key string must contain single '/', found key {key}."
+            )
         return cls(keys[0], keys[1], mode, value)
 
     @classmethod
-    def from_config(cls, config: dict[str,CONF]):
+    def from_config(cls, config: dict[str, CONF]):
         cls.validate_config(config)
         value = config['value'] if 'value' in config else None
         return cls(config['namelist'], config['entry'], config['mode'], value)
 
-
     @classmethod
     def config_format(cls):
         return cls._format_from_init()
-        
 
     def apply(self, namelist):
         """
@@ -121,7 +128,9 @@ class NamelistOverride(ConfigMixin):
                 type_value = type(self._value)
 
                 if type_list != type_value:
-                    raise ValueError("The given value must have the same type as existing array entries!")
+                    raise ValueError(
+                        "The given value must have the same type as existing array entries!"
+                    )
 
             debug(f"Append {str(self._value)} to namelist entry {str(self._keys)}.")
 
@@ -131,6 +140,7 @@ class NamelistOverride(ConfigMixin):
             if key in namelist:
                 debug(f"Delete namelist entry {str(self._keys)}.")
                 del namelist[key]
+
 
 class NamelistHandler(DataHandler, ConfigMixin):
     """
@@ -152,10 +162,18 @@ class NamelistHandler(DataHandler, ConfigMixin):
         The NamelistOverrides that will be applied.
     """
 
-    def __init__(self, input_path: str, output_path: str, overrides: list[NamelistOverride]):
+    def __init__(
+        self, input_path: str, output_path: str, overrides: list[NamelistOverride]
+    ):
 
         override_confs = [no.get_config() for no in overrides]
-        self.set_config({'input_path': input_path, 'output_path': output_path, 'overrides': override_confs})
+        self.set_config(
+            {
+                'input_path': input_path,
+                'output_path': output_path,
+                'overrides': override_confs,
+            }
+        )
 
         self._input_path = pathlib.Path(input_path)
         self._output_path = pathlib.Path(output_path)
@@ -166,12 +184,19 @@ class NamelistHandler(DataHandler, ConfigMixin):
                 raise ValueError("Namelist overrides must be NamelistOverride objects!")
 
     @classmethod
-    def config_format(cls) -> dict[str,type|dict]:
-        return {'input_path': str, 'output_path': str, 'overrides': [{str: CONF, }, ]}
-
+    def config_format(cls) -> dict[str, type | dict]:
+        return {
+            'input_path': str,
+            'output_path': str,
+            'overrides': [
+                {
+                    str: CONF,
+                },
+            ],
+        }
 
     @classmethod
-    def from_config(cls, config: dict[str,CONF]) -> Self:
+    def from_config(cls, config: dict[str, CONF]) -> Self:
         cls.validate_config(config)
         input_path = config['input_path']
         output_path = config['output_path']
@@ -179,14 +204,13 @@ class NamelistHandler(DataHandler, ConfigMixin):
         overrides = [NamelistOverride.from_config(oc) for oc in override_configs]
         return cls(input_path, output_path, overrides)
 
-
     def execute(self, wdir, **kwargs):
         wdir = pathlib.Path(wdir)
 
         if self._input_path.is_absolute():
             input_path = self._input_path
         else:
-            input_path = wdir/self._input_path
+            input_path = wdir / self._input_path
 
         # Do nothing if the input namelist doesn't exist.
         if not input_path.exists():
@@ -196,7 +220,7 @@ class NamelistHandler(DataHandler, ConfigMixin):
         if self._output_path.is_absolute():
             output_path = self._output_path
         else:
-            output_path = wdir/self._output_path
+            output_path = wdir / self._output_path
 
         debug(f"Modify namelist {input_path}.")
         namelist = f90nml.read(input_path)

@@ -254,7 +254,12 @@ def test_namelisthandler_from_config_get_config():
         'input_path': 'in_path',
         'output_path': 'out_path',
         'overrides': [
-            {'namelist': 'nl1', 'entry': 'e1', 'mode': NamelistOperation.SET, 'value': 5},
+            {
+                'namelist': 'nl1',
+                'entry': 'e1',
+                'mode': NamelistOperation.SET,
+                'value': 5,
+            },
             {'namelist': 'nl2', 'entry': 'e2', 'mode': NamelistOperation.DELETE},
         ],
     }
@@ -262,6 +267,7 @@ def test_namelisthandler_from_config_get_config():
     expected = config.copy()
     expected['overrides'][1]['value'] = None
     assert nh.get_config() == config
+
 
 @pytest.mark.parametrize('input_path', [Path('somewhere/fort.4'), 'somewhere/namelist'])
 @pytest.mark.parametrize('input_relative', [True, False])
