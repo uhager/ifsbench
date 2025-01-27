@@ -1,5 +1,6 @@
-import pytest
 from typing import Optional
+
+import pytest
 
 from ifsbench import ConfigMixin
 
@@ -7,6 +8,10 @@ from ifsbench import ConfigMixin
 class TestConfigFromLocals(ConfigMixin):
     def __init__(self, field1: int, field2: float, field3: str):
         self.set_config_from_init_locals(locals())
+        # delete fields so pylint doesn't complain.
+        del field1
+        del field2
+        del field3
 
     @classmethod
     def config_format(cls):
@@ -39,6 +44,8 @@ class TestConfigNestedConfigFormat(ConfigMixin):
 class TestConfigOptional(ConfigMixin):
     def __init__(self, field1: int, field2: Optional[str] = None):
         self.set_config_from_init_locals(locals())
+        del field1
+        del field2
 
     @classmethod
     def config_format(cls):
@@ -82,7 +89,7 @@ def test_set_config_already_set_fails():
 
     with pytest.raises(ValueError) as exceptinfo:
         tc.set_config(config)
-    assert str(exceptinfo.value) == f'Config already set.'
+    assert str(exceptinfo.value) == 'Config already set.'
 
 
 def test_set_config_from_init_locals_succeeds():
@@ -112,13 +119,6 @@ def test_set_config_from_init_optional_none_succeeds():
     assert config == expected
 
 
-def test_set_config_already_set_fails():
-
-    tc = TestConfigFromLocals(field1=VALUE1, field2=VALUE2, field3=VALUE3)
-    with pytest.raises(ValueError):
-        tc.set_config({'something': 'other'})
-
-
 def test_update_config_succeeds():
     tc = TestConfigFromLocals(field1=VALUE1, field2=VALUE2, field3=VALUE3)
 
@@ -144,10 +144,10 @@ def test_update_config_wrong_type_fails():
     tc = TestConfigFromLocals(field1=VALUE1, field2=VALUE2, field3=VALUE3)
 
     with pytest.raises(ValueError) as exceptinfo:
-        tc.update_config(field='field1', value='should be int')
+        tc.update_config('field1', 3.3)
     assert (
         str(exceptinfo.value)
-        == 'Cannot update config: wrong type <class \'str\'> for field field1'
+        == 'Cannot update config: wrong type <class \'float\'> for field field1'
     )
 
 
@@ -281,39 +281,5 @@ def test_validate_config_list_wrong_type_fails():
         tc.validate_config(config=to_validate)
     assert (
         str(exceptinfo.value)
-        == f'list entries for "field3" have type <class \'str\'>, expected <class \'dict\'>'
-    )
-
-
-def test_update_config_succeeds():
-    tc = TestConfigFromLocals(field1=VALUE1, field2=VALUE2, field3=VALUE3)
-    config = tc.get_config().copy()
-
-    tc.update_config('field1', 5)
-
-    out_conf = tc.get_config()
-    config['field1'] = 5
-
-    assert out_conf == config
-
-
-def test_update_config_new_field_fails():
-    tc = TestConfigFromLocals(field1=VALUE1, field2=VALUE2, field3=VALUE3)
-
-    with pytest.raises(ValueError) as exceptinfo:
-        tc.update_config('field4', 5)
-    assert (
-        str(exceptinfo.value)
-        == f'field4 not part of config {tc.get_config()}, not setting'
-    )
-
-
-def test_update_config_wrong_type_fails():
-    tc = TestConfigFromLocals(field1=VALUE1, field2=VALUE2, field3=VALUE3)
-
-    with pytest.raises(ValueError) as exceptinfo:
-        tc.update_config('field1', 3.3)
-    assert (
-        str(exceptinfo.value)
-        == f'Cannot update config: wrong type <class \'float\'> for field field1'
+        == 'list entries for "field3" have type <class \'str\'>, expected <class \'dict\'>'
     )

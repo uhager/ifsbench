@@ -7,7 +7,7 @@
 
 from enum import auto, StrEnum
 import pathlib
-from typing import Optional, Self, Union
+from typing import Self
 
 
 import f90nml

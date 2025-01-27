@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, get_args, get_origin, get_type_hints, Optional, TypeVar, Union
+from typing import Any, get_args, get_origin, get_type_hints, Union
 
 __all__ = ['ConfigMixin', 'CONF']
 
@@ -40,9 +40,9 @@ class ConfigMixin(ABC):
 
     @classmethod
     def _format_from_init(cls) -> dict[str, type | dict]:
-        format = dict(get_type_hints(cls.__init__, include_extras=False))
-        format = _config_from_locals(format)
-        return format
+        format_definition = dict(get_type_hints(cls.__init__, include_extras=False))
+        format_definition = _config_from_locals(format_definition)
+        return format_definition
 
     def set_config_from_init_locals(self, config: dict[str, Any]):
         config = _config_from_locals(config)
@@ -59,7 +59,7 @@ class ConfigMixin(ABC):
     def update_config(self, field: str, value: CONF) -> None:
         if field not in self._config:
             raise ValueError(f'{field} not part of config {self._config}, not setting')
-        if type(value) != type(self._config[field]):
+        if not isinstance(value, type(self._config[field])):
             raise ValueError(
                 f'Cannot update config: wrong type {type(value)} for field {field}'
             )
@@ -67,27 +67,25 @@ class ConfigMixin(ABC):
 
     @classmethod
     def validate_config(cls, config: dict[str, CONF]):
-        format = cls.config_format()
-        cls._validate_config_from_format(config, format)
+        format_definition = cls.config_format()
+        cls._validate_config_from_format(config, format_definition)
 
     @classmethod
     def _validate_config_from_format(
-        cls, config: dict[str, CONF], format: dict[str, type | dict]
+        cls, config: dict[str, CONF], format_definition: dict[str, type | dict]
     ):
-        print(f'config: {config}')
-        print(f'format: {format}')
 
         for key, value in config.items():
             if not isinstance(value, CONF):
                 # check that the given value is a valid config type
                 raise ValueError(f'Unsupported config value type for {value}')
-            if key not in format:
-                raise ValueError(f'unexpected key "{key}" in config, expected {format}')
+            if key not in format_definition:
+                raise ValueError(f'unexpected key "{key}" in config, expected {format_definition}')
 
-        for key, value in format.items():
+        for key, value in format_definition.items():
 
             if (key not in config) and (type(None) not in get_args(value)):
-                # format key has to be in config unless it's optional
+                # format_definition key has to be in config unless it's optional
                 raise ValueError(f'"{key}" required but not in {config}')
             if isinstance(value, dict):
                 # nested, check that field also nested in config, then recursively check dict.
@@ -95,14 +93,14 @@ class ConfigMixin(ABC):
                     raise ValueError(
                         f'"{key}" has type {type(config[key])}, expected {value}'
                     )
-                cls._validate_config_from_format(config[key], format[key])
+                cls._validate_config_from_format(config[key], format_definition[key])
             elif isinstance(value, list):
                 # For now, only check both are lists and first entry type is correct, don't check every entry.
                 if not isinstance(config[key], list):
                     raise ValueError(
                         f'"{key}" has type {type(config[key])}, expected {value}'
                     )
-                if type(value[0]) != type(config[key][0]):
+                if not isinstance(value[0], type(config[key][0])):
                     raise ValueError(
                         f'list entries for "{key}" have type {type(config[key][0])}, expected {type(value[0])}'
                     )
@@ -113,7 +111,7 @@ class ConfigMixin(ABC):
                     raise ValueError(
                         f'wrong type for optional {type(value)}: {config[key]}'
                     )
-            elif type(config[key]) != value:
+            elif not isinstance(config[key], value):
                 # types of format and config have to match
                 raise ValueError(
                     f'"{key}" has type {type(config[key])}, expected {value}'
