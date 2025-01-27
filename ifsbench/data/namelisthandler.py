@@ -7,7 +7,7 @@
 
 from enum import auto, StrEnum
 import pathlib
-from typing import Self
+from typing import Any, Dict, Self
 
 
 import f90nml
@@ -80,13 +80,13 @@ class NamelistOverride(ConfigMixin):
         return cls(keys[0], keys[1], mode, value)
 
     @classmethod
-    def from_config(cls, config: dict[str, CONF]):
+    def from_config(cls, config: dict[str, CONF]) -> Self:
         cls.validate_config(config)
         value = config['value'] if 'value' in config else None
         return cls(config['namelist'], config['entry'], config['mode'], value)
 
     @classmethod
-    def config_format(cls):
+    def config_format(cls) -> Dict[str, Any]:
         return cls._format_from_init()
 
     def apply(self, namelist):
@@ -184,7 +184,7 @@ class NamelistHandler(DataHandler, ConfigMixin):
                 raise ValueError("Namelist overrides must be NamelistOverride objects!")
 
     @classmethod
-    def config_format(cls) -> dict[str, type | dict]:
+    def config_format(cls) -> dict[str, Any]:
         return {
             'input_path': str,
             'output_path': str,

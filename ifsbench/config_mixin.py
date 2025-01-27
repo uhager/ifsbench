@@ -35,11 +35,11 @@ class ConfigMixin(ABC):
 
     @classmethod
     @abstractmethod
-    def config_format(cls) -> Dict[str, type | Dict]:
+    def config_format(cls) -> Dict[str, Any]:
         raise NotImplementedError()
 
     @classmethod
-    def _format_from_init(cls) -> Dict[str, type | Dict]:
+    def _format_from_init(cls) -> Dict[str, Any]:
         format_definition = dict(get_type_hints(cls.__init__, include_extras=False))
         format_definition = _config_from_locals(format_definition)
         return format_definition
@@ -72,7 +72,7 @@ class ConfigMixin(ABC):
 
     @classmethod
     def _validate_config_from_format(
-        cls, config: Dict[str, CONF], format_definition: Dict[str, type | Dict]
+        cls, config: Dict[str, CONF], format_definition: Dict[str, Any]
     ):
 
         for key, value in config.items():

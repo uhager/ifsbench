@@ -7,7 +7,7 @@
 
 import pathlib
 import shutil
-from typing import Optional, Self
+from typing import Any, Dict, Optional, Self
 
 from ifsbench.config_mixin import CONF, ConfigMixin
 from ifsbench.data.datahandler import DataHandler
@@ -42,7 +42,7 @@ class ExtractHandler(DataHandler, ConfigMixin):
             self._target_dir = pathlib.Path(target_dir)
 
     @classmethod
-    def config_format(cls):
+    def config_format(cls) -> Dict[str, Any]:
         return cls._format_from_init()
 
     @classmethod
