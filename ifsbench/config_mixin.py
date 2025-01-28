@@ -8,7 +8,6 @@ CONF = Union[int, float, str, bool, Dict, List, None]
 
 
 def _config_from_locals(config: Dict[str, Any]) -> None:
-    print(f'from locals: config={config}, type={type(config)}')
     config = config.copy()
     config.pop('self', None)
     config.pop('cls', None)
@@ -31,7 +30,7 @@ class ConfigMixin(ABC):
     config: dictionary containing parameter names and their values
     """
 
-    _config = None
+    _mixin_config = None
 
     @classmethod
     @abstractmethod
@@ -49,21 +48,21 @@ class ConfigMixin(ABC):
         self.set_config(config)
 
     def set_config(self, config: Dict[str, CONF]) -> None:
-        if self._config:
+        if self._mixin_config:
             raise ValueError('Config already set.')
-        self._config = config
+        self._mixin_config = config
 
     def get_config(self) -> Dict[str, CONF]:
-        return self._config
+        return self._mixin_config
 
     def update_config(self, field: str, value: CONF) -> None:
-        if field not in self._config:
-            raise ValueError(f'{field} not part of config {self._config}, not setting')
-        if not isinstance(value, type(self._config[field])):
+        if field not in self._mixin_config:
+            raise ValueError(f'{field} not part of config {self._mixin_config}, not setting')
+        if not isinstance(value, type(self._mixin_config[field])):
             raise ValueError(
                 f'Cannot update config: wrong type {type(value)} for field {field}'
             )
-        self._config[field] = value
+        self._mixin_config[field] = value
 
     @classmethod
     def validate_config(cls, config: Dict[str, CONF]):
