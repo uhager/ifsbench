@@ -50,9 +50,33 @@ def test_namelistoverride_init(nlist, entry, mode, value, success):
     else:
         context = pytest.raises(ValueError)
 
-    config = {'namelist': nlist, 'entry': entry, 'mode': mode, 'value': value}
+    config = {'namelist': nlist, 'entry': entry, 'mode': mode}
+    if value:
+        config['value'] = value
     with context:
-        NamelistOverride(**config)
+        NamelistOverride.from_config(config)
+
+
+@pytest.mark.parametrize(
+    'nlist, entry,mode,value',
+    [
+        ('namelist1', 'entry', NamelistOperation.DELETE, None),
+        ('namelist1', 'entry', NamelistOperation.SET, 2),
+        ('namelist1', 'entry', NamelistOperation.APPEND, 3),
+    ],
+)
+def test_namelistoverride_dump_config(nlist, entry, mode, value):
+    """
+    Initialise the NamelistOverride and make sure that only correct values are
+    accepted.
+    """
+
+    config = {'namelist': nlist, 'entry': entry, 'mode': mode}
+    if value:
+        config['value'] = value
+    no = NamelistOverride.from_config(config)
+
+    assert no.dump_config() == config
 
 
 @pytest.mark.parametrize(
@@ -73,7 +97,7 @@ def test_extracthandler_apply_set(initial_namelist, key, value):
     namelist = Namelist(initial_namelist)
 
     config = {'namelist': key[0], 'entry': key[1], 'mode': 'set', 'value': value}
-    override = NamelistOverride(**config)
+    override = NamelistOverride.from_config(config)
 
     override.apply(namelist)
 
@@ -209,6 +233,45 @@ def test_namelisthandler_init(
             'overrides': overrides,
         }
         NamelistHandler.from_config(config)
+
+
+@pytest.mark.parametrize(
+    'overrides',
+    [
+        ([]),
+        (
+            [
+                {'namelist': 'namelist', 'entry': 'entry', 'mode': 'set', 'value': 5},
+            ]
+        ),
+        (
+            [
+                {'namelist': 'namelist', 'entry': 'entry', 'mode': 'set', 'value': 5},
+                {
+                    'namelist': 'namelist',
+                    'entry': 'entry2',
+                    'mode': 'append',
+                    'value': 2,
+                },
+                {'namelist': 'namelist', 'entry': 'entry', 'mode': 'delete'},
+            ]
+        ),
+    ],
+)
+def test_namelisthandler_dump_config(overrides):
+    """
+    Initialise the NamelistHandler and make sure that only correct values are accepted.
+    """
+    input_path = 'somewhere/namelist'
+    output_path = 'somewhere/namelist'
+    config = {
+        'input_path': input_path,
+        'output_path': output_path,
+        'overrides': overrides,
+    }
+    nh = NamelistHandler.from_config(config)
+
+    assert nh.dump_config() == config
 
 
 @pytest.mark.parametrize('input_path', ['somewhere/namelist'])

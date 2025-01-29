@@ -9,15 +9,14 @@ import pathlib
 import shutil
 from typing import Dict
 
-from pydantic import BaseModel
-
+from ifsbench.config_mixin import ConfigMixin
 from ifsbench.data.datahandler import DataHandler
 from ifsbench.logging import debug
 
 __all__ = ['ExtractHandler']
 
 
-class ExtractHandler(DataHandler, BaseModel):
+class ExtractHandler(DataHandler, ConfigMixin):
     """
     DataHandler that extracts a given archive to a specific directory.
 

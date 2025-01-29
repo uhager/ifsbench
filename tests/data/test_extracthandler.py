@@ -42,6 +42,26 @@ def test_extracthandler_init(archive_path, archive_valid, target_dir, target_val
         ExtractHandler.from_config(config)
 
 
+@pytest.mark.parametrize(
+    'target_dir',
+    ['somewhere/archive.tar', None],
+)
+def test_extracthandler_model_dump(target_dir):
+    """
+    Initialise the ExtractHandler and make sure that only correct values are accepted.
+    """
+    archive_path = 'somewhere/archive.tar'
+
+    config = {'archive_path': archive_path}
+    if target_dir:
+        config['target_dir'] = target_dir
+
+    eh = ExtractHandler.from_config(config)
+    config_dump = eh.dump_config()
+
+    assert config_dump == config
+
+
 @pytest.fixture(name='archive')
 def fixture_archive():
     paths = [

@@ -9,11 +9,12 @@ from enum import auto, StrEnum
 import pathlib
 from typing import Any, Dict, List, Union
 
-from pydantic import BaseModel, model_validator
+from pydantic import model_validator
 from typing_extensions import Self
 
 import f90nml
 
+from ifsbench.config_mixin import ConfigMixin
 from ifsbench.data.datahandler import DataHandler
 from ifsbench.logging import debug, info
 
@@ -27,7 +28,7 @@ class NamelistOperation(StrEnum):
     DELETE = auto()
 
 
-class NamelistOverride(BaseModel):
+class NamelistOverride(ConfigMixin):
     """
     Specify changes that will be applied to a namelist.
 
@@ -117,7 +118,7 @@ class NamelistOverride(BaseModel):
                 del namelist[key]
 
 
-class NamelistHandler(DataHandler, BaseModel):
+class NamelistHandler(DataHandler, ConfigMixin):
     """
     DataHandler specialisation that can modify Fortran namelists.
 
@@ -142,12 +143,14 @@ class NamelistHandler(DataHandler, BaseModel):
     overrides: List[Dict[str, str | int]]
 
     @classmethod
-    def from_config(cls, config_data: Dict[str, Any]) -> 'NamelistHandler':
+    def from_config(cls, config: Dict[str, Any]) -> 'NamelistHandler':
 
-        nh = cls(**config_data)
+        nh = cls(**config)
         nh._input_path = pathlib.Path(nh.input_path)
         nh._output_path = pathlib.Path(nh.output_path)
-        nh._overrides = [NamelistOverride(**noc) for noc in config_data['overrides']]
+        nh._overrides = [
+            NamelistOverride.from_config(noc) for noc in config['overrides']
+        ]
         return nh
 
     def execute(self, wdir, **kwargs):
