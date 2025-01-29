@@ -5,8 +5,12 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-from enum import auto, Enum
+from enum import auto, StrEnum
 import pathlib
+from typing import Any, Dict, List, Union
+
+from pydantic import BaseModel, model_validator
+from typing_extensions import Self
 
 import f90nml
 
@@ -16,12 +20,14 @@ from ifsbench.logging import debug, info
 
 __all__ = ['NamelistOverride', 'NamelistHandler', 'NamelistOperation']
 
-class NamelistOperation(Enum):
+
+class NamelistOperation(StrEnum):
     SET = auto()
     APPEND = auto()
     DELETE = auto()
 
-class NamelistOverride:
+
+class NamelistOverride(BaseModel):
     """
     Specify changes that will be applied to a namelist.
 
@@ -42,22 +48,17 @@ class NamelistOverride:
         The value that is set (SET operation) or appended (APPEND).
     """
 
+    namelist: str
+    entry: str
+    mode: NamelistOperation
+    value: Union[int | float | str | bool | List | None] = None
 
-    def __init__(self, key, mode, value=None):
-        if isinstance(key, str):
-            self._keys = key.split('/')
-        else:
-            self._keys = tuple(key)
-
-        if len(self._keys) != 2:
-            raise ValueError("The key object must be of length two.")
-
-        self._mode = mode
-        self._value = value
-
-        if self._value is None:
-            if self._mode in (NamelistOperation.SET, NamelistOperation.APPEND):
+    @model_validator(mode='after')
+    def validate_value_for_mode(self) -> Self:
+        if self.value is None:
+            if self.mode in (NamelistOperation.SET, NamelistOperation.APPEND):
                 raise ValueError("The new value must not be None!")
+        return self
 
     def apply(self, namelist):
         """
@@ -69,19 +70,21 @@ class NamelistOverride:
             The namelist to which the changes are applied.
         """
 
-        if self._keys[0] not in namelist:
-            if self._mode == NamelistOperation.DELETE:
+        if self.namelist not in namelist:
+            if self.mode == NamelistOperation.DELETE:
                 return
 
-            namelist[self._keys[0]] = {}
+            namelist[self.namelist] = {}
 
-        namelist = namelist[self._keys[0]]
-        key = self._keys[-1]
+        namelist = namelist[self.namelist]
+        key = self.entry
 
-        if self._mode == NamelistOperation.SET:
-            debug(f"Set namelist entry {str(self._keys)} = {str(self._value)}.")
-            namelist[key] = self._value
-        elif self._mode == NamelistOperation.APPEND:
+        if self.mode == NamelistOperation.SET:
+            debug(
+                f"Set namelist entry {self.namelist}/{self.entry} = {str(self.value)}."
+            )
+            namelist[key] = self.value
+        elif self.mode == NamelistOperation.APPEND:
             if key not in namelist:
                 namelist[key] = []
 
@@ -95,21 +98,26 @@ class NamelistOverride:
             # the array entries have the same type.
             if len(namelist[key]) > 0:
                 type_list = type(namelist[key][0])
-                type_value = type(self._value)
+                type_value = type(self.value)
 
                 if type_list != type_value:
-                    raise ValueError("The given value must have the same type as existing array entries!")
+                    raise ValueError(
+                        "The given value must have the same type as existing array entries!"
+                    )
 
-            debug(f"Append {str(self._value)} to namelist entry {str(self._keys)}.")
+            debug(
+                f"Append {str(self.value)} to namelist entry {self.namelist}/{self.entry}."
+            )
 
-            namelist[key].append(self._value)
+            namelist[key].append(self.value)
 
-        elif self._mode == NamelistOperation.DELETE:
+        elif self.mode == NamelistOperation.DELETE:
             if key in namelist:
-                debug(f"Delete namelist entry {str(self._keys)}.")
+                debug(f"Delete namelist entry {self.namelist}/{self.entry}.")
                 del namelist[key]
 
-class NamelistHandler(DataHandler):
+
+class NamelistHandler(DataHandler, BaseModel):
     """
     DataHandler specialisation that can modify Fortran namelists.
 
@@ -129,15 +137,18 @@ class NamelistHandler(DataHandler):
         The NamelistOverrides that will be applied.
     """
 
-    def __init__(self, input_path, output_path, overrides):
+    input_path: str
+    output_path: str
+    overrides: List[Dict[str, str | int]]
 
-        self._input_path = pathlib.Path(input_path)
-        self._output_path = pathlib.Path(output_path)
+    @classmethod
+    def from_config(cls, config_data: Dict[str, Any]) -> 'NamelistHandler':
 
-        self._overrides = list(overrides)
-        for override in self._overrides:
-            if not isinstance(override, NamelistOverride):
-                raise ValueError("Namelist overrides must be NamelistOverride objects!")
+        nh = cls(**config_data)
+        nh._input_path = pathlib.Path(nh.input_path)
+        nh._output_path = pathlib.Path(nh.output_path)
+        nh._overrides = [NamelistOverride(**noc) for noc in config_data['overrides']]
+        return nh
 
     def execute(self, wdir, **kwargs):
         wdir = pathlib.Path(wdir)
@@ -145,7 +156,7 @@ class NamelistHandler(DataHandler):
         if self._input_path.is_absolute():
             input_path = self._input_path
         else:
-            input_path = wdir/self._input_path
+            input_path = wdir / self._input_path
 
         # Do nothing if the input namelist doesn't exist.
         if not input_path.exists():
@@ -155,7 +166,7 @@ class NamelistHandler(DataHandler):
         if self._output_path.is_absolute():
             output_path = self._output_path
         else:
-            output_path = wdir/self._output_path
+            output_path = wdir / self._output_path
 
         debug(f"Modify namelist {input_path}.")
         namelist = f90nml.read(input_path)

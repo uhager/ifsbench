@@ -7,6 +7,9 @@
 
 import pathlib
 import shutil
+from typing import Dict
+
+from pydantic import BaseModel
 
 from ifsbench.data.datahandler import DataHandler
 from ifsbench.logging import debug
@@ -14,7 +17,7 @@ from ifsbench.logging import debug
 __all__ = ['ExtractHandler']
 
 
-class ExtractHandler(DataHandler):
+class ExtractHandler(DataHandler, BaseModel):
     """
     DataHandler that extracts a given archive to a specific directory.
 
@@ -31,12 +34,18 @@ class ExtractHandler(DataHandler):
         :meth:`execute`.
     """
 
-    def __init__(self, archive_path, target_dir=None):
-        self._archive_path = pathlib.Path(archive_path)
-        if target_dir is None:
-            self._target_dir = None
+    archive_path: str
+    target_dir: str | None = None
+
+    @classmethod
+    def from_config(cls, config: Dict[str, str | None]) -> 'ExtractHandler':
+        eh = cls(**config)
+        eh._archive_path = pathlib.Path(eh.archive_path)
+        if eh.target_dir is None:
+            eh._target_dir = None
         else:
-            self._target_dir = pathlib.Path(target_dir)
+            eh._target_dir = pathlib.Path(eh.target_dir)
+        return eh
 
     def execute(self, wdir, **kwargs):
         wdir = pathlib.Path(wdir)
@@ -46,7 +55,7 @@ class ExtractHandler(DataHandler):
             if self._target_dir.is_absolute():
                 target_dir = self._target_dir
             else:
-                target_dir = wdir/self._target_dir
+                target_dir = wdir / self._target_dir
 
         debug(f"Unpack archive {self._archive_path} to {target_dir}.")
         shutil.unpack_archive(self._archive_path, target_dir)
