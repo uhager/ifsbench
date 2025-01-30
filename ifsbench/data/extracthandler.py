@@ -7,7 +7,7 @@
 
 import pathlib
 import shutil
-from typing import Dict
+from typing import Dict, Optional
 
 from ifsbench.config_mixin import ConfigMixin
 from ifsbench.data.datahandler import DataHandler
@@ -34,10 +34,10 @@ class ExtractHandler(DataHandler, ConfigMixin):
     """
 
     archive_path: str
-    target_dir: str | None = None
+    target_dir: Optional[str] = None
 
     @classmethod
-    def from_config(cls, config: Dict[str, str | None]) -> 'ExtractHandler':
+    def from_config(cls, config: Dict[str, Optional[str]]) -> 'ExtractHandler':
         eh = cls(**config)
         eh._archive_path = pathlib.Path(eh.archive_path)
         if eh.target_dir is None:

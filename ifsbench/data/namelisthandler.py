@@ -52,7 +52,7 @@ class NamelistOverride(ConfigMixin):
     namelist: str
     entry: str
     mode: NamelistOperation
-    value: Union[int | float | str | bool | List | None] = None
+    value: Union[int, float, str, bool, List, None] = None
 
     @model_validator(mode='after')
     def validate_value_for_mode(self) -> Self:
