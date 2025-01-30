@@ -2,8 +2,10 @@ from typing import Dict, List, Union
 
 from pydantic import BaseModel
 
-__all__ = ['ConfigMixin']
+__all__ = ['ConfigMixin', 'CLASSNAME', 'RESERVED_STRINGS']
 
+CLASSNAME = 'classname'
+RESERVED_STRINGS = [CLASSNAME,]
 
 class ConfigMixin(BaseModel):
 
@@ -13,5 +15,10 @@ class ConfigMixin(BaseModel):
     ) -> 'ConfigMixin':
         return cls(**config)
 
-    def dump_config(self) -> Dict[str, Union[str, float, int, bool, List]]:
-        return self.model_dump(exclude_none=True)
+    def dump_config(
+        self, with_class: bool = False
+    ) -> Dict[str, Union[str, float, int, bool, List]]:
+        config = self.model_dump(exclude_none=True)
+        if with_class:
+            config['classname'] = type(self).__name__
+        return config

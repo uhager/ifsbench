@@ -274,6 +274,47 @@ def test_namelisthandler_dump_config(overrides):
     assert nh.dump_config() == config
 
 
+@pytest.mark.parametrize(
+    'overrides',
+    [
+        ([]),
+        (
+            [
+                {'namelist': 'namelist', 'entry': 'entry', 'mode': 'set', 'value': 5},
+            ]
+        ),
+        (
+            [
+                {'namelist': 'namelist', 'entry': 'entry', 'mode': 'set', 'value': 5},
+                {
+                    'namelist': 'namelist',
+                    'entry': 'entry2',
+                    'mode': 'append',
+                    'value': 2,
+                },
+                {'namelist': 'namelist', 'entry': 'entry', 'mode': 'delete'},
+            ]
+        ),
+    ],
+)
+def test_namelisthandler_dump_config_with_classname(overrides):
+    """
+    Initialise the NamelistHandler and make sure that only correct values are accepted.
+    """
+    input_path = 'somewhere/namelist'
+    output_path = 'somewhere/namelist'
+    config = {
+        'input_path': input_path,
+        'output_path': output_path,
+        'overrides': overrides,
+    }
+    nh = NamelistHandler.from_config(config)
+
+    expected = config.copy()
+    expected['classname'] = 'NamelistHandler'
+    assert nh.dump_config(with_class=True) == expected
+
+
 @pytest.mark.parametrize('input_path', ['somewhere/namelist'])
 @pytest.mark.parametrize('input_relative', [True, False])
 @pytest.mark.parametrize(
