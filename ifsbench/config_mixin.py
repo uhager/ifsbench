@@ -1,11 +1,15 @@
 from typing import Dict, List, Union
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
+from typing_extensions import Self
 
-__all__ = ['ConfigMixin', 'CLASSNAME', 'RESERVED_STRINGS']
+__all__ = ['ConfigMixin', 'CLASSNAME', 'RESERVED_NAMES']
 
 CLASSNAME = 'classname'
-RESERVED_STRINGS = [CLASSNAME,]
+RESERVED_NAMES = [
+    CLASSNAME,
+]
+
 
 class ConfigMixin(BaseModel):
 
@@ -22,3 +26,11 @@ class ConfigMixin(BaseModel):
         if with_class:
             config['classname'] = type(self).__name__
         return config
+
+    @model_validator(mode='before')
+    def validate_variable_names_not_reserved(self) -> Self:
+        if any(var in self.keys() for var in RESERVED_NAMES):
+            raise ValueError(
+                f'Invalid ConfigMixin class: contains reserved member name(s). Reserved: {RESERVED_NAMES}'
+            )
+        return self
