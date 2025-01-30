@@ -5,7 +5,7 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-from enum import auto, Enum
+from enum import Enum
 import pathlib
 from typing import Any, Dict, List, Union
 
@@ -140,7 +140,7 @@ class NamelistHandler(DataHandler, ConfigMixin):
 
     input_path: str
     output_path: str
-    overrides: List[Dict[str, str | int]]
+    overrides: List[Dict[str, Union[str, int]]]
 
     @classmethod
     def from_config(cls, config: Dict[str, Any]) -> 'NamelistHandler':
