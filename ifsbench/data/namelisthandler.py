@@ -5,7 +5,7 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-from enum import auto, StrEnum
+from enum import auto, Enum
 import pathlib
 from typing import Any, Dict, List, Union
 
@@ -22,10 +22,10 @@ from ifsbench.logging import debug, info
 __all__ = ['NamelistOverride', 'NamelistHandler', 'NamelistOperation']
 
 
-class NamelistOperation(StrEnum):
-    SET = auto()
-    APPEND = auto()
-    DELETE = auto()
+class NamelistOperation(Enum):
+    SET = 'set'
+    APPEND = 'append'
+    DELETE = 'delete'
 
 
 class NamelistOverride(ConfigMixin):
