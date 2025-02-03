@@ -138,8 +138,8 @@ class NamelistHandler(DataHandler, ConfigMixin):
         The NamelistOverrides that will be applied.
     """
 
-    input_path: str
-    output_path: str
+    input_path: pathlib.Path
+    output_path: pathlib.Path
     overrides: List[Dict[str, Union[str, int]]]
 
     @classmethod

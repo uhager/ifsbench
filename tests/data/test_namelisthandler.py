@@ -182,11 +182,22 @@ def test_namelistoverride_apply_delete(initial_namelist, key):
 
 
 @pytest.mark.parametrize(
-    'input_path,input_valid', [('somewhere/namelist', True), (None, False), (2, False)]
+    'input_path,input_valid',
+    [
+        ('somewhere/namelist', True),
+        (Path('somewhere/fort.4'), True),
+        (None, False),
+        (2, False),
+    ],
 )
 @pytest.mark.parametrize(
     'output_path,output_valid',
-    [('somewhere/namelist', True), (None, False), (2, False)],
+    [
+        ('somewhere/namelist', True),
+        (Path('somewhere/fort.4'), True),
+        (None, False),
+        (2, False),
+    ],
 )
 @pytest.mark.parametrize(
     'overrides, overrides_valid',
@@ -271,7 +282,12 @@ def test_namelisthandler_dump_config(overrides):
     }
     nh = NamelistHandler.from_config(config)
 
-    assert nh.dump_config() == config
+    expected = {
+        'input_path': Path(input_path),
+        'output_path': Path(output_path),
+        'overrides': overrides,
+    }
+    assert nh.dump_config() == expected
 
 
 @pytest.mark.parametrize(
@@ -310,8 +326,12 @@ def test_namelisthandler_dump_config_with_classname(overrides):
     }
     nh = NamelistHandler.from_config(config)
 
-    expected = config.copy()
-    expected['classname'] = 'NamelistHandler'
+    expected = {
+        'input_path': Path(input_path),
+        'output_path': Path(output_path),
+        'overrides': overrides,
+        'classname': 'NamelistHandler',
+    }
     assert nh.dump_config(with_class=True) == expected
 
 
