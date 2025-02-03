@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Dict, List
 
 import pytest
@@ -10,6 +11,7 @@ class TestImpl(ConfigMixin):
     field_str: str
     field_int: int
     field_list: List[Dict[str, str]]
+    field_path: Path
 
 
 def test_from_config_succeeds():
@@ -20,10 +22,28 @@ def test_from_config_succeeds():
         'field_list': [
             {'sub1': 'val1', 'sub2': 'val2'},
         ],
+        'field_path': 'some/where',
     }
     ti = TestImpl.from_config(config)
 
     assert ti.field_str == 'val_str'
+    assert ti.field_path == Path('some/where')
+
+
+def test_from_config_path_object_succeeds():
+
+    config = {
+        'field_str': 'val_str',
+        'field_int': 666,
+        'field_list': [
+            {'sub1': 'val1', 'sub2': 'val2'},
+        ],
+        'field_path': Path('some/where'),
+    }
+    ti = TestImpl.from_config(config)
+
+    assert ti.field_str == 'val_str'
+    assert ti.field_path == Path('some/where')
 
 
 def test_from_config_invalid_fails():
@@ -34,6 +54,7 @@ def test_from_config_invalid_fails():
         'field_list': [
             {'sub1': 'val1', 'sub2': 'val2'},
         ],
+        'field_path': 'some/where',
     }
     with pytest.raises(ValidationError):
         TestImpl.from_config(config)
@@ -47,6 +68,7 @@ def test_dumb_config_succeeds():
         'field_list': [
             {'sub1': 'val1', 'sub2': 'val2'},
         ],
+        'field_path': 'some/where',
     }
     ti = TestImpl.from_config(config)
 
@@ -61,6 +83,7 @@ def test_dumb_config_with_class_succeeds():
         'field_list': [
             {'sub1': 'val1', 'sub2': 'val2'},
         ],
+        'field_path': 'some/where',
     }
     ti = TestImpl.from_config(config)
 
@@ -77,7 +100,7 @@ def test_from_config_invalid_class_member_fails():
         field_list: List[Dict[str, str]]
 
     config = {
-        'classname': 999.0,
+        'classname': 'clz',
         'field_int': 666,
         'field_list': [
             {'sub1': 'val1', 'sub2': 'val2'},

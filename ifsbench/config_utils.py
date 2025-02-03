@@ -8,9 +8,15 @@ from ifsbench.data import ExtractHandler, NamelistHandler
 
 __all__ = ['read_yaml_config']
 
-_SUPPORTED_CONFIGS = {'ExtractHandler': ExtractHandler, 'NamelistHandler': NamelistHandler}
+_SUPPORTED_CONFIGS = {
+    'ExtractHandler': ExtractHandler,
+    'NamelistHandler': NamelistHandler,
+}
 
-def parse_config(config: Dict[str, Union[str, float, int, bool, List, None]]) -> Dict[str,ConfigMixin]:
+
+def _parse_config(
+    config: Dict[str, Union[str, float, int, bool, List, None]]
+) -> Dict[str, ConfigMixin]:
     result = {}
     for key, value in config.items():
         classname = value.pop(CLASSNAME, '')
@@ -18,8 +24,18 @@ def parse_config(config: Dict[str, Union[str, float, int, bool, List, None]]) ->
         result[key] = clazz.from_config(value)
     return result
 
-def read_yaml_config(input_path: str) -> Dict[str,ConfigMixin]:
+
+def read_yaml_config(input_path: str) -> Dict[str, ConfigMixin]:
+    """Read config from file in yam format.
+
+    Args:
+        input_path: path to yaml file.
+
+    Returns:
+        Dictionary of ConfigMixin-type objects by their name as specified in
+          the input configuration.
+    """
     input_file = pathlib.Path(input_path)
     with open(input_file, encoding="utf-8") as infile:
         config = yaml.safe_load(infile)
-    return parse_config(config)
+    return _parse_config(config)
