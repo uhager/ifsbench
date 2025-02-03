@@ -39,7 +39,7 @@ class ConfigMixin(BaseModel):
 
     def dump_config(
         self, with_class: bool = False
-    ) -> Dict[str, Union[str, float, int, bool, Path, List]]:
+    ) -> Dict[str, Union[str, float, int, bool, List]]:
         """Get configuration for output.
 
         Args:
