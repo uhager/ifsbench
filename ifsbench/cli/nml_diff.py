@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 # (C) Copyright 2020- ECMWF.
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -83,6 +81,3 @@ def cli(color, namelist1, namelist2):
     diff = namelist_diff(nml1, nml2)
     if diff:
         print_diff(diff)
-
-if __name__ == "__main__":
-    cli()  # pylint: disable=no-value-for-parameter
