@@ -10,9 +10,9 @@ Implementation of launch commands for various MPI launchers
 """
 from abc import ABC, abstractmethod
 
-from .job import CpuBinding, CpuDistribution
-from .logging import debug, warning
-from .util import as_tuple
+from ifsbench.job import CpuBinding, CpuDistribution
+from ifsbench.logging import debug, warning
+from ifsbench.util import as_tuple
 
 
 class Launcher(ABC):

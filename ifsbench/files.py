@@ -15,8 +15,8 @@ from pathlib import Path
 import glob
 import yaml
 
-from .logging import header, success, warning
-from .util import execute, as_tuple
+from ifsbench.logging import header, success, warning
+from ifsbench.util import execute, as_tuple
 
 
 __all__ = ['InputFile', 'ExperimentFiles']

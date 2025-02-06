@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from .logging import error, warning
+from ifsbench.logging import error, warning
 
 
 CFGRIB_AVAILABLE = False

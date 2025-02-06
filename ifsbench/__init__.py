@@ -13,24 +13,24 @@ This package contains Python utilities to run and benchmark the IFS.
 
 from importlib.metadata import version, PackageNotFoundError
 
-from .arch import * # noqa
-from .benchmark import * # noqa
-from .cli import * # noqa
-from .config_mixin import * # noqa
-from .config_utils import * # noqa
-from .darshanreport import * # noqa
-from .drhook import * # noqa
-from .files import * # noqa
-from .gribfile import * # noqa
-from .ifs import * # noqa
-from .job import * # noqa
-from .launcher import * # noqa
-from .logging import * # noqa
-from .namelist import * # noqa
-from .nodefile import * # noqa
-from .paths import * # noqa
-from .runrecord import * # noqa
-from .util import * # noqa
+from ifsbench.arch import * # noqa
+from ifsbench.benchmark import * # noqa
+from ifsbench.cli import * # noqa
+from ifsbench.config_mixin import * # noqa
+from ifsbench.config_utils import * # noqa
+from ifsbench.darshanreport import * # noqa
+from ifsbench.drhook import * # noqa
+from ifsbench.files import * # noqa
+from ifsbench.gribfile import * # noqa
+from ifsbench.ifs import * # noqa
+from ifsbench.job import * # noqa
+from ifsbench.launcher import * # noqa
+from ifsbench.logging import * # noqa
+from ifsbench.namelist import * # noqa
+from ifsbench.nodefile import * # noqa
+from ifsbench.paths import * # noqa
+from ifsbench.runrecord import * # noqa
+from ifsbench.util import * # noqa
 
 try:
     __version__ = version("ifsbench")
