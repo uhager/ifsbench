@@ -11,10 +11,12 @@ from pathlib import Path
 import tempfile
 import click
 
-from ifsbench import (
-    cli, header, debug, ExperimentFiles,
+from ifsbench.cli import cli
+from ifsbench.darshanreport import (
     DarshanReport, read_files_from_darshan, write_files_from_darshan
 )
+from ifsbench.files import ExperimentFiles
+from ifsbench.logging import debug, header
 
 
 @cli.command()

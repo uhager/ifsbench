@@ -41,8 +41,8 @@ grib = [
 ]
 
 [project.scripts]
-  "ifs-bench.py" = "scripts.ifs_bench:cli"
-  "nml-diff.py" = "scripts.nml_diff:cli"
+  "ifs-bench.py" = "ifsbench.cli.pack:cli"
+  "nml-diff.py" = "ifsbench.cli.nml_diff:cli"
 
 [tool.setuptools]
 license-files = ["LICENSE", "CONTRIBUTORS.md"]
@@ -54,7 +54,6 @@ readme = {file = ["README.md", "INSTALL.md"], content-type = "text/markdown"}
 where = ["."]
 include = [
   "ifsbench",
-  "scripts"
 ]
 exclude = [
   "tests",

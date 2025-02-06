@@ -10,7 +10,8 @@
 import click
 import f90nml
 
-from ifsbench import namelist_diff, sanitize_namelist, colors, logger, INFO
+from ifsbench.logging import colors, logger, INFO
+from ifsbench.namelist import namelist_diff, sanitize_namelist
 
 
 def print_neutral(indent, msg, *args, **kwargs):
