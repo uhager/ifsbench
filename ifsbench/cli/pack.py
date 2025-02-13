@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 # (C) Copyright 2020- ECMWF.
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -11,10 +9,12 @@ from pathlib import Path
 import tempfile
 import click
 
-from ifsbench import (
-    cli, header, debug, ExperimentFiles,
+from ifsbench.cli import cli
+from ifsbench.darshanreport import (
     DarshanReport, read_files_from_darshan, write_files_from_darshan
 )
+from ifsbench.files import ExperimentFiles
+from ifsbench.logging import debug, header
 
 
 @cli.command()
@@ -184,7 +184,3 @@ def unpack_experiment(ctx, input_dir, output_dir, verify_checksum, with_ifsdata,
         header('Reading %s...', summary_file)
         ExperimentFiles.from_tarball(summary_file, input_dir, output_dir, ifsdata_dir=ifsdata_dir,
                                      with_ifsdata=inplace_ifsdata, verify_checksum=verify_checksum)
-
-
-if __name__ == "__main__":
-    cli(obj={})  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter

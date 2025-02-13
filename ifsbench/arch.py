@@ -11,9 +11,9 @@ Architecture specifications
 from abc import ABC, abstractmethod
 import os
 
-from .job import CpuConfiguration, CpuBinding, Job
-from .launcher import Launcher, MpirunLauncher, SrunLauncher, AprunLauncher
-from .util import as_tuple, execute
+from ifsbench.job import CpuConfiguration, CpuBinding, Job
+from ifsbench.launcher import Launcher, MpirunLauncher, SrunLauncher, AprunLauncher
+from ifsbench.util import as_tuple, execute
 
 
 __all__ = ['Arch', 'Workstation', 'XC40Cray', 'XC40Intel', 'AtosAaIntel',

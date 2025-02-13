@@ -9,10 +9,10 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from os import getenv
 
-from .arch import arch_registry, Arch
-from .drhook import DrHook
-from .logging import warning
-from .namelist import IFSNamelist
+from ifsbench.arch import arch_registry, Arch
+from ifsbench.drhook import DrHook
+from ifsbench.logging import warning
+from ifsbench.namelist import IFSNamelist
 
 # Note: all IFS subclasses registered in cycle_registry are also exported
 # at the end of this file

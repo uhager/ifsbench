@@ -10,8 +10,9 @@ Hardware and job resource description classes
 """
 from abc import ABC
 from enum import Enum, auto
-from .logging import error
-from .util import classproperty
+
+from ifsbench.logging import error
+from ifsbench.util import classproperty
 
 
 __all__ = ['CpuConfiguration', 'CpuBinding', 'CpuDistribution', 'Job']

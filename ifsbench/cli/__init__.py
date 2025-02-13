@@ -6,8 +6,9 @@
 # nor does it submit to any jurisdiction.
 
 """
-Install the ifsbench package.
+Command Line Interfaces (CLI) and utilities for ifsbench functionalities.
 """
-import setuptools
 
-setuptools.setup()
+from ifsbench.cli.cli import * # noqa
+from ifsbench.cli.pack import * # noqa
+from ifsbench.cli.nml_diff import * # noqa

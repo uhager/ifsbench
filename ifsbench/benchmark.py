@@ -14,10 +14,10 @@ from subprocess import CalledProcessError
 from pprint import pformat
 import sys
 
-from .drhook import DrHook
-from .logging import warning, error, debug
-from .util import copy_data, symlink_data, as_tuple, flatten
-from .runrecord import RunRecord
+from ifsbench.drhook import DrHook
+from ifsbench.logging import warning, error, debug
+from ifsbench.util import copy_data, symlink_data, as_tuple, flatten
+from ifsbench.runrecord import RunRecord
 
 
 __all__ = ['Benchmark', 'ExperimentFilesBenchmark']
