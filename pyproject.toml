@@ -29,9 +29,7 @@ dependencies = [
 tests = [
   "pytest",
   "pytest-cov",
-  "coverage2clover",
   "pylint",
-  "pytest-pylint",
 ]
 
 grib = [
