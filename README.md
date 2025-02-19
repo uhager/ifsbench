@@ -41,7 +41,7 @@ granted to it by virtue of its status as an intergovernmental organisation nor d
 
 Contributions to `ifsbench` are welcome. In order to do so, please open an issue where
 a feature request or bug can be discussed. Then create a pull request with your
-contribution and sign the contributors license agreement (CLA).
+contribution and sign the [contributors license agreement (CLA)](https://bol-claassistant.ecmwf.int/ecmwf-ifs/ifsbench).
 
 ## Installation
 
