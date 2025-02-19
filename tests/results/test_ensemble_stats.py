@@ -67,6 +67,31 @@ def test_from_config(tmp_path: pathlib.Path):
         pd.testing.assert_frame_equal(df, in_data[i])
 
 
+def test_from_config_no_path_fails():
+
+    with pytest.raises(ValueError) as exceptinfo:
+        EnsembleStats.from_config(
+            {
+                'parrot': 'dead',
+            }
+        )
+    expected = f'missing config entry {ENSEMBLE_DATA_PATH}'
+    assert str(exceptinfo.value) == expected
+
+
+def test_from_config_invalid_fails():
+
+    with pytest.raises(ValueError) as exceptinfo:
+        EnsembleStats.from_config(
+            {
+                ENSEMBLE_DATA_PATH: 'nowhere/in/particular',
+                'parrot': 'dead',
+            }
+        )
+    expected = 'unexpected entries in config'
+    assert expected in str(exceptinfo.value)
+
+
 def test_calc_stats_min():
     in_data = build_frames()
     es = EnsembleStats.from_data(in_data)

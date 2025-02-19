@@ -12,9 +12,14 @@ from typing import Dict, List, Union
 
 import pandas as pd
 
+from ifsbench import ConfigMixin
+
 __all__ = ['EnsembleStats', 'ENSEMBLE_DATA_PATH']
 
+# key of the config entry holding the path to the data file.
 ENSEMBLE_DATA_PATH = 'ensemble_data'
+# Statistics keywords available when calling calc_stats. In addition
+# percentiles are supported with format '[p,P](\d{1,2})'.
 AVAILABLE_BASIC_STATS = ['min', 'max', 'mean', 'median', 'sum', 'std']
 
 _JSON_ORIENT = 'columns'
@@ -28,7 +33,7 @@ def _percentile(nth):
     return _qtile
 
 
-class EnsembleStats:
+class EnsembleStats(ConfigMixin):
     """Reads, writes, summarises results across ensemble members."""
 
     def __init__(self, data: List[pd.DataFrame]):
