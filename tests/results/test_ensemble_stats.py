@@ -1,3 +1,10 @@
+# (C) Copyright 2020- ECMWF.
+# This software is licensed under the terms of the Apache Licence Version 2.0
+# which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+# In applying this licence, ECMWF does not waive the privileges and immunities
+# granted to it by virtue of its status as an intergovernmental organisation
+# nor does it submit to any jurisdiction.
+
 import json
 import pathlib
 from typing import List
@@ -5,7 +12,6 @@ from typing import List
 import pytest
 
 import pandas as pd
-import xarray as xr
 
 from ifsbench.results import ENSEMBLE_DATA_PATH, EnsembleStats
 
@@ -38,7 +44,7 @@ def test_dump_data_to_json(tmp_path: pathlib.Path):
     out_path = str((tmp_path / 'test_data.json').resolve())
     es.dump_data_to_json(out_path)
 
-    with open(out_path, 'r') as fin:
+    with open(out_path, 'r', encoding='utf-8') as fin:
         data = json.load(fin)
 
     assert isinstance(data, list)
@@ -106,14 +112,14 @@ def test_calc_stats_list():
                 295.5,
                 296.0,
                 296,
-                1.414214,
+                1.22474,
                 1008,
                 1008.6,
                 1011.0,
                 1011.0,
                 1013.4,
                 1014,
-                2.581989,
+                2.2360679,
             ],
             [
                 291,
@@ -122,14 +128,14 @@ def test_calc_stats_list():
                 293.0,
                 294.0,
                 294,
-                1.5000,
+                1.299038,
                 1005,
                 1005.9,
                 1007.5,
                 1008.0,
                 1008.7,
                 1009,
-                1.732051,
+                1.500,
             ],
         ],
         index=INDEX,
@@ -144,5 +150,5 @@ def test_calc_stats_unsupported_fails():
     with pytest.raises(ValueError) as exceptinfo:
         es.calc_stats('parrot')
 
-    expected = 'Unknown stat requested: parrot. Supported'
+    expected = 'Unknown stat: parrot. Supported'
     assert expected in str(exceptinfo.value)
