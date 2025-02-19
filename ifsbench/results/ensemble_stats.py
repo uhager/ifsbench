@@ -12,7 +12,8 @@ from typing import Dict, List, Union
 
 import pandas as pd
 
-from ifsbench import ConfigMixin
+from ifsbench.config_mixin import ConfigMixin
+from ifsbench.logging import warning
 
 __all__ = ['EnsembleStats', 'ENSEMBLE_DATA_PATH']
 
@@ -35,6 +36,8 @@ def _percentile(nth):
 
 class EnsembleStats(ConfigMixin):
     """Reads, writes, summarises results across ensemble members."""
+
+    _data_file = None
 
     def __init__(self, data: List[pd.DataFrame]):
         self._raw_data = data
@@ -59,10 +62,26 @@ class EnsembleStats(ConfigMixin):
         with open(input_path, 'r', encoding='utf-8') as jin:
             jdata = json.load(jin)
         dfs = [pd.DataFrame.from_dict(json.loads(entry)) for entry in jdata]
-        return cls(dfs)
+        es = cls(dfs)
+        es._data_file = config[ENSEMBLE_DATA_PATH]
+        return es
+
+    def dump_config(
+        self, with_class: bool = False
+    ) -> Dict[str, Union[str, float, int, bool, List]]:
+        if not self._data_file:
+            warning('No data file associated with EnsembleStats, no config to dump.')
+            return {}
+        config = {
+            ENSEMBLE_DATA_PATH: self._data_file,
+        }
+        if with_class:
+            config['classname'] = type(self).__name__
+        return config
 
     def dump_data_to_json(self, output_file: Union[pathlib.Path, str]):
         """Output original data frames to json."""
+        self._data_file = str(output_file)
         js = [df.to_json(orient=_JSON_ORIENT) for df in self._raw_data]
         with open(output_file, 'w', encoding='utf-8') as outf:
             json.dump(js, outf)

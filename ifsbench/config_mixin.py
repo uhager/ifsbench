@@ -31,6 +31,28 @@ class ConfigMixin(ABC):
     def from_config(
         cls, config: Dict[str, Union[str, float, int, bool, List, None]]
     ) -> 'ConfigMixin':
+        """Create instance based on config.
+
+        Args:
+            config: names and values for member variables.
+
+        Returns:
+            class instance
+        """
+        raise NotImplementedError()
+
+    @abstractmethod
+    def dump_config(
+        self, with_class: bool = False
+    ) -> Dict[str, Union[str, float, int, bool, List]]:
+        """Get configuration for output.
+
+        Args:
+            with_class: Add CLASSNAME key with class name to configuration.
+
+        Returns:
+            Configuration that can be used to create instance.
+        """
         raise NotImplementedError()
 
 
