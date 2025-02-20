@@ -14,7 +14,7 @@ import pytest
 import pandas as pd
 
 from ifsbench.config_mixin import CLASSNAME
-from ifsbench.results import ENSEMBLE_DATA_PATH, EnsembleStats
+from ifsbench.results import ENSEMBLE_DATA_KEY, ENSEMBLE_DATA_PATH_KEY, EnsembleStats
 
 
 INDEX = ['Step 0', 'Step 1']
@@ -52,7 +52,61 @@ def test_dump_data_to_json(tmp_path: pathlib.Path):
     assert len(data) == len(in_data)
 
 
-def test_from_config(tmp_path: pathlib.Path):
+def test_dump_config_no_file_dumps_data():
+    in_data = build_frames()
+    es = EnsembleStats.from_data(in_data)
+
+    conf = es.dump_config()
+
+    assert len(conf) == 1
+    assert ENSEMBLE_DATA_KEY in conf
+
+    data = conf[ENSEMBLE_DATA_KEY]
+    assert len(data) == 4
+    read_data = [pd.DataFrame.from_dict(d) for d in data]
+
+    for i, df in enumerate(in_data):
+        pd.testing.assert_frame_equal(read_data[i], df)
+
+
+def test_dump_config_from_file_with_class(tmp_path: pathlib.Path):
+    prep = EnsembleStats.from_data(build_frames())
+    conf_path = str((tmp_path / 'test_data.json').resolve())
+    prep.dump_data_to_json(conf_path)
+
+    es = EnsembleStats.from_config(
+        {
+            ENSEMBLE_DATA_PATH_KEY: str(conf_path),
+        }
+    )
+
+    conf = es.dump_config(with_class=True)
+
+    assert len(conf) == 2
+    assert conf[ENSEMBLE_DATA_PATH_KEY] == str(conf_path)
+    assert conf[CLASSNAME] == 'EnsembleStats'
+
+
+def test_dump_config_after_dump_data_overwrites_file(tmp_path: pathlib.Path):
+    prep = EnsembleStats.from_data(build_frames())
+    conf_path = str((tmp_path / 'test_data_in.json').resolve())
+    prep.dump_data_to_json(conf_path)
+
+    es = EnsembleStats.from_config(
+        {
+            ENSEMBLE_DATA_PATH_KEY: str(conf_path),
+        }
+    )
+
+    es.dump_data_to_json((tmp_path / 'test_data_out.json'))
+
+    conf = es.dump_config()
+
+    assert len(conf) == 1
+    assert conf[ENSEMBLE_DATA_PATH_KEY] == str((tmp_path / 'test_data_out.json'))
+
+
+def test_from_config_filename(tmp_path: pathlib.Path):
     in_data = build_frames()
     conf_path = str((tmp_path / 'test_data.json').resolve())
     prep = EnsembleStats.from_data(in_data)
@@ -60,9 +114,22 @@ def test_from_config(tmp_path: pathlib.Path):
 
     es = EnsembleStats.from_config(
         {
-            ENSEMBLE_DATA_PATH: str(conf_path),
+            ENSEMBLE_DATA_PATH_KEY: str(conf_path),
         }
     )
+
+    for i, df in enumerate(es._raw_data):
+        pd.testing.assert_frame_equal(df, in_data[i])
+
+
+def test_from_config_inline_data():
+    # prepare config dict
+    in_data = build_frames()
+    prep = EnsembleStats.from_data(in_data)
+    conf = prep.dump_config()
+
+    # Create new object from config.
+    es = EnsembleStats.from_config(conf)
 
     for i, df in enumerate(es._raw_data):
         pd.testing.assert_frame_equal(df, in_data[i])
@@ -76,7 +143,9 @@ def test_from_config_no_path_fails():
                 'parrot': 'dead',
             }
         )
-    expected = f'missing config entry {ENSEMBLE_DATA_PATH}'
+    expected = (
+        f'missing config entry: either {ENSEMBLE_DATA_PATH_KEY} or {ENSEMBLE_DATA_KEY}'
+    )
     assert str(exceptinfo.value) == expected
 
 
@@ -85,57 +154,12 @@ def test_from_config_invalid_fails():
     with pytest.raises(ValueError) as exceptinfo:
         EnsembleStats.from_config(
             {
-                ENSEMBLE_DATA_PATH: 'nowhere/in/particular',
+                ENSEMBLE_DATA_PATH_KEY: 'nowhere/in/particular',
                 'parrot': 'dead',
             }
         )
     expected = 'unexpected entries in config'
     assert expected in str(exceptinfo.value)
-
-
-def test_dump_config_no_file_empty():
-    es = EnsembleStats.from_data(build_frames())
-
-    conf = es.dump_config()
-
-    assert len(conf) == 0
-
-
-def test_dump_config_from_file_with_class(tmp_path: pathlib.Path):
-    prep = EnsembleStats.from_data(build_frames())
-    conf_path = str((tmp_path / 'test_data.json').resolve())
-    prep.dump_data_to_json(conf_path)
-
-    es = EnsembleStats.from_config(
-        {
-            ENSEMBLE_DATA_PATH: str(conf_path),
-        }
-    )
-
-    conf = es.dump_config(with_class=True)
-
-    assert len(conf) == 2
-    assert conf[ENSEMBLE_DATA_PATH] == str(conf_path)
-    assert conf[CLASSNAME] == 'EnsembleStats'
-
-
-def test_dump_config_after_dump_data_overwrites_file(tmp_path: pathlib.Path):
-    prep = EnsembleStats.from_data(build_frames())
-    conf_path = str((tmp_path / 'test_data_in.json').resolve())
-    prep.dump_data_to_json(conf_path)
-
-    es = EnsembleStats.from_config(
-        {
-            ENSEMBLE_DATA_PATH: str(conf_path),
-        }
-    )
-
-    es.dump_data_to_json((tmp_path / 'test_data_out.json'))
-
-    conf = es.dump_config()
-
-    assert len(conf) == 1
-    assert conf[ENSEMBLE_DATA_PATH] == str((tmp_path / 'test_data_out.json'))
 
 
 def test_calc_stats_min():
@@ -199,6 +223,7 @@ def test_calc_stats_unsupported_fails():
 
     expected = 'Unknown stat: parrot. Supported'
     assert expected in str(exceptinfo.value)
+
 
 def test_calc_stats_percentile_over_100_fails():
     es = EnsembleStats.from_data(build_frames())

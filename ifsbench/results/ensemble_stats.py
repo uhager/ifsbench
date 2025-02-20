@@ -13,12 +13,13 @@ from typing import Dict, List, Union
 import pandas as pd
 
 from ifsbench.config_mixin import ConfigMixin
-from ifsbench.logging import warning
 
-__all__ = ['EnsembleStats', 'ENSEMBLE_DATA_PATH']
+__all__ = ['EnsembleStats', 'ENSEMBLE_DATA_PATH_KEY', 'ENSEMBLE_DATA_KEY']
 
-# key of the config entry holding the path to the data file.
-ENSEMBLE_DATA_PATH = 'ensemble_data'
+# keys of the config entries holding the path to the data file
+# and the data.
+ENSEMBLE_DATA_PATH_KEY = 'ensemble_data_file'
+ENSEMBLE_DATA_KEY = 'ensemble_data'
 # Statistics keywords available when calling calc_stats. In addition
 # percentiles are supported with format '[p,P](\d{1,2})'.
 AVAILABLE_BASIC_STATS = ['min', 'max', 'mean', 'median', 'sum', 'std']
@@ -44,29 +45,36 @@ class EnsembleStats(ConfigMixin):
     @classmethod
     def from_config(cls, config: Dict[str, str]) -> 'EnsembleStats':
         """Read data from the file specified in the config."""
-        if not ENSEMBLE_DATA_PATH in config:
-            raise ValueError(f'missing config entry {ENSEMBLE_DATA_PATH}')
         if len(config) > 1:
             raise ValueError(
-                f'unexpected entries in config: {config}, expected only {ENSEMBLE_DATA_PATH}'
+                f'unexpected entries in config for EnsembleStats: {config}'
             )
-        input_path = pathlib.Path(config[ENSEMBLE_DATA_PATH])
-        with open(input_path, 'r', encoding='utf-8') as jin:
-            jdata = json.load(jin)
-        dfs = [pd.DataFrame.from_dict(json.loads(entry)) for entry in jdata]
-        es = cls(dfs)
-        es._data_file = config[ENSEMBLE_DATA_PATH]
-        return es
+        if ENSEMBLE_DATA_PATH_KEY in config:
+            input_path = pathlib.Path(config[ENSEMBLE_DATA_PATH_KEY])
+            with open(input_path, 'r', encoding='utf-8') as jin:
+                data = json.load(jin)
+            dfs = [pd.DataFrame.from_dict(json.loads(entry)) for entry in data]
+            es = cls(dfs)
+            es._data_file = config[ENSEMBLE_DATA_PATH_KEY]
+            return es
+        if ENSEMBLE_DATA_KEY in config:
+            data = config[ENSEMBLE_DATA_KEY]
+            dfs = [pd.DataFrame.from_dict(entry) for entry in data]
+            es = cls(dfs)
+            return es
+
+        raise ValueError(
+            f'missing config entry: either {ENSEMBLE_DATA_PATH_KEY} or {ENSEMBLE_DATA_KEY}'
+        )
 
     def dump_config(
         self, with_class: bool = False
     ) -> Dict[str, Union[str, float, int, bool, List]]:
+        config = {}
         if not self._data_file:
-            warning('No data file associated with EnsembleStats, no config to dump.')
-            return {}
-        config = {
-            ENSEMBLE_DATA_PATH: self._data_file,
-        }
+            config[ENSEMBLE_DATA_KEY] = [df.to_dict() for df in self._raw_data]
+        else:
+            config[ENSEMBLE_DATA_PATH_KEY] = self._data_file
         if with_class:
             config['classname'] = type(self).__name__
         return config
