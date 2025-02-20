@@ -44,7 +44,13 @@ class EnsembleStats(ConfigMixin):
 
     @classmethod
     def from_config(cls, config: Dict[str, str]) -> 'EnsembleStats':
-        """Read data from the file specified in the config."""
+        """Read data from the json file specified in the config or
+        directly from the in-line data.
+
+        Args:
+            config: dictionary specifying either path to a file containing
+                the data or containing the data in-line.
+        """
         if len(config) > 1:
             raise ValueError(
                 f'unexpected entries in config for EnsembleStats: {config}'
