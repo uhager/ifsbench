@@ -26,14 +26,6 @@ AVAILABLE_BASIC_STATS = ['min', 'max', 'mean', 'median', 'sum', 'std']
 _JSON_ORIENT = 'columns'
 
 
-def _percentile(nth):
-    def _qtile(data):
-        return data.quantile(nth / 100.0)
-
-    _qtile.__name__ = f'p{nth:02.0f}'
-    return _qtile
-
-
 class EnsembleStats(ConfigMixin):
     """Reads, writes, summarises results across ensemble members."""
 
@@ -86,12 +78,19 @@ class EnsembleStats(ConfigMixin):
         with open(output_file, 'w', encoding='utf-8') as outf:
             json.dump(js, outf)
 
-    def calc_stats(self, stats: Union[str, List[str]]) -> pd.DataFrame:
+    def calc_stats(self, stats: Union[str, List[str]]) -> Dict[str, pd.DataFrame]:
         """Calculate statistics.
 
         Desired statistics can be specified as a single string, e.g. 'mean', 'min',
         or as a list of strings. Supported stats are given by AVAILABLE_BASIC_STATS;
-        in addition, percentiles between 0 and 100 can be specified as 'P10', 'p85', etc/
+        in addition, percentiles between 0 and 100 can be specified as 'P10', 'p85', etc.
+
+        Args:
+            stats: string representation or list or string representations of stats values
+                to be calculated.
+        Returns:
+            Dictionary or results with requested stat string representations as key and
+                dataframes of results for that stat as value.
         """
 
         def std(x):
@@ -99,14 +98,25 @@ class EnsembleStats(ConfigMixin):
             # Using function rather than lambda for the correct column name.
             return x.std(ddof=0)
 
+        def _percentile(stat_name: str, nth: float):
+            def _qtile(data):
+                return data.quantile(nth / 100.0)
+
+            _qtile.__name__ = stat_name
+            return _qtile
+
         if isinstance(stats, str):
             stats = [stats]
         to_request = []
         for stat in stats:
-            percentile_check = re.match(r'[p,P](\d{1,2})$', stat)
+            percentile_check = re.match(r'[p,P](\d{1,3})$', stat)
             if percentile_check:
                 ptile_value = int(percentile_check.group(1))
-                to_request.append(_percentile(ptile_value))
+                if ptile_value > 100:
+                    raise ValueError(
+                        f'Percentile has to be in [0, 100], got {ptile_value}.'
+                    )
+                to_request.append(_percentile(stat, ptile_value))
             elif stat == 'std':
                 to_request.append(std)
             elif stat in AVAILABLE_BASIC_STATS:
@@ -115,4 +125,5 @@ class EnsembleStats(ConfigMixin):
                 raise ValueError(
                     f'Unknown stat: {stat}. Supported: {AVAILABLE_BASIC_STATS} and percentiles (e.g. p85).'
                 )
-        return self._group.agg(to_request)
+        df = self._group.agg(to_request)
+        return {stat: df.xs(stat, level=1, axis=1) for stat in stats}

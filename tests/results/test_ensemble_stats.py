@@ -142,77 +142,53 @@ def test_calc_stats_min():
     in_data = build_frames()
     es = EnsembleStats.from_data(in_data)
 
-    ensemble_min = es.calc_stats('min')
+    result = es.calc_stats('min')
 
-    mi = pd.MultiIndex.from_tuples([('2m temperature', 'min'), ('pressure', 'min')])
-    expected = pd.DataFrame([[293, 1008], [291, 1005]], index=INDEX, columns=mi)
-    pd.testing.assert_frame_equal(ensemble_min, expected)
+    assert len(result) == 1
+    assert 'min' in result
+    expected = pd.DataFrame([[293, 1008], [291, 1005]], index=INDEX, columns=COLUMNS)
+    pd.testing.assert_frame_equal(result['min'], expected)
 
 
 def test_calc_stats_list():
     in_data = build_frames()
     es = EnsembleStats.from_data(in_data)
-    stats = ['min', 'p10', 'mean', 'p50', 'p90', 'max', 'std']
+    stats = ['min', 'p10', 'mean', 'P50', 'p90', 'max', 'std']
 
     ensemble_stats = es.calc_stats(stats)
 
-    mi = pd.MultiIndex.from_tuples(
-        [
-            ('2m temperature', 'min'),
-            ('2m temperature', 'p10'),
-            ('2m temperature', 'mean'),
-            ('2m temperature', 'p50'),
-            ('2m temperature', 'p90'),
-            ('2m temperature', 'max'),
-            ('2m temperature', 'std'),
-            ('pressure', 'min'),
-            ('pressure', 'p10'),
-            ('pressure', 'mean'),
-            ('pressure', 'p50'),
-            ('pressure', 'p90'),
-            ('pressure', 'max'),
-            ('pressure', 'std'),
-        ],
+    # Expected frames per stat
+    df_min = pd.DataFrame([[293, 1008], [291, 1005]], index=INDEX, columns=COLUMNS)
+    df_p10 = pd.DataFrame(
+        [[293.6, 1008.6], [291.3, 1005.9]], index=INDEX, columns=COLUMNS
     )
-    expected = pd.DataFrame(
-        [
-            [
-                293,
-                293.6,
-                295.0,
-                295.5,
-                296.0,
-                296,
-                1.22474,
-                1008,
-                1008.6,
-                1011.0,
-                1011.0,
-                1013.4,
-                1014,
-                2.2360679,
-            ],
-            [
-                291,
-                291.3,
-                292.75,
-                293.0,
-                294.0,
-                294,
-                1.299038,
-                1005,
-                1005.9,
-                1007.5,
-                1008.0,
-                1008.7,
-                1009,
-                1.500,
-            ],
-        ],
-        index=INDEX,
-        columns=mi,
+    df_mean = pd.DataFrame(
+        [[295.0, 1011], [292.75, 1007.5]], index=INDEX, columns=COLUMNS
     )
-    pd.testing.assert_frame_equal(ensemble_stats, expected)
+    df_p50 = pd.DataFrame(
+        [[295.5, 1011.0], [293, 1008.0]], index=INDEX, columns=COLUMNS
+    )
+    df_p90 = pd.DataFrame(
+        [[296.0, 1013.4], [294.0, 1008.7]], index=INDEX, columns=COLUMNS
+    )
+    df_max = pd.DataFrame([[296, 1014], [294, 1009]], index=INDEX, columns=COLUMNS)
+    df_std = pd.DataFrame(
+        [[1.22474, 2.2360679], [1.299038, 1.500]], index=INDEX, columns=COLUMNS
+    )
+    expected = {
+        'min': df_min,
+        'p10': df_p10,
+        'mean': df_mean,
+        'P50': df_p50,
+        'p90': df_p90,
+        'max': df_max,
+        'std': df_std,
+    }
+
+    assert len(ensemble_stats) == len(expected)
+    for key, value in expected.items():
+        assert key in ensemble_stats
+        pd.testing.assert_frame_equal(ensemble_stats[key], value)
 
 
 def test_calc_stats_unsupported_fails():
@@ -223,3 +199,12 @@ def test_calc_stats_unsupported_fails():
 
     expected = 'Unknown stat: parrot. Supported'
     assert expected in str(exceptinfo.value)
+
+def test_calc_stats_percentile_over_100_fails():
+    es = EnsembleStats.from_data(build_frames())
+
+    with pytest.raises(ValueError) as exceptinfo:
+        es.calc_stats('p101')
+
+    expected = 'Percentile has to be in [0, 100], got 101.'
+    assert str(exceptinfo.value) == expected
