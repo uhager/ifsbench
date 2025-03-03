@@ -15,7 +15,7 @@ from importlib.metadata import version, PackageNotFoundError
 
 from ifsbench.application import * # noqa
 from ifsbench.arch import * # noqa
-from ifsbench.cli import * # noqa
+from ifsbench.command_line import * # noqa
 from ifsbench.config_mixin import * # noqa
 from ifsbench.config_utils import * # noqa
 from ifsbench.darshanreport import * # noqa
@@ -25,7 +25,7 @@ from ifsbench.files import * # noqa
 from ifsbench.gribfile import * # noqa
 from ifsbench.ifs import * # noqa
 from ifsbench.job import * # noqa
-from ifsbench.launcher import * # noqa
+from ifsbench.launch import * # noqa
 from ifsbench.logging import * # noqa
 from ifsbench.namelist import * # noqa
 from ifsbench.nodefile import * # noqa

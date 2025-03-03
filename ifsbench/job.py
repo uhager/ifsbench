@@ -37,13 +37,15 @@ class CpuConfiguration:
 
     def cores_per_node(self):
         """
-        The number of physical cores per node
+        The number of physical cores per node. This value is automatically derived
+        from the above properties.
         """
         return self.sockets_per_node * self.cores_per_socket
 
     def threads_per_node(self):
         """
-        The number of logical cores (threads) per node
+        The number of logical cores per node (threads). This value is automatically derived
+        from the above properties.
         """
         return self.cores_per_node * self.threads_per_core
 
@@ -139,18 +141,22 @@ class Job:
 
     def calculate_missing(self, cpu_configuration):
         """
+        Calculate missing attributes in :class:`Job`
+
         If at least one of
 
         * the total number of MPI tasks (:data:`tasks`)
         * the number of nodes (:data:`nodes`) and the number of tasks per node
-        (:data:`tasks_per_node`)
+          (:data:`tasks_per_node`)
         * the number of nodes (:data:`nodes`) and the number of tasks per socket
-        (:data:`tasks_per_socket`)
+          (:data:`tasks_per_socket`)
 
         is specified, this function calculates missing values for
+
             * tasks
             * nodes
             * tasks_per_node
+
         given hardware configuration. The resulting values are stored in this
         object.
 

@@ -25,7 +25,7 @@ class IFS(ABC):
     This class is specialized for every supported release of the IFS (called
     cycle). It is instantiated via the factory method :meth:`IFS.create_cycle`,
     using the subclass corresponding to the provided cycle.
-    See :any:`cycles_registry` for all available cycles.
+    See :any:`cycle_registry` for all available cycles.
 
     Parameters
     ----------
@@ -198,11 +198,11 @@ class IFS(ABC):
         Set-up environment and configuration file and launch an IFS execution
 
         This calls :meth:`IFS.setup_env` and :meth:`IFS.setup_nml` before
-        invoking the architecture's :any:`Arch.run` method.
+        invoking the architecture's :meth:`Arch.run` method.
 
         Parameters
         ----------
-        namelist : :any:`f90nml.Namelist` or NoneType
+        namelist : :any:`f90nml.namelist.Namelist` or NoneType
             A namelist to use as a basis for the IFS run that will be further
             modified by :meth:`IFS.setup_nml`
         rundir : str or :any:`pathlib.Path`
