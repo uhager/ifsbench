@@ -7,7 +7,11 @@
 
 from abc import ABC, abstractmethod
 
+from pathlib import Path
+from typing import Union
+
 __all__ = ['DataHandler']
+
 
 class DataHandler(ABC):
     """
@@ -18,9 +22,8 @@ class DataHandler(ABC):
     setup tasks.
     """
 
-
     @abstractmethod
-    def execute(self, wdir, **kwargs):
+    def execute(self, wdir: Union[str, Path], **kwargs):
         """
         Run this data handling operation in a given directory.
 

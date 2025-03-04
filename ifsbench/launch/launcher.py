@@ -11,8 +11,10 @@ Implementation of launch commands for various MPI launchers
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
+from ifsbench.job import Job
+from ifsbench.env import EnvPipeline
 from ifsbench.logging import debug, info
 from ifsbench.util import execute
 
@@ -34,8 +36,9 @@ class LaunchData:
     env: dict[str,str]
         The environment variables that are used.
     """
-    run_dir : Path
-    cmd : List[str]
+
+    run_dir: Path
+    cmd: List[str]
     env: dict = field(default_factory=dict)
 
     def launch(self):
@@ -49,12 +52,8 @@ class LaunchData:
         for key, value in self.env.items():
             debug(f"\t{key}={value}")
 
+        execute(command=self.cmd, cwd=self.run_dir, env=self.env)
 
-        execute(
-            command = self.cmd,
-            cwd = self.run_dir,
-            env = self.env
-        )
 
 class Launcher(ABC):
     """
@@ -63,7 +62,15 @@ class Launcher(ABC):
     """
 
     @abstractmethod
-    def prepare(self, run_dir, job, cmd, library_paths=None, env_pipeline=None, custom_flags=None):
+    def prepare(
+        self,
+        run_dir: Path,
+        job: Job,
+        cmd: List[str],
+        library_paths: Optional[List[str]] = None,
+        env_pipeline: Optional[EnvPipeline] = None,
+        custom_flags: Optional[List[str]] = None,
+    ) -> LaunchData:
         """
         Prepare a launch by building a LaunchData object (which in turn can
         perform the actual launch).

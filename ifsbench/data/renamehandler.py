@@ -9,6 +9,7 @@ from enum import auto, Enum
 from pathlib import Path
 import re
 import shutil
+from typing import Union
 
 from ifsbench.data.datahandler import DataHandler
 from ifsbench.logging import debug
@@ -20,6 +21,7 @@ class RenameMode(Enum):
     """
     Enumeration of available rename operations.
     """
+
     #: Copy the file from its current place to the new location.
     COPY = auto()
 
@@ -48,7 +50,12 @@ class RenameHandler(DataHandler):
         Specifies how the renaming is done (copy, move, symlink).
     """
 
-    def __init__(self, pattern, repl, mode=RenameMode.SYMLINK):
+    def __init__(
+        self,
+        pattern: Union[re.Pattern, str],
+        repl: str,
+        mode: RenameMode = RenameMode.SYMLINK,
+    ):
         if isinstance(pattern, re.Pattern):
             self._pattern = pattern
         else:
@@ -56,8 +63,7 @@ class RenameHandler(DataHandler):
         self._repl = str(repl)
         self._mode = mode
 
-
-    def execute(self, wdir, **kwargs):
+    def execute(self, wdir: Union[str, Path], **kwargs) -> None:
         wdir = Path(wdir)
 
         # We create a dictionary first, that stores the paths that will be
@@ -69,7 +75,7 @@ class RenameHandler(DataHandler):
                 continue
 
             dest = Path(self._pattern.sub(self._repl, str(f.relative_to(wdir))))
-            dest = (wdir/dest).resolve()
+            dest = (wdir / dest).resolve()
 
             if f != dest:
                 path_mapping[f] = dest
@@ -77,13 +83,17 @@ class RenameHandler(DataHandler):
         # Check that we don't end up with two initial files being renamed to
         # the same file. Crash if this is the case.
         if len(set(path_mapping.keys())) != len(set(path_mapping.values())):
-            raise RuntimeError("Renaming would cause two different files to be given the same name!")
+            raise RuntimeError(
+                "Renaming would cause two different files to be given the same name!"
+            )
 
         for source, dest in path_mapping.items():
             # Crash if we are renaming one of the files to a path that is also
             # the "source" for another renaming.
             if dest in path_mapping:
-                raise RuntimeError(f"Can't move {source} to {dest} as there is a cyclical dependency!")
+                raise RuntimeError(
+                    f"Can't move {source} to {dest} as there is a cyclical dependency!"
+                )
 
             # Delete whatever resides at dest at the moment (whether it's a
             # file or a directory).

@@ -9,6 +9,7 @@ from abc import ABC, abstractmethod
 from collections import UserList
 from enum import auto, Enum
 import os
+from typing import Dict, List, Optional, Union
 
 from ifsbench.logging import debug
 
@@ -37,6 +38,7 @@ class EnvOperation(Enum):
     #: Clear the whole environment.
     CLEAR = auto()
 
+
 class EnvHandler:
     """
     Specify changes to environment variables.
@@ -58,7 +60,9 @@ class EnvHandler:
         If key or value is None but must be specifed.
     """
 
-    def __init__(self, mode, key=None, value=None):
+    def __init__(
+        self, mode: EnvOperation, key: Optional[str] = None, value: Optional[str] = None
+    ):
         if key is not None:
             self._key = str(key)
         else:
@@ -76,9 +80,11 @@ class EnvHandler:
 
         if self._value is None:
             if self._mode in (EnvOperation.APPEND, EnvOperation.PREPEND):
-                raise ValueError(f"The value must be specified for operation {mode.name}!")
+                raise ValueError(
+                    f"The value must be specified for operation {mode.name}!"
+                )
 
-    def execute(self, env):
+    def execute(self, env: Dict[str, str]) -> None:
         """
         Apply the stored changes to a given environment.
 
@@ -115,6 +121,7 @@ class EnvHandler:
             debug('Clear whole environment.')
             env.clear()
 
+
 class EnvPipeline(ABC, UserList):
     """
     Abstract base class for environment update pipelines.
@@ -124,7 +131,7 @@ class EnvPipeline(ABC, UserList):
     """
 
     @abstractmethod
-    def execute(self):
+    def execute(self) -> Dict[str, str]:
         """
         Create an environment using the pipeline.
 
@@ -136,7 +143,7 @@ class EnvPipeline(ABC, UserList):
         return NotImplemented
 
     @abstractmethod
-    def add(self, handler):
+    def add(self, handler: Union[EnvHandler, List[EnvHandler]]) -> None:
         """
         Add new EnvHandlers to the pipeline.
 
@@ -145,6 +152,7 @@ class EnvPipeline(ABC, UserList):
         handler: EnvHandler or list[EnvHandler]
             Handler(s) that are added.
         """
+
 
 class DefaultEnvPipeline(EnvPipeline):
     """
@@ -163,7 +171,11 @@ class DefaultEnvPipeline(EnvPipeline):
         If overrides contains entries that are not EnvOverride objects.
     """
 
-    def __init__(self, handlers=None, env_initial=None):
+    def __init__(
+        self,
+        handlers: Optional[List[EnvHandler]] = None,
+        env_initial: Optional[Dict[str, str]] = None,
+    ):
         if handlers:
             self._handlers = list(handlers)
         else:
@@ -178,13 +190,13 @@ class DefaultEnvPipeline(EnvPipeline):
         else:
             self._env_initial = {}
 
-    def add(self, handler):
+    def add(self, handler: Union[EnvHandler, List[EnvHandler]]) -> None:
         if isinstance(handler, EnvHandler):
             self._handlers.append(handler)
         else:
             self._handlers += handler
 
-    def execute(self):
+    def execute(self) -> Dict[str, str]:
         env = dict(self._env_initial)
 
         for handler in self._handlers:

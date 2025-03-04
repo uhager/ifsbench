@@ -7,7 +7,7 @@
 
 import pathlib
 import shutil
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
 from ifsbench.config_mixin import PydanticConfigMixin
 from ifsbench.data.datahandler import DataHandler
@@ -46,7 +46,7 @@ class ExtractHandler(DataHandler, PydanticConfigMixin):
             eh._target_dir = pathlib.Path(eh.target_dir)
         return eh
 
-    def execute(self, wdir, **kwargs):
+    def execute(self, wdir: Union[str, pathlib.Path], **kwargs) -> None:
         wdir = pathlib.Path(wdir)
 
         target_dir = wdir

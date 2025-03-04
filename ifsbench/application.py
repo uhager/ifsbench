@@ -6,8 +6,15 @@
 # nor does it submit to any jurisdiction.
 
 from abc import ABC, abstractmethod
+from pathlib import Path
+from typing import List, Optional
+
+from ifsbench.data import DataHandler
+from ifsbench.env import EnvHandler
+from ifsbench.job import Job
 
 __all__ = ['Application', 'DefaultApplication']
+
 
 class Application(ABC):
     """
@@ -15,7 +22,7 @@ class Application(ABC):
     """
 
     @abstractmethod
-    def get_data_handlers(self, run_dir, job):
+    def get_data_handlers(self, run_dir: Path, job: Job) -> List[DataHandler]:
         """
         Return necessary data handlers.
 
@@ -37,7 +44,7 @@ class Application(ABC):
         return NotImplemented
 
     @abstractmethod
-    def get_env_handlers(self, run_dir, job):
+    def get_env_handlers(self, run_dir: Path, job: Job) -> List[EnvHandler]:
         """
         Return necessary environment handlers.
 
@@ -59,7 +66,7 @@ class Application(ABC):
         return NotImplemented
 
     @abstractmethod
-    def get_library_paths(self, run_dir, job):
+    def get_library_paths(self, run_dir: Path, job: Job) -> List[Path]:
         """
         Return necessary library paths.
 
@@ -80,7 +87,7 @@ class Application(ABC):
         return NotImplemented
 
     @abstractmethod
-    def get_command(self, run_dir, job):
+    def get_command(self, run_dir: Path, job: Job) -> List[str]:
         """
         Return the corresponding command.
 
@@ -118,7 +125,13 @@ class DefaultApplication(Application):
         The library path list that is returned by get_library_paths.
     """
 
-    def __init__(self, command, data_handlers=None, env_handlers=None, library_paths=None):
+    def __init__(
+        self,
+        command: List[str],
+        data_handlers: Optional[List[DataHandler]] = None,
+        env_handlers: Optional[List[EnvHandler]] = None,
+        library_paths: Optional[List[Path]] = None,
+    ):
         self._command = list(command)
 
         if data_handlers:
@@ -136,14 +149,18 @@ class DefaultApplication(Application):
         else:
             self._library_paths = []
 
-    def get_data_handlers(self, run_dir, job):
+    def get_data_handlers(self, run_dir: Path, job: Job) -> List[DataHandler]:
+        del run_dir, job  # Unused
         return list(self._data_handlers)
 
-    def get_env_handlers(self, run_dir, job):
+    def get_env_handlers(self, run_dir: Path, job: Job) -> List[EnvHandler]:
+        del run_dir, job  # Unused
         return list(self._env_handlers)
 
-    def get_library_paths(self, run_dir, job):
+    def get_library_paths(self, run_dir: Path, job: Job) -> List[Path]:
+        del run_dir, job  # Unused
         return list(self._library_paths)
 
-    def get_command(self, run_dir, job):
+    def get_command(self, run_dir: Path, job: Job) -> List[str]:
+        del run_dir, job  # Unused
         return list(self._command)
