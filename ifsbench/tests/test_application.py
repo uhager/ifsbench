@@ -18,7 +18,7 @@ from ifsbench.data import ExtractHandler
     (Job(tasks=5), ['ls', '-l'], None, None, None),
     (Job(nodes=12), ['ls', '-l'], [], [], []),
     (Job(nodes=12), ['ls', '-l'], [ExtractHandler(archive_path='in', target_dir='out')], [], ['/some/path']),
-    (Job(nodes=12), ['ls', '-l'], [], [EnvHandler(EnvOperation.CLEAR)], []),
+    (Job(nodes=12), ['ls', '-l'], [], [EnvHandler(mode=EnvOperation.CLEAR)], []),
 ])
 def test_default_application(tmp_path, job, command, data_handlers, env_handlers, library_paths):
     application = DefaultApplication(command, data_handlers, env_handlers, library_paths)

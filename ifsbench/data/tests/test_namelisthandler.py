@@ -89,7 +89,7 @@ def test_namelistoverride_dump_config(nlist, entry, mode, value):
         (('namelist3', 'anothervalue'), [2, 3, 4]),
     ],
 )
-def test_extracthandler_apply_set(initial_namelist, key, value):
+def test_namelisthandler_apply_set(initial_namelist, key, value):
     """
     Initialise the NamelistOverride and make sure that only correct values are accepted.
     """

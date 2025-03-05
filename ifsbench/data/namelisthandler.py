@@ -22,7 +22,7 @@ from ifsbench.logging import debug, info
 __all__ = ['NamelistOverride', 'NamelistHandler', 'NamelistOperation']
 
 
-class NamelistOperation(Enum):
+class NamelistOperation(str, Enum):
     SET = 'set'
     APPEND = 'append'
     DELETE = 'delete'
