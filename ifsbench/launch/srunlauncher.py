@@ -5,8 +5,11 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-from ifsbench.env import DefaultEnvPipeline, EnvOperation, EnvHandler
-from ifsbench.job import CpuBinding, CpuDistribution
+from pathlib import Path
+from typing import List, Optional
+
+from ifsbench.env import DefaultEnvPipeline, EnvOperation, EnvPipeline, EnvHandler
+from ifsbench.job import CpuBinding, CpuDistribution, Job
 from ifsbench.logging import debug
 from ifsbench.launch.launcher import Launcher, LaunchData
 
@@ -43,7 +46,7 @@ class SrunLauncher(Launcher):
         CpuDistribution.DISTRIBUTE_CYCLIC: 'cyclic',
     }
 
-    def _get_distribution_options(self, job):
+    def _get_distribution_options(self, job: Job) -> List[str]:
         """Return options for task distribution"""
         if (job.distribute_remote is None) and (job.distribute_local is None):
             return []
@@ -52,18 +55,38 @@ class SrunLauncher(Launcher):
         distribute_local = job.distribute_local
 
         if distribute_remote is CpuDistribution.DISTRIBUTE_USER:
-            debug(('Not applying task distribution options because remote distribution'
-                   ' of tasks is set to use user-provided settings'))
+            debug(
+                (
+                    'Not applying task distribution options because remote distribution'
+                    ' of tasks is set to use user-provided settings'
+                )
+            )
             return []
         if distribute_local is CpuDistribution.DISTRIBUTE_USER:
-            debug(('Not applying task distribution options because local distribution'
-                   ' of tasks is set to use user-provided settings'))
+            debug(
+                (
+                    'Not applying task distribution options because local distribution'
+                    ' of tasks is set to use user-provided settings'
+                )
+            )
             return []
 
-        return [(f'--distribution={self.distribution_options_map[distribute_remote]}'
-                 f':{self.distribution_options_map[distribute_local]}')]
+        return [
+            (
+                f'--distribution={self.distribution_options_map[distribute_remote]}'
+                f':{self.distribution_options_map[distribute_local]}'
+            )
+        ]
 
-    def prepare(self, run_dir, job, cmd, library_paths=None, env_pipeline=None, custom_flags=None):
+    def prepare(
+        self,
+        run_dir: Path,
+        job: Job,
+        cmd: List[str],
+        library_paths: Optional[List[str]] = None,
+        env_pipeline: Optional[EnvPipeline] = None,
+        custom_flags: Optional[List[str]] = None,
+    ) -> LaunchData:
         executable = 'srun'
         if env_pipeline is None:
             env_pipeline = DefaultEnvPipeline()
@@ -86,14 +109,12 @@ class SrunLauncher(Launcher):
 
         if library_paths:
             for path in library_paths:
-                env_pipeline.add(EnvHandler(EnvOperation.APPEND, 'LD_LIBRARY_PATH', str(path)))
+                env_pipeline.add(
+                    EnvHandler(EnvOperation.APPEND, 'LD_LIBRARY_PATH', str(path))
+                )
 
         flags += cmd
 
         env = env_pipeline.execute()
 
-        return LaunchData(
-            run_dir=run_dir,
-            cmd=[executable] + flags,
-            env=env
-        )
+        return LaunchData(run_dir=run_dir, cmd=[executable] + flags, env=env)

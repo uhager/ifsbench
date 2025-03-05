@@ -10,12 +10,14 @@ Architecture specifications
 """
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import List
+from typing import List, Optional
 
 from ifsbench.env import EnvHandler
+from ifsbench.job import CpuConfiguration, Job
 from ifsbench.launch.launcher import Launcher
 
 __all__ = ['Arch', 'DefaultArch']
+
 
 @dataclass
 class ArchResult:
@@ -27,13 +29,13 @@ class ArchResult:
     job = None
 
     #: Additional EnvHandler objects that set architecture-specific environment flags.
-    env_handlers : List[EnvHandler] = field(default_factory=list)
+    env_handlers: List[EnvHandler] = field(default_factory=list)
 
     #: The default launcher that is used on this system.
-    default_launcher : Launcher = None
+    default_launcher: Launcher = None
 
     #: Additional launcher flags that should be added to launcher invocations.
-    default_launcher_flags : List[str] = field(default_factory=list)
+    default_launcher_flags: List[str] = field(default_factory=list)
 
 
 class Arch(ABC):
@@ -46,7 +48,7 @@ class Arch(ABC):
     """
 
     @abstractmethod
-    def get_default_launcher(self):
+    def get_default_launcher(self) -> Launcher:
         """
         Return the launcher that is usually used on this system (e.g.
         SLURM, PBS, MPI).
@@ -58,7 +60,7 @@ class Arch(ABC):
         """
 
     @abstractmethod
-    def get_cpu_configuration(self):
+    def get_cpu_configuration(self) -> CpuConfiguration:
         """
         Return the hardware setup that is used.
 
@@ -68,7 +70,7 @@ class Arch(ABC):
         """
 
     @abstractmethod
-    def process_job(self, job, **kwargs):
+    def process_job(self, job: Job, **kwargs):
         """
         Process a given job and add architecture-dependent tweaks.
 
@@ -88,10 +90,17 @@ class Arch(ABC):
         ArchResult
         """
 
+
 class DefaultArch(Arch):
 
-    def __init__(self, launcher, cpu_config, set_explicit=False,
-                 account=None, partition=None):
+    def __init__(
+        self,
+        launcher: Launcher,
+        cpu_config: CpuConfiguration,
+        set_explicit: bool = False,
+        account: Optional[str] = None,
+        partition: Optional[str] = None,
+    ):
         """
         Default architecture that can be used for various systems.
 
@@ -119,13 +128,13 @@ class DefaultArch(Arch):
         self._account = account
         self._partition = partition
 
-    def get_default_launcher(self):
+    def get_default_launcher(self) -> Launcher:
         return self._launcher
 
-    def get_cpu_configuration(self):
+    def get_cpu_configuration(self) -> CpuConfiguration:
         return self._cpu_config
 
-    def process_job(self, job, **kwargs):
+    def process_job(self, job: Job, **kwargs) -> ArchResult:
         result = ArchResult()
 
         account = self._account

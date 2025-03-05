@@ -14,6 +14,7 @@ from enum import Enum, auto
 
 __all__ = ['CpuBinding', 'CpuDistribution', 'CpuConfiguration', 'Job']
 
+
 @dataclass
 class CpuConfiguration:
     """
@@ -22,18 +23,18 @@ class CpuConfiguration:
 
     #: The number of sockets (sometimes this is also used to describe NUMA domains)
     #: available on each node. This must be specified in a derived class.
-    sockets_per_node : int = 1
+    sockets_per_node: int = 1
 
     #: The number of physical cores per socket. This must be specified in a derived class.
-    cores_per_socket : int = 1
+    cores_per_socket: int = 1
 
     #: The number of logical cores per physical core (i.e. the number of SMT threads
     #: each core can execute). Typically, this is 1 (no hyperthreading), 2 or 4.
     #: This must be specified in a derived class.
-    threads_per_core : int = 1
+    threads_per_core: int = 1
 
     #: The number of available GPUs per node.
-    gpus_per_node : int = 0
+    gpus_per_node: int = 0
 
     def cores_per_node(self):
         """
@@ -49,11 +50,13 @@ class CpuConfiguration:
         """
         return self.cores_per_node * self.threads_per_core
 
+
 class CpuBinding(Enum):
     """
     Description of CPU binding strategy to use, for which the launch
     command should provide the appropriate options
     """
+
     BIND_NONE = auto()
     """Disable all binding specification"""
 
@@ -75,6 +78,7 @@ class CpuDistribution(Enum):
     Description of CPU distribution strategy to use, for which the launch
     command should provide the appropriate options
     """
+
     DISTRIBUTE_DEFAULT = auto()
     """Use the default distribution strategy"""
 
@@ -87,6 +91,7 @@ class CpuDistribution(Enum):
     DISTRIBUTE_USER = auto()
     """Indicate that a different user-specified strategy should be used"""
 
+
 @dataclass
 class Job:
     """
@@ -94,41 +99,41 @@ class Job:
     """
 
     #: The number of tasks/processes.
-    tasks : int = None
+    tasks: int = None
 
     #: The number of nodes.
-    nodes : int = None
+    nodes: int = None
 
     #: The number of tasks per node.
-    tasks_per_node : int = None
+    tasks_per_node: int = None
 
     #: The number of tasks per socket.
-    tasks_per_socket : int = None
+    tasks_per_socket: int = None
 
     #: The number of cpus assigned to each task.
-    cpus_per_task : int = None
+    cpus_per_task: int = None
 
     #: The number of threads that each CPU core should run.
-    threads_per_core : int = None
+    threads_per_core: int = None
 
     #: The number of GPUs that are required by each task.
-    gpus_per_task : int = None
+    gpus_per_task: int = None
 
     #: The account that is passed to the scheduler.
-    account : str = None
+    account: str = None
 
     #: The partition that is passed to the scheduler.
-    partition : str = None
+    partition: str = None
 
     #: Specify the binding strategy to use for pinning.
-    bind : CpuBinding = None
+    bind: CpuBinding = None
 
     #: Specify the distribution strategy to use for task distribution across nodes.
-    distribute_remote : CpuDistribution = None
+    distribute_remote: CpuDistribution = None
 
     #: Specify the distribution strategy to use for task distribution across
     #: sockets within a node.
-    distribute_local : CpuDistribution = None
+    distribute_local: CpuDistribution = None
 
     def copy(self):
         """
@@ -137,9 +142,7 @@ class Job:
 
         return replace(self)
 
-
-
-    def calculate_missing(self, cpu_configuration):
+    def calculate_missing(self, cpu_configuration: CpuConfiguration) -> None:
         """
         Calculate missing attributes in :class:`Job`
 
@@ -185,19 +188,25 @@ class Job:
             # values.
 
             if self.tasks_per_socket:
-                self.tasks_per_node = self.tasks_per_socket * cpu_configuration.sockets_per_node
+                self.tasks_per_node = (
+                    self.tasks_per_socket * cpu_configuration.sockets_per_node
+                )
             elif self.tasks:
-                self.tasks_per_node = cpu_configuration.cores_per_node() // cpus_per_task
+                self.tasks_per_node = (
+                    cpu_configuration.cores_per_node() // cpus_per_task
+                )
             else:
-                raise ValueError('The number of tasks per node could not be determined!')
+                raise ValueError(
+                    'The number of tasks per node could not be determined!'
+                )
 
             # If GPUs are used, make sure that tasks_per_node is compatible with
             # the number of available GPUs.
             if gpus_per_task > 0:
                 self.tasks_per_node = min(
                     self.tasks_per_node,
-                    cpu_configuration.gpus_per_node // gpus_per_task
-            )
+                    cpu_configuration.gpus_per_node // gpus_per_task,
+                )
 
             if self.tasks_per_node <= 0:
                 raise ValueError('Failed to determine the number of tasks per node!')
@@ -206,15 +215,15 @@ class Job:
             if self.tasks_per_node * gpus_per_task > cpu_configuration.gpus_per_node:
                 raise ValueError('Not enough GPUs are available on a node.')
 
-
         if self.nodes is None:
             threads_per_node = self.tasks_per_node * threads_per_core * cpus_per_task
 
             if not self.tasks:
                 raise ValueError('The number of nodes could not be determined!')
 
-            self.nodes = (self.tasks * cpus_per_task + threads_per_node - 1) // threads_per_node
-
+            self.nodes = (
+                self.tasks * cpus_per_task + threads_per_node - 1
+            ) // threads_per_node
 
         if self.tasks is None:
             self.tasks = self.nodes * self.tasks_per_node
