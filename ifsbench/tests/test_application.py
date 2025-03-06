@@ -9,19 +9,46 @@
 Some sanity tests for :any:`Application` implementations.
 """
 
+from pathlib import Path
+
 import pytest
 
-from ifsbench import DefaultApplication, Job, EnvHandler, EnvOperation
-from ifsbench.data import ExtractHandler
+from ifsbench import DefaultApplication, Job, EnvHandler, EnvOperation, CLASSNAME
+from ifsbench.data import DataHandlers
 
-@pytest.mark.parametrize('job, command, data_handlers, env_handlers, library_paths', [
-    (Job(tasks=5), ['ls', '-l'], None, None, None),
-    (Job(nodes=12), ['ls', '-l'], [], [], []),
-    (Job(nodes=12), ['ls', '-l'], [ExtractHandler(archive_path='in', target_dir='out')], [], ['/some/path']),
-    (Job(nodes=12), ['ls', '-l'], [], [EnvHandler(mode=EnvOperation.CLEAR)], []),
-])
-def test_default_application(tmp_path, job, command, data_handlers, env_handlers, library_paths):
-    application = DefaultApplication(command=command, data_handlers=data_handlers, env_handlers = env_handlers, library_paths = library_paths)
+
+@pytest.mark.parametrize(
+    'job, command, data_handlers, env_handlers, library_paths',
+    [
+        (Job(tasks=5), ['ls', '-l'], None, None, None),
+        (Job(nodes=12), ['ls', '-l'], [], [], []),
+        (
+            Job(nodes=12),
+            ['ls', '-l'],
+            [
+                {
+                    CLASSNAME: DataHandlers.EXTRACT,
+                    'archive_path': 'in',
+                    'target_dir': 'out',
+                }
+            ],
+            [],
+            [
+                Path('/some/path'),
+            ],
+        ),
+        (Job(nodes=12), ['ls', '-l'], [], [EnvHandler(mode=EnvOperation.CLEAR)], []),
+    ],
+)
+def test_default_application(
+    tmp_path, job, command, data_handlers, env_handlers, library_paths
+):
+    application = DefaultApplication(
+        command=command,
+        data_handler_configs=data_handlers,
+        env_handlers=env_handlers,
+        library_paths=library_paths,
+    )
 
     assert application.get_command(tmp_path, job) == command
 
@@ -30,7 +57,6 @@ def test_default_application(tmp_path, job, command, data_handlers, env_handlers
     else:
         assert len(application.get_library_paths(tmp_path, job)) == 0
 
-
     if env_handlers:
         env_out = application.get_env_handlers(tmp_path, job)
         assert len(env_out) == len(env_handlers)
@@ -38,10 +64,11 @@ def test_default_application(tmp_path, job, command, data_handlers, env_handlers
     else:
         assert len(application.get_env_handlers(tmp_path, job)) == 0
 
-
     if data_handlers:
         data_out = application.get_data_handlers(tmp_path, job)
         assert len(data_out) == len(data_handlers)
-        assert [type(x) for x in data_out] == [type(x) for x in data_handlers]
+        assert [type(x).__name__ for x in data_out] == [
+            dh[CLASSNAME] for dh in data_handlers
+        ]
     else:
         assert len(application.get_data_handlers(tmp_path, job)) == 0
