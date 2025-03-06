@@ -88,7 +88,7 @@ class PydanticConfigMixin(ConfigMixin, BaseModel):
         Returns:
             Configuration that can be used to create instance.
         """
-        config = self.model_dump(exclude_none=True)
+        config = self.model_dump(exclude_none=True, round_trip=True)
         for k, v in config.items():
             if isinstance(v, Path):
                 config[k] = str(v)
