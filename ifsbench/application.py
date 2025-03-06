@@ -6,9 +6,13 @@
 # nor does it submit to any jurisdiction.
 
 from abc import ABC, abstractmethod
+from functools import cached_property
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 
+from pydantic import computed_field
+
+from ifsbench.config_mixin import PydanticConfigMixin
 from ifsbench.data import DataHandler
 from ifsbench.env import EnvHandler
 from ifsbench.job import Job
@@ -106,7 +110,7 @@ class Application(ABC):
         return NotImplemented
 
 
-class DefaultApplication(Application):
+class DefaultApplication(Application, PydanticConfigMixin):
     """
     Default application implementation.
 
@@ -125,29 +129,10 @@ class DefaultApplication(Application):
         The library path list that is returned by get_library_paths.
     """
 
-    def __init__(
-        self,
-        command: List[str],
-        data_handlers: Optional[List[DataHandler]] = None,
-        env_handlers: Optional[List[EnvHandler]] = None,
-        library_paths: Optional[List[Path]] = None,
-    ):
-        self._command = list(command)
-
-        if data_handlers:
-            self._data_handlers = list(data_handlers)
-        else:
-            self._data_handlers = []
-
-        if env_handlers:
-            self._env_handlers = list(env_handlers)
-        else:
-            self._env_handlers = []
-
-        if library_paths:
-            self._library_paths = list(library_paths)
-        else:
-            self._library_paths = []
+    command: List[str]
+    data_handler_configs: Optional[List[Dict[str,str]]] = None
+    env_handlers: Optional[List[EnvHandler]] = None
+    library_paths: Optional[List[Path]] = None
 
     def get_data_handlers(self, run_dir: Path, job: Job) -> List[DataHandler]:
         del run_dir, job  # Unused

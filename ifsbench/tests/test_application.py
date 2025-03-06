@@ -21,18 +21,14 @@ from ifsbench.data import ExtractHandler
     (Job(nodes=12), ['ls', '-l'], [], [EnvHandler(mode=EnvOperation.CLEAR)], []),
 ])
 def test_default_application(tmp_path, job, command, data_handlers, env_handlers, library_paths):
-    application = DefaultApplication(command, data_handlers, env_handlers, library_paths)
+    application = DefaultApplication(command=command, data_handlers=data_handlers, env_handlers = env_handlers, library_paths = library_paths)
 
     assert application.get_command(tmp_path, job) == command
-
-    # Pylint doesn't like checks of the kind something == []. We still want to
-    # do this here to check that the application methods return empty lists.
-    # pylint: disable=C1803
 
     if library_paths:
         assert application.get_library_paths(tmp_path, job) == library_paths
     else:
-        assert application.get_library_paths(tmp_path, job) == []
+        assert len(application.get_library_paths(tmp_path, job)) == 0
 
 
     if env_handlers:
@@ -40,7 +36,7 @@ def test_default_application(tmp_path, job, command, data_handlers, env_handlers
         assert len(env_out) == len(env_handlers)
         assert [type(x) for x in env_out] == [type(x) for x in env_handlers]
     else:
-        assert application.get_env_handlers(tmp_path, job) == []
+        assert len(application.get_env_handlers(tmp_path, job)) == 0
 
 
     if data_handlers:
@@ -48,4 +44,4 @@ def test_default_application(tmp_path, job, command, data_handlers, env_handlers
         assert len(data_out) == len(data_handlers)
         assert [type(x) for x in data_out] == [type(x) for x in data_handlers]
     else:
-        assert application.get_data_handlers(tmp_path, job) == []
+        assert len(application.get_data_handlers(tmp_path, job)) == 0
