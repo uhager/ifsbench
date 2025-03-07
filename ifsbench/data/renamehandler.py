@@ -5,34 +5,38 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-from enum import auto, Enum
+from enum import Enum
+from functools import cached_property
 from pathlib import Path
 import re
 import shutil
 from typing import Union
 
+from pydantic import computed_field
+
+from ifsbench.config_mixin import PydanticConfigMixin
 from ifsbench.data.datahandler import DataHandler
 from ifsbench.logging import debug
 
 __all__ = ['RenameHandler', 'RenameMode']
 
 
-class RenameMode(Enum):
+class RenameMode(str, Enum):
     """
     Enumeration of available rename operations.
     """
 
     #: Copy the file from its current place to the new location.
-    COPY = auto()
+    COPY = 'copy'
 
     #: Create a symlink in the new location, pointing to its current location.
-    SYMLINK = auto()
+    SYMLINK = 'symlink'
 
     #: Move the file from its current place to the new location.
-    MOVE = auto()
+    MOVE = 'move'
 
 
-class RenameHandler(DataHandler):
+class RenameHandler(DataHandler, PydanticConfigMixin):
     """
     DataHandler specialisation that can move/rename files by using regular
     expressions (as in :any:`re.sub`).
@@ -50,18 +54,14 @@ class RenameHandler(DataHandler):
         Specifies how the renaming is done (copy, move, symlink).
     """
 
-    def __init__(
-        self,
-        pattern: Union[re.Pattern, str],
-        repl: str,
-        mode: RenameMode = RenameMode.SYMLINK,
-    ):
-        if isinstance(pattern, re.Pattern):
-            self._pattern = pattern
-        else:
-            self._pattern = re.compile(pattern)
-        self._repl = str(repl)
-        self._mode = mode
+    pattern: str
+    repl: str
+    mode: RenameMode = RenameMode.SYMLINK
+
+    @computed_field
+    @cached_property
+    def _pattern(self) -> re.Pattern:
+        return re.compile(self.pattern)
 
     def execute(self, wdir: Union[str, Path], **kwargs) -> None:
         wdir = Path(wdir)
@@ -74,7 +74,7 @@ class RenameHandler(DataHandler):
             if f.is_dir():
                 continue
 
-            dest = Path(self._pattern.sub(self._repl, str(f.relative_to(wdir))))
+            dest = Path(self._pattern.sub(self.repl, str(f.relative_to(wdir))))
             dest = (wdir / dest).resolve()
 
             if f != dest:
@@ -106,15 +106,15 @@ class RenameHandler(DataHandler):
 
             dest.parent.mkdir(parents=True, exist_ok=True)
 
-            if self._mode == RenameMode.COPY:
+            if self.mode == RenameMode.COPY:
                 debug(f"Copy {source} to {dest}.")
 
                 shutil.copy(source, dest)
-            elif self._mode == RenameMode.SYMLINK:
+            elif self.mode == RenameMode.SYMLINK:
                 debug(f"Symlink {source} to {dest}.")
 
                 dest.symlink_to(source)
-            elif self._mode == RenameMode.MOVE:
+            elif self.mode == RenameMode.MOVE:
                 debug(f"Move {source} to {dest}.")
 
                 source.rename(dest)
