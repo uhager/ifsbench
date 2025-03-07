@@ -328,6 +328,80 @@ def test_defaultenvpipeline_dump_config(handler_data, env_in):
 
 
 @pytest.mark.parametrize(
+    'handler_in, handler_add',
+    [
+        (
+            [],
+            {'mode': EnvOperation.SET, 'key': 'some_value'},
+        ),
+        # (
+        #     [
+        #         {'mode': EnvOperation.APPEND, 'key': 'some_list', 'value': 'end'},
+        #         {'mode': EnvOperation.APPEND, 'key': 'some_list', 'value': 'endend'},
+        #         {'mode': EnvOperation.PREPEND, 'key': 'some_list', 'value': 'start'},
+        #     ],
+        #     {'mode': EnvOperation.SET, 'key': 'other_value', 'value': '3'},
+        # ),
+    ],
+)
+def test_defaultenvpipeline_add_single(handler_in, handler_add):
+
+    ep = DefaultEnvPipeline(handlers=handler_in)
+
+    ep.add(EnvHandler.from_config(handler_add))
+
+    result = ep.handlers
+    assert len(result) == len(handler_in) + 1
+    expected = [*handler_in, handler_add]
+
+    for i, h in enumerate(expected):
+        assert result[i].dump_config() == h
+
+
+@pytest.mark.parametrize(
+    'handler_in, handler_add',
+    [
+        (
+            [],
+            [
+                {'mode': EnvOperation.SET, 'key': 'some_value'},
+                {
+                    'mode': EnvOperation.CLEAR,
+                },
+                {'mode': EnvOperation.SET, 'key': 'other_value', 'value': '3'},
+            ],
+        ),
+        (
+            [
+                {'mode': EnvOperation.APPEND, 'key': 'some_list', 'value': 'end'},
+                {'mode': EnvOperation.APPEND, 'key': 'some_list', 'value': 'endend'},
+                {'mode': EnvOperation.PREPEND, 'key': 'some_list', 'value': 'start'},
+            ],
+            [
+                {'mode': EnvOperation.SET, 'key': 'other_value', 'value': '3'},
+                {
+                    'mode': EnvOperation.CLEAR,
+                },
+            ],
+        ),
+    ],
+)
+def test_defaultenvpipeline_add_list(handler_in, handler_add):
+
+    ep = DefaultEnvPipeline(handlers=handler_in)
+
+    additional = [EnvHandler.from_config(c) for c in handler_add]
+    ep.add(additional)
+
+    result = ep.handlers
+    expected = handler_in + handler_add
+
+    assert len(result) == len(expected)
+    for i, h in enumerate(expected):
+        assert result[i].dump_config() == h
+
+
+@pytest.mark.parametrize(
     'handler_data, env_in, env_out',
     [
         ((), {}, {}),
