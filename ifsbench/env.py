@@ -6,17 +6,20 @@
 # nor does it submit to any jurisdiction.
 
 from abc import ABC, abstractmethod
-from collections import UserList
-from enum import auto, Enum
+from enum import Enum
 import os
 from typing import Dict, List, Optional, Union
 
+from pydantic import Field, model_validator
+from typing_extensions import Self
+
+from ifsbench.config_mixin import PydanticConfigMixin
 from ifsbench.logging import debug
 
 __all__ = ['EnvHandler', 'EnvOperation', 'EnvPipeline']
 
 
-class EnvOperation(Enum):
+class EnvOperation(str, Enum):
     """
     Enum of environment operations.
 
@@ -24,22 +27,22 @@ class EnvOperation(Enum):
     """
 
     #: Set a given environment variable.
-    SET = auto()
+    SET = 'set'
 
     #: Append to a given environment variable.
-    APPEND = auto()
+    APPEND = 'append'
 
     #: Prepend to a given environment variable.
-    PREPEND = auto()
+    PREPEND = 'prepend'
 
     #: Delete/unset a given environment variable.
-    DELETE = auto()
+    DELETE = 'delete'
 
     #: Clear the whole environment.
-    CLEAR = auto()
+    CLEAR = 'clear'
 
 
-class EnvHandler:
+class EnvHandler(PydanticConfigMixin):
     """
     Specify changes to environment variables.
 
@@ -60,29 +63,21 @@ class EnvHandler:
         If key or value is None but must be specifed.
     """
 
-    def __init__(
-        self, mode: EnvOperation, key: Optional[str] = None, value: Optional[str] = None
-    ):
-        if key is not None:
-            self._key = str(key)
-        else:
-            self._key = None
+    mode: EnvOperation
+    key: Optional[str] = None
+    value: Optional[str] = None
 
-        if value is not None:
-            self._value = str(value)
-        else:
-            self._value = None
+    @model_validator(mode='after')
+    def validate_value_for_mode(self) -> Self:
+        if self.key is None and self.mode != EnvOperation.CLEAR:
+            raise ValueError(f"The key must be specified for operation {self.mode}!")
 
-        self._mode = mode
-
-        if self._key is None and self._mode != EnvOperation.CLEAR:
-            raise ValueError(f"The key must be specified for operation {mode.name}!")
-
-        if self._value is None:
-            if self._mode in (EnvOperation.APPEND, EnvOperation.PREPEND):
+        if self.value is None:
+            if self.mode in (EnvOperation.APPEND, EnvOperation.PREPEND):
                 raise ValueError(
-                    f"The value must be specified for operation {mode.name}!"
+                    f"The value must be specified for operation {self.mode}!"
                 )
+        return self
 
     def execute(self, env: Dict[str, str]) -> None:
         """
@@ -94,35 +89,35 @@ class EnvHandler:
             An environment dictionary. Will be updated in place.
         """
 
-        if self._mode == EnvOperation.SET:
-            debug(f"Set environment entry {self._key} = {self._value}.")
-            env[self._key] = self._value
-        elif self._mode == EnvOperation.APPEND:
-            if env.get(self._key, None) is not None:
-                env[self._key] += os.pathsep + self._value
+        if self.mode == EnvOperation.SET:
+            debug(f"Set environment entry {self.key} = {self.value}.")
+            env[self.key] = self.value
+        elif self.mode == EnvOperation.APPEND:
+            if env.get(self.key, None) is not None:
+                env[self.key] += os.pathsep + self.value
             else:
-                env[self._key] = self._value
+                env[self.key] = self.value
 
-            debug(f"Append {self._value} to environment variable {self._key}.")
-        elif self._mode == EnvOperation.PREPEND:
-            if env.get(self._key, None) is not None:
-                env[self._key] = self._value + os.pathsep + env[self._key]
+            debug(f"Append {self.value} to environment variable {self.key}.")
+        elif self.mode == EnvOperation.PREPEND:
+            if env.get(self.key, None) is not None:
+                env[self.key] = self.value + os.pathsep + env[self.key]
             else:
-                env[self._key] = self._value
+                env[self.key] = self.value
 
-            debug(f"Prepend {self._value} to environment variable {self._key}.")
+            debug(f"Prepend {self.value} to environment variable {self.key}.")
 
-        elif self._mode == EnvOperation.DELETE:
-            if self._key in env:
-                debug(f"Delete environment variable {str(self._key)}.")
-                del env[self._key]
+        elif self.mode == EnvOperation.DELETE:
+            if self.key in env:
+                debug(f"Delete environment variable {str(self.key)}.")
+                del env[self.key]
 
-        elif self._mode == EnvOperation.CLEAR:
+        elif self.mode == EnvOperation.CLEAR:
             debug('Clear whole environment.')
             env.clear()
 
 
-class EnvPipeline(ABC, UserList):
+class EnvPipeline(ABC):
     """
     Abstract base class for environment update pipelines.
 
@@ -154,7 +149,7 @@ class EnvPipeline(ABC, UserList):
         """
 
 
-class DefaultEnvPipeline(EnvPipeline):
+class DefaultEnvPipeline(EnvPipeline, PydanticConfigMixin):
     """
     Default environment pipeline.
 
@@ -171,35 +166,19 @@ class DefaultEnvPipeline(EnvPipeline):
         If overrides contains entries that are not EnvOverride objects.
     """
 
-    def __init__(
-        self,
-        handlers: Optional[List[EnvHandler]] = None,
-        env_initial: Optional[Dict[str, str]] = None,
-    ):
-        if handlers:
-            self._handlers = list(handlers)
-        else:
-            self._handlers = []
-
-        for handler in self._handlers:
-            if not isinstance(handler, EnvHandler):
-                raise ValueError("Only EnvHandler objects are accepted!")
-
-        if env_initial is not None:
-            self._env_initial = dict(env_initial)
-        else:
-            self._env_initial = {}
+    handlers: List[EnvHandler] = Field(default_factory=list)
+    env_initial: Optional[Dict[str, Optional[str]]] = Field(default_factory=dict)
 
     def add(self, handler: Union[EnvHandler, List[EnvHandler]]) -> None:
         if isinstance(handler, EnvHandler):
-            self._handlers.append(handler)
+            self.handlers.append(handler)
         else:
-            self._handlers += handler
+            self.handlers += handler
 
-    def execute(self) -> Dict[str, str]:
-        env = dict(self._env_initial)
+    def execute(self) -> Dict[str, Optional[str]]:
+        env = dict(self.env_initial)
 
-        for handler in self._handlers:
+        for handler in self.handlers:
             handler.execute(env)
 
         return env
