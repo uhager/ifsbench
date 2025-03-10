@@ -36,6 +36,7 @@ class CpuConfiguration(PydanticConfigMixin):
     #: The number of available GPUs per node.
     gpus_per_node: int = 0
 
+    @property
     def cores_per_node(self):
         """
         The number of physical cores per node. This value is automatically derived
@@ -43,12 +44,13 @@ class CpuConfiguration(PydanticConfigMixin):
         """
         return self.sockets_per_node * self.cores_per_socket
 
+    @property
     def threads_per_node(self):
         """
         The number of logical cores per node (threads). This value is automatically derived
         from the above properties.
         """
-        return self.cores_per_node() * self.threads_per_core
+        return self.cores_per_node * self.threads_per_core
 
 
 class CpuBinding(str, Enum):
@@ -191,9 +193,7 @@ class Job(PydanticConfigMixin):
                     self.tasks_per_socket * cpu_configuration.sockets_per_node
                 )
             elif self.tasks:
-                self.tasks_per_node = (
-                    cpu_configuration.cores_per_node() // cpus_per_task
-                )
+                self.tasks_per_node = cpu_configuration.cores_per_node // cpus_per_task
             else:
                 raise ValueError(
                     'The number of tasks per node could not be determined!'

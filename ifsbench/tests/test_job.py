@@ -73,7 +73,7 @@ def test_cpuconfiguration_cores_per_node(cpu_config, expected_cores_per_node):
 
     cc = CpuConfiguration.from_config(cpu_config)
 
-    cpn = cc.cores_per_node()
+    cpn = cc.cores_per_node
 
     assert cpn == expected_cores_per_node
 
@@ -102,7 +102,7 @@ def test_cpuconfiguration_threads_per_node(cpu_config, expected_threads_per_node
 
     cc = CpuConfiguration.from_config(cpu_config)
 
-    tpn = cc.threads_per_node()
+    tpn = cc.threads_per_node
 
     assert tpn == expected_threads_per_node
 
