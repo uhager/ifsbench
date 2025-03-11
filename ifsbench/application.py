@@ -13,7 +13,7 @@ from pydantic import BeforeValidator, Field
 from typing_extensions import Annotated
 
 from ifsbench.config_mixin import PydanticConfigMixin
-from ifsbench.data import DataHandler, ExtractHandler, NamelistHandler, RenameHandler
+from ifsbench.data import DataHandler
 from ifsbench.env import EnvHandler
 from ifsbench.job import Job
 
@@ -134,7 +134,7 @@ class DefaultApplication(Application, PydanticConfigMixin):
 
     command: List[str]
     data_handlers: Annotated[
-        List[Union[RenameHandler, ExtractHandler, NamelistHandler]], ListValidator
+        List[Union[tuple(DataHandler.__subclasses__())]], ListValidator
     ] = Field(default_factory=list)
     env_handlers: Annotated[List[EnvHandler], ListValidator] = Field(
         default_factory=list
