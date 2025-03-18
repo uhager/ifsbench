@@ -9,8 +9,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import List, Union
 
-from pydantic import BeforeValidator, Field
-from typing_extensions import Annotated
+from pydantic import Field
 
 from ifsbench.config_mixin import PydanticConfigMixin
 from ifsbench.data import DataHandler
@@ -110,9 +109,6 @@ class Application(ABC):
         return NotImplemented
 
 
-ListValidator = BeforeValidator(lambda in_value: in_value or [])
-
-
 class DefaultApplication(Application, PydanticConfigMixin):
     """
     Default application implementation.
@@ -133,13 +129,11 @@ class DefaultApplication(Application, PydanticConfigMixin):
     """
 
     command: List[str]
-    data_handlers: Annotated[
-        List[Union[tuple(DataHandler.__subclasses__())]], ListValidator
-    ] = Field(default_factory=list)
-    env_handlers: Annotated[List[EnvHandler], ListValidator] = Field(
+    data_handlers: List[Union[tuple(DataHandler.__subclasses__())]] = Field(
         default_factory=list
     )
-    library_paths: Annotated[List[Path], ListValidator] = Field(default_factory=list)
+    env_handlers: List[EnvHandler] = Field(default_factory=list)
+    library_paths: List[Path] = Field(default_factory=list)
 
     def get_data_handlers(self, run_dir: Path, job: Job) -> List[DataHandler]:
         del run_dir, job  # Unused

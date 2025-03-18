@@ -40,12 +40,14 @@ from ifsbench import DefaultApplication, Job, EnvHandler, EnvOperation
 def test_default_application(
     tmp_path, job, command, data_handlers, env_handlers, library_paths
 ):
-    application = DefaultApplication(
-        command=command,
-        data_handlers=data_handlers,
-        env_handlers=env_handlers,
-        library_paths=library_paths,
-    )
+    config = {'command': command}
+    if data_handlers is not None:
+        config['data_handlers'] = data_handlers
+    if env_handlers is not None:
+        config['env_handlers'] = env_handlers
+    if library_paths is not None:
+        config['library_paths'] = library_paths
+    application = DefaultApplication.from_config(config=config)
 
     assert application.get_command(tmp_path, job) == command
 
