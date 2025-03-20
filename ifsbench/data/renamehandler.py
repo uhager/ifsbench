@@ -54,9 +54,7 @@ class RenameHandler(DataHandler):
         Specifies how the renaming is done (copy, move, symlink).
     """
 
-    handler_type: Literal['RenameHandler'] = Field(
-        default='RenameHandler', exclude=True
-    )
+    handler_type: Literal['RenameHandler'] = Field(default='RenameHandler')
     pattern: str
     repl: str
     mode: RenameMode = RenameMode.SYMLINK

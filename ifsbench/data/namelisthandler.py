@@ -138,9 +138,7 @@ class NamelistHandler(DataHandler):
         The NamelistOverrides that will be applied.
     """
 
-    handler_type: Literal['NamelistHandler'] = Field(
-        default='NamelistHandler', exclude=True
-    )
+    handler_type: Literal['NamelistHandler'] = Field(default='NamelistHandler')
     input_path: pathlib.Path
     output_path: pathlib.Path
     overrides: List[Dict[str, Union[str, int]]]
