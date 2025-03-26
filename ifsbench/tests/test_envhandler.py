@@ -334,14 +334,14 @@ def test_defaultenvpipeline_dump_config(handler_data, env_in):
             [],
             {'mode': EnvOperation.SET, 'key': 'some_value'},
         ),
-        # (
-        #     [
-        #         {'mode': EnvOperation.APPEND, 'key': 'some_list', 'value': 'end'},
-        #         {'mode': EnvOperation.APPEND, 'key': 'some_list', 'value': 'endend'},
-        #         {'mode': EnvOperation.PREPEND, 'key': 'some_list', 'value': 'start'},
-        #     ],
-        #     {'mode': EnvOperation.SET, 'key': 'other_value', 'value': '3'},
-        # ),
+        (
+            [
+                {'mode': EnvOperation.APPEND, 'key': 'some_list', 'value': 'end'},
+                {'mode': EnvOperation.APPEND, 'key': 'some_list', 'value': 'endend'},
+                {'mode': EnvOperation.PREPEND, 'key': 'some_list', 'value': 'start'},
+            ],
+            {'mode': EnvOperation.SET, 'key': 'other_value', 'value': '3'},
+        ),
     ],
 )
 def test_defaultenvpipeline_add_single(handler_in, handler_add):
