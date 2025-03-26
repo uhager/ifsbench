@@ -9,7 +9,6 @@ from abc import abstractmethod
 from typing import Union
 
 from pathlib import Path
-from pydantic import Field
 
 from ifsbench.config_mixin import PydanticConfigMixin
 
@@ -25,7 +24,9 @@ class DataHandler(PydanticConfigMixin):
     setup tasks.
     """
 
-    handler_type: str = Field(exclude=True)
+    # handler_type is used to distinguish DataHandler subclasses and has
+    # to be defined for any subclass.
+    handler_type: str
 
     @abstractmethod
     def execute(self, wdir: Union[str, Path], **kwargs):
