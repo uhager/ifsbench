@@ -134,7 +134,7 @@ class DefaultArch(Arch, PydanticConfigMixin):
         return self._launcher
 
     def get_cpu_configuration(self) -> CpuConfiguration:
-        return self._cpu_config
+        return self.cpu_config
 
     def process_job(self, job: Job, **kwargs) -> ArchResult:
         result = ArchResult()

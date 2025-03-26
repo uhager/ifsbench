@@ -9,6 +9,7 @@
 Some sanity tests the Benchmark implementation.
 """
 
+from functools import cached_property
 from pathlib import Path
 from time import sleep
 import sys
@@ -143,6 +144,8 @@ class _DummyLauncher(Launcher):
     Dummy launcher that just calls the given executable.
     """
 
+    prepare_called = False
+
     def prepare(
         self,
         run_dir,
@@ -152,24 +155,39 @@ class _DummyLauncher(Launcher):
         env_pipeline=None,
         custom_flags=None,
     ):
+        self.prepare_called = True
         return LaunchData(run_dir=run_dir, cmd=cmd)
 
 
+class DummyArch(DefaultArch):
+
+    @cached_property
+    def _launcher(self) -> Launcher:
+        return _DummyLauncher()
+
+
 @pytest.mark.parametrize('job', [Job(tasks=2)])
+@pytest.mark.parametrize('use_arch', [False, True])
 @pytest.mark.parametrize(
-    'arch', [None, DefaultArch(_DummyLauncher(), CpuConfiguration())]
-)
-@pytest.mark.parametrize(
-    'launcher, launcher_flags',
-    [(None, None), (_DummyLauncher(), None), (_DummyLauncher(), ['something'])],
+    'use_launcher, launcher_flags',
+    [(False, None), (True, None), (True, ['something'])],
 )
 @pytest.mark.parametrize('use_tech', [True, False])
 def test_defaultbenchmark_run(
-    tmp_path, test_run_setup, job, arch, launcher, launcher_flags, use_tech
+    tmp_path, test_run_setup, job, use_arch, use_launcher, launcher_flags, use_tech
 ):
     """
     Test the Benchmark.run function.
     """
+
+    launcher = _DummyLauncher() if use_launcher else None
+    arch = (
+        DummyArch.from_config(
+            {'launcher': 'SrunLauncher', 'cpu_config': CpuConfiguration()}
+        )
+        if use_arch
+        else None
+    )
 
     science, tech = test_run_setup
 
@@ -189,5 +207,12 @@ def test_defaultbenchmark_run(
         return
 
     benchmark.run(tmp_path, job, arch, launcher, launcher_flags)
+
+    if launcher is not None:
+        assert launcher.prepare_called is True
+        if arch is not None:
+            assert arch.get_default_launcher().prepare_called is False
+    elif arch is not None:
+        assert arch.get_default_launcher().prepare_called is True
 
     assert (tmp_path / 'test.txt').exists()
