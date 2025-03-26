@@ -11,49 +11,76 @@ Some sanity tests for the :class:`DefaultArch` implementation.
 
 import pytest
 
-from ifsbench import DefaultArch, CpuConfiguration, Job, MpirunLauncher, SrunLauncher
+from ifsbench import (
+    DefaultArch,
+    CpuConfiguration,
+    Job,
+    Launchers,
+    MpirunLauncher,
+    SrunLauncher,
+)
 
 _cpu_config_1 = CpuConfiguration(
-    sockets_per_node = 2,
-    cores_per_socket = 64,
-    threads_per_core = 2,
-    gpus_per_node = 0
+    sockets_per_node=2, cores_per_socket=64, threads_per_core=2, gpus_per_node=0
 )
 
 
 _cpu_config_2 = CpuConfiguration(
-    sockets_per_node = 2,
-    cores_per_socket = 56,
-    threads_per_core = 2,
-    gpus_per_node = 8
+    sockets_per_node=2, cores_per_socket=56, threads_per_core=2, gpus_per_node=8
 )
 
 
-@pytest.mark.parametrize('arch_in, job_in, job_out, launcher_out', [
-    (
-        {'launcher': SrunLauncher(), 'cpu_config': _cpu_config_1, 'set_explicit': False},
-        {'tasks': 64, 'cpus_per_task': 4, 'threads_per_core': 1},
-        {'tasks': 64, 'cpus_per_task': 4, 'threads_per_core': 1},
-        SrunLauncher()
-    ),
-    (
-        {'launcher': MpirunLauncher(), 'cpu_config': _cpu_config_1, 'set_explicit': True},
-        {'tasks': 64, 'cpus_per_task': 4, 'threads_per_core': 1},
-        {'tasks': 64, 'cpus_per_task': 4, 'threads_per_core': 1, 'nodes': 2, 'tasks_per_node': 32},
-        MpirunLauncher()
-    ),
-    (
-        {'launcher': SrunLauncher(), 'cpu_config': _cpu_config_2, 'set_explicit': False},
-        {'tasks': 1},
-        {'tasks': 1},
-        SrunLauncher()
-    ),
-    (
-        {'launcher': MpirunLauncher(), 'cpu_config': _cpu_config_2, 'set_explicit': True},
-        {'tasks': 64, 'gpus_per_task': 32},
-        None,
-        None
-    )])
+@pytest.mark.parametrize(
+    'arch_in, job_in, job_out, launcher_out',
+    [
+        (
+            {
+                'launcher': Launchers.SRUN,
+                'cpu_config': _cpu_config_1,
+                'set_explicit': False,
+            },
+            {'tasks': 64, 'cpus_per_task': 4, 'threads_per_core': 1},
+            {'tasks': 64, 'cpus_per_task': 4, 'threads_per_core': 1},
+            SrunLauncher,
+        ),
+        (
+            {
+                'launcher': Launchers.MPIRUN,
+                'cpu_config': _cpu_config_1,
+                'set_explicit': True,
+            },
+            {'tasks': 64, 'cpus_per_task': 4, 'threads_per_core': 1},
+            {
+                'tasks': 64,
+                'cpus_per_task': 4,
+                'threads_per_core': 1,
+                'nodes': 2,
+                'tasks_per_node': 32,
+            },
+            MpirunLauncher,
+        ),
+        (
+            {
+                'launcher': Launchers.SRUN,
+                'cpu_config': _cpu_config_2,
+                'set_explicit': False,
+            },
+            {'tasks': 1},
+            {'tasks': 1},
+            SrunLauncher,
+        ),
+        (
+            {
+                'launcher': Launchers.MPIRUN,
+                'cpu_config': _cpu_config_2,
+                'set_explicit': True,
+            },
+            {'tasks': 64, 'gpus_per_task': 32},
+            None,
+            None,
+        ),
+    ],
+)
 def test_defaultarch_process(arch_in, job_in, job_out, launcher_out):
     """
     Test the :meth:`DefaultArch.process_job` implementation by checking that
@@ -76,7 +103,7 @@ def test_defaultarch_process(arch_in, job_in, job_out, launcher_out):
     # Check that the right launcher is returned. Check only the type here,
     # as the launchers dont implement __eq__ by default.
     # pylint: disable=C0123
-    assert type(result.default_launcher) == type(launcher_out)
+    assert type(result.default_launcher) == launcher_out
 
     # Check that the resulting job is what we expect.
     for key, value in job_out.items():
