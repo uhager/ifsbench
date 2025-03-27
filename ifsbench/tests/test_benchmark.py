@@ -143,6 +143,7 @@ class _DummyLauncher(Launcher):
     Dummy launcher that just calls the given executable.
     """
 
+    launcher_type: Literal['Dummy'] = Field(default='Dummy')
     def prepare(
         self,
         run_dir,

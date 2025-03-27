@@ -8,6 +8,9 @@
 from pathlib import Path
 from typing import List, Optional
 
+from pydantic import Field
+from typing_extensions import Literal
+
 from ifsbench.env import DefaultEnvPipeline, EnvOperation, EnvPipeline, EnvHandler
 from ifsbench.job import CpuBinding, CpuDistribution, Job
 from ifsbench.logging import warning
@@ -19,14 +22,16 @@ class MpirunLauncher(Launcher):
     :any:`Launcher` implementation for a standard mpirun
     """
 
-    job_options_map = {
+    launcher_type: Literal['MpirunLauncher'] = Field(default='MpirunLauncher')
+
+    _job_options_map = {
         'tasks': '--n={}',
         'tasks_per_node': '--npernode={}',
         'tasks_per_socket': '--npersocket={}',
         'cpus_per_task': '--cpus-per-proc={}',
     }
 
-    bind_options_map = {
+    _bind_options_map = {
         CpuBinding.BIND_NONE: ['--bind-to', 'none'],
         CpuBinding.BIND_SOCKETS: ['--bind-to', 'socket'],
         CpuBinding.BIND_CORES: ['--bind-to', 'core'],
@@ -34,7 +39,7 @@ class MpirunLauncher(Launcher):
         CpuBinding.BIND_USER: [],
     }
 
-    distribution_options_map = {
+    _distribution_options_map = {
         CpuDistribution.DISTRIBUTE_BLOCK: 'core',
         CpuDistribution.DISTRIBUTE_CYCLIC: 'numa',
     }
@@ -54,7 +59,7 @@ class MpirunLauncher(Launcher):
         if job.distribute_local is None or job.distribute_local in do_nothing:
             return []
 
-        return ['--map-by', f'{self.distribution_options_map[job.distribute_local]}']
+        return ['--map-by', f'{self._distribution_options_map[job.distribute_local]}']
 
     def prepare(
         self,
@@ -71,14 +76,14 @@ class MpirunLauncher(Launcher):
 
         flags = []
 
-        for attr, option in self.job_options_map.items():
+        for attr, option in self._job_options_map.items():
             value = getattr(job, attr, None)
 
             if value is not None:
                 flags += [option.format(value)]
 
         if job.bind:
-            flags += list(self.bind_options_map[job.bind])
+            flags += list(self._bind_options_map[job.bind])
 
         flags += self._get_distribution_options(job)
 
