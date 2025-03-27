@@ -12,6 +12,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import List, Optional
 
+from ifsbench.config_mixin import PydanticConfigMixin
 from ifsbench.env import EnvHandler
 from ifsbench.job import CpuConfiguration, Job
 from ifsbench.launch.launcher import Launcher
@@ -91,54 +92,39 @@ class Arch(ABC):
         """
 
 
-class DefaultArch(Arch):
+class DefaultArch(Arch, PydanticConfigMixin):
 
-    def __init__(
-        self,
-        launcher: Launcher,
-        cpu_config: CpuConfiguration,
-        set_explicit: bool = False,
-        account: Optional[str] = None,
-        partition: Optional[str] = None,
-    ):
-        """
-        Default architecture that can be used for various systems.
+    #: The default launcher that is used on this system
+    launcher: Launcher
 
-        Parameters
-        ----------
-        launcher : Launcher
-            The default launcher that is used on this system.
-        cpu_config : CpuConfiguration
-            The hardware setup of the system.
-        set_explicit : bool
-            If set to True, the following attributes in result.job are
-            calculated and set explicitly, using ``cpu_config``:
-                * tasks
-                * nodes
-                * tasks_per_node
-            If not, these values will stay None, if not specified.
-        account : str
-            The account that is passed to the launcher.
-        partition : str
-            The partition that will be passed to the launcher.
-        """
-        self._cpu_config = cpu_config
-        self._launcher = launcher
-        self._set_explicit = bool(set_explicit)
-        self._account = account
-        self._partition = partition
+    #: The hardware setup of the system.
+    cpu_config: CpuConfiguration
+
+    #: If set to True, the following attributes in result.job are
+    #:     calculated and set explicitly, using ``cpu_config``:
+    #:         * tasks
+    #:         * nodes
+    #:         * tasks_per_node
+    #:     If not, these values will stay None, if not specified.
+    set_explicit: bool = False
+
+    #: The account that is passed to the launcher.
+    account: Optional[str] = None
+
+    #: The partition that will be passed to the launcher.
+    partition: Optional[str] = None
 
     def get_default_launcher(self) -> Launcher:
-        return self._launcher
+        return self.launcher
 
     def get_cpu_configuration(self) -> CpuConfiguration:
-        return self._cpu_config
+        return self.cpu_config
 
     def process_job(self, job: Job, **kwargs) -> ArchResult:
         result = ArchResult()
 
-        account = self._account
-        partition = self._partition
+        account = self.account
+        partition = self.partition
 
         result.job = job.clone()
 
@@ -147,8 +133,8 @@ class DefaultArch(Arch):
         if account:
             result.job.set('account', account)
 
-        if self._set_explicit:
-            result.job.calculate_missing(self._cpu_config)
+        if self.set_explicit:
+            result.job.calculate_missing(self.get_cpu_configuration())
 
         result.default_launcher = self.get_default_launcher()
 
