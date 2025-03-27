@@ -96,33 +96,24 @@ class Arch(ABC):
 
 class DefaultArch(Arch, PydanticConfigMixin):
 
-    """
-    Default architecture that can be used for various systems.
-
-    Parameters
-    ----------
-    launcher : Launcher
-        The default launcher that is used on this system.
-    cpu_config : CpuConfiguration
-        The hardware setup of the system.
-    set_explicit : bool
-        If set to True, the following attributes in result.job are
-        calculated and set explicitly, using ``cpu_config``:
-            * tasks
-            * nodes
-            * tasks_per_node
-        If not, these values will stay None, if not specified.
-    account : str
-        The account that is passed to the launcher.
-    partition : str
-        The partition that will be passed to the launcher.
-    """
-
-
+    #: The default launcher that is used on this system
     launcher: Launchers
+
+    #: The hardware setup of the system.
     cpu_config: CpuConfiguration
+
+    #: If set to True, the following attributes in result.job are
+    #:     calculated and set explicitly, using ``cpu_config``:
+    #:         * tasks
+    #:         * nodes
+    #:         * tasks_per_node
+    #:     If not, these values will stay None, if not specified.
     set_explicit: bool = False
+
+    #: The account that is passed to the launcher.
     account: Optional[str] = None
+
+    #: The partition that will be passed to the launcher.
     partition: Optional[str] = None
 
     @cached_property
