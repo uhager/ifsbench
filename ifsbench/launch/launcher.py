@@ -8,13 +8,14 @@
 """
 Implementation of launch commands for various MPI launchers
 """
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional
 
-from ifsbench.job import Job
+from ifsbench.config_mixin import PydanticConfigMixin
 from ifsbench.env import EnvPipeline
+from ifsbench.job import Job
 from ifsbench.logging import debug, info
 from ifsbench.util import execute
 
@@ -55,11 +56,15 @@ class LaunchData:
         execute(command=self.cmd, cwd=self.run_dir, env=self.env)
 
 
-class Launcher(ABC):
+class Launcher(PydanticConfigMixin):
     """
     Abstract base class for launching parallel jobs.
     Subclasses must implement the prepare function.
     """
+
+    # launcher_type is used to distinguish Launcher subclasses and has
+    # to be defined in all subclasses.
+    launcher_type: str
 
     @abstractmethod
     def prepare(
