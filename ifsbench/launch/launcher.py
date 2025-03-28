@@ -66,6 +66,17 @@ class Launcher(PydanticConfigMixin):
     # to be defined in all subclasses.
     launcher_type: str
 
+    @classmethod
+    def __get_validators__(cls):
+        yield cls.validate
+
+    @classmethod
+    def validate(cls, value):
+        if not issubclass(value, Launcher):
+            raise ValueError(f'Not a Launcher type: {value}')
+
+        return value
+
     @abstractmethod
     def prepare(
         self,

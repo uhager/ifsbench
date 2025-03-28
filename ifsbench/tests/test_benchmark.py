@@ -144,6 +144,9 @@ class _DummyLauncher(Launcher):
     """
 
     launcher_type: Literal['Dummy'] = Field(default='Dummy')
+
+    _prepare_called = False
+
     def prepare(
         self,
         run_dir,
@@ -153,24 +156,35 @@ class _DummyLauncher(Launcher):
         env_pipeline=None,
         custom_flags=None,
     ):
+        self._prepare_called = True
         return LaunchData(run_dir=run_dir, cmd=cmd)
 
 
 @pytest.mark.parametrize('job', [Job(tasks=2)])
+@pytest.mark.parametrize('use_arch', [False, True])
 @pytest.mark.parametrize(
-    'arch', [None, DefaultArch(_DummyLauncher(), CpuConfiguration())]
-)
-@pytest.mark.parametrize(
-    'launcher, launcher_flags',
-    [(None, None), (_DummyLauncher(), None), (_DummyLauncher(), ['something'])],
+    'use_launcher, launcher_flags',
+    [(False, None), (True, None), (True, ['something'])],
 )
 @pytest.mark.parametrize('use_tech', [True, False])
 def test_defaultbenchmark_run(
-    tmp_path, test_run_setup, job, arch, launcher, launcher_flags, use_tech
+    tmp_path, test_run_setup, job, use_arch, use_launcher, launcher_flags, use_tech
 ):
     """
     Test the Benchmark.run function.
     """
+
+    launcher = _DummyLauncher() if use_launcher else None
+    arch = (
+        DefaultArch.from_config(
+            {
+                'launcher': _DummyLauncher.from_config({'launcher_type': 'Dummy'}),
+                'cpu_config': CpuConfiguration(),
+            }
+        )
+        if use_arch
+        else None
+    )
 
     science, tech = test_run_setup
 
@@ -190,5 +204,12 @@ def test_defaultbenchmark_run(
         return
 
     benchmark.run(tmp_path, job, arch, launcher, launcher_flags)
+
+    if launcher is not None:
+        assert launcher._prepare_called is True
+        if arch is not None:
+            assert arch.get_default_launcher()._prepare_called is False
+    elif arch is not None:
+        assert arch.get_default_launcher()._prepare_called is True
 
     assert (tmp_path / 'test.txt').exists()
