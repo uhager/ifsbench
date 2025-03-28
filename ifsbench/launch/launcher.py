@@ -17,7 +17,7 @@ from ifsbench.config_mixin import PydanticConfigMixin
 from ifsbench.env import EnvPipeline
 from ifsbench.job import Job
 from ifsbench.logging import debug, info
-from ifsbench.util import execute
+from ifsbench.util import execute, ExecuteResult
 
 __all__ = ['LaunchData', 'Launcher']
 
@@ -42,9 +42,14 @@ class LaunchData:
     cmd: List[str]
     env: dict = field(default_factory=dict)
 
-    def launch(self):
+    def launch(self) -> ExecuteResult:
         """
         Launch the actual executable.
+
+        Returns
+        -------
+        ifsbench.ExecuteResult:
+            The results of the execution.
         """
 
         info(f"Launch command {self.cmd} in {self.run_dir}.")
@@ -53,7 +58,11 @@ class LaunchData:
         for key, value in self.env.items():
             debug(f"\t{key}={value}")
 
-        execute(command=self.cmd, cwd=self.run_dir, env=self.env)
+        return execute(
+            command=self.cmd,
+            cwd=self.run_dir,
+            env=self.env,
+        )
 
 
 class Launcher(PydanticConfigMixin):
