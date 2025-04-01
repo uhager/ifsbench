@@ -211,7 +211,7 @@ def test_modify_grib_file(here, tmp_path):
     noise_config = dict.fromkeys(params, uniform_noise)
 
     modify_grib_file(
-        input_path,
+        str(input_path),
         output_path,
         base_modification=no_noise,
         parameter_config=noise_config,
@@ -257,7 +257,7 @@ def test_modify_grib_fractionparam(here, tmp_path):
         noise_param='packingError', noise_scale=noise_scale
     )
 
-    modify_grib_file(input_path, output_path, base_modification=uniform_noise)
+    modify_grib_file(str(input_path), output_path, base_modification=uniform_noise)
 
     # confirm that cc has been modified and clipped to [0,1]
     param = params[0]
@@ -303,7 +303,7 @@ def test_modify_grib_output_exists(here, tmp_path):
         pass
     os.utime(output_path, ns=(1000, 1000))
 
-    modify_grib_file(input_path, output_path, no_noise)
+    modify_grib_file(str(input_path), output_path, no_noise)
 
     # Confirm that file times have not changed and the file is empty,
     # i.e. nothing was written.
@@ -327,7 +327,7 @@ def test_modify_grib_output_exists_allow_overwrite(here, tmp_path):
         pass
     os.utime(output_path, ns=(1000, 1000))
 
-    modify_grib_file(input_path, output_path, no_noise, overwrite_existing=True)
+    modify_grib_file(str(input_path), output_path, no_noise, overwrite_existing=True)
 
     # Confirm that file times have not changed and the file is empty,
     # i.e. nothing was written.
