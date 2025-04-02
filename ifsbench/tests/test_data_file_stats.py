@@ -298,28 +298,34 @@ def test_get_stats_netcdf_gg(netcdf_location):
                 )
 
 
-@pytest.mark.skipif(
-    not gribfile.CFGRIB_AVAILABLE,
-    reason='could not import cfgrib, likely missing eccodes.',
-)
-def test_get_stats_grib_unknown_stat_raises(grib_location):
-    input_path = grib_location / 'model_output_data_rad.grb2'
+def test_get_stats_unknown_stat_raises(netcdf_location):
+    input_path = netcdf_location / 'o_fix.nc'
     gf = DataFileStats(input_path=input_path, stat_names=set(['x90']))
 
     with pytest.raises(ValueError):
         gf.get_stats()
 
 
-@pytest.mark.skipif(
-    not gribfile.CFGRIB_AVAILABLE,
-    reason='could not import cfgrib, likely missing eccodes.',
-)
-def test_get_stats_grib_keeps_stats(grib_location):
-    input_path = grib_location / 'model_output_data_pl.grb2'
+def test_get_stats_keeps_stats(netcdf_location):
+    input_path = netcdf_location / 'o_fix.nc'
     gf = DataFileStats(input_path=input_path)
     dfs = gf.get_stats()
 
     df_ret = dfs[0]
     df_kept = gf._stats[0]
+    df_kept_2 = gf.get_stats()[0]
 
     assert df_ret is df_kept
+    assert df_kept_2 is df_kept
+
+
+def test_get_stats_unknown_filetype_fails():
+    wrong_format_file_dir = Path(__file__).parent.resolve() / 'namelists'
+    input_path = wrong_format_file_dir / 'array_1.nml'
+    dfs = DataFileStats(input_path=input_path)
+
+    with pytest.raises(ValueError) as exceptinfo:
+        dfs.get_stats()
+
+    assert 'Unable to determine data file type' in str(exceptinfo.value)
+    assert 'namelists/array_1.nml' in str(exceptinfo.value)
