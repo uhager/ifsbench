@@ -31,6 +31,7 @@ from ifsbench.job import * # noqa
 from ifsbench.launch import * # noqa
 from ifsbench.logging import * # noqa
 from ifsbench.namelist import * # noqa
+from ifsbench.netcdf_file_reader import * # noqa
 from ifsbench.nodefile import * # noqa
 from ifsbench.paths import * # noqa
 from ifsbench.runrecord import * # noqa

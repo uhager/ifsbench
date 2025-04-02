@@ -14,7 +14,7 @@ import pandas as pd
 import xarray as xr
 
 from ifsbench.config_mixin import PydanticConfigMixin
-from ifsbench.data_file_reader import NetcdfFileReader
+from ifsbench.netcdf_file_reader import NetcdfFileReader
 from ifsbench.gribfile import GribFileReader
 
 
@@ -37,6 +37,11 @@ _STAT_DIM_NAME = 'stat'
 
 
 class DataFileType(str, Enum):
+    """Supported data file types.
+
+    Used to specify file type if automatic check is not possible.
+    """
+
     GRIB = 'grib'
     NETCDF = 'netcdf'
 
@@ -48,6 +53,21 @@ _reader_from_file_type = {
 
 
 class DataFileStats(PydanticConfigMixin):
+    """
+    Calculate various statistics from the data in a file.
+
+    Parameters
+    ----------
+    input_path: str
+        The path to the input data file.
+    filetype: DataFielType | None
+        Data type of file.
+        If None, will be determined from file header if possible.
+    stat_dims: set[str]
+        Dimensions over which to calculate the statistics.
+    stat_names: list[str]
+        List of statistics values to calculate, e.g. ['min', 'mean']
+    """
 
     input_path: Path
     filetype: Optional[DataFileType] = None
@@ -64,10 +84,9 @@ class DataFileStats(PydanticConfigMixin):
         Dimensions to calculate the statistics over are specified by
         _STAT_DIMS, other dimensions are preserved.
         Statistics to calculate are given by _STAT_NAMES.
-        N.B. The grib file has to be compliant with standards,
-        otherwise cfgrib will not be able to assemble datasets from it.
 
-        Returns: List of dataframes containing the requested statistics.
+        Returns:
+            List of dataframes containing the requested statistics.
         """
         if self._stats:
             return self._stats

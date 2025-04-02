@@ -278,7 +278,7 @@ def test_get_stats_netcdf_gg(netcdf_location):
     assert len(dfs) == 1
 
     df = dfs[0]
-    # shape ((4 nlevs x 7 stats), (SoilSat, SoilThick))
+    # shape ((4 nlevs x 7 stats), (SoilMoist, slwML, timestp))
     assert df.shape == (56, 3)
     assert sorted(list(df.columns)) == sorted(['SoilMoist', 'slwML', 'timestp'])
 

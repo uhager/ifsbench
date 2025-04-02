@@ -5,29 +5,22 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-from abc import ABC, abstractmethod
 from typing import List
 
 import xarray as xr
 
-__all__ = ['DataFileReader']
+from ifsbench.data_file_reader import DataFileReader
+
+__all__ = ['NetcdfFileReader']
 
 
-class DataFileReader(ABC):
-    """Interface for reading data.
-
-    Each implementation support a different file format.
-    """
+class NetcdfFileReader(DataFileReader):
 
     @classmethod
-    @abstractmethod
     def read_data(cls, input_path: str) -> List[xr.Dataset]:
-        """Open data file and parse into datasets.
 
-        Args:
-            input_path: data file to read
-
-        Returns:
-            List of xarray Datasets containing the data in the file.
-        """
-        raise NotImplementedError()
+        # Specifying the engine is not strictly necessary since xarray
+        # will determine the file type, but we want to use the grib implementation
+        # for GRIB files, otherwise this code can fail in cryptic ways.
+        # Explicitly setting the engine results in a clearer error.
+        return [xr.open_dataset(input_path, engine='netcdf4')]
