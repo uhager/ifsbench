@@ -129,7 +129,7 @@ class DefaultApplication(Application, PydanticConfigMixin):
     """
 
     command: List[str]
-    data_handlers: List[Union[tuple(DataHandler.__subclasses__())]] = Field(
+    data_handlers: List[DataHandler] = Field(
         default_factory=list
     )
     env_handlers: List[EnvHandler] = Field(default_factory=list)

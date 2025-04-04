@@ -15,6 +15,8 @@ from pathlib import Path
 from time import time
 from typing import List, Optional
 
+from pydantic import Field
+
 from ifsbench.application import Application
 from ifsbench.arch import Arch
 from ifsbench.config_mixin import PydanticConfigMixin
@@ -26,8 +28,7 @@ from ifsbench.launch import Launcher
 
 __all__ = ['ScienceSetup', 'TechSetup', 'Benchmark']
 
-@dataclass
-class ScienceSetup:
+class ScienceSetup(PydanticConfigMixin):
     """
     Generic (scientific) benchmark setup.
 
@@ -47,16 +48,15 @@ class ScienceSetup:
 
     #: Data handlers that are executed only once, during the initial setup
     #: of the run directory.
-    data_handlers_init:  List[DataHandler] = field(default_factory=list)
+    data_handlers_init:  List[DataHandler] = Field(default_factory=list)
 
     #: Data handlers that are executed every time the benchmark is run.
-    data_handlers_runtime:  List[DataHandler] = field(default_factory=list)
+    data_handlers_runtime:  List[DataHandler] = Field(default_factory=list)
 
     #: Environment handlers that are used when the benchmark is run.
-    env_handlers:  List[EnvHandler] = field(default_factory=list)
+    env_handlers:  List[EnvHandler] = Field(default_factory=list)
 
-@dataclass
-class TechSetup:
+class TechSetup(PydanticConfigMixin):
     """
     Additional technical details for benchmarks.
 
@@ -71,13 +71,13 @@ class TechSetup:
 
     #: Data handlers that are executed only once, during the initial setup
     #: of the run directory.
-    data_handlers_init:  List[DataHandler] = field(default_factory=list)
+    data_handlers_init:  List[DataHandler] = Field(default_factory=list)
 
     #: Data handlers that are executed every time the benchmark is run.
-    data_handlers_runtime:  List[DataHandler] = field(default_factory=list)
+    data_handlers_runtime:  List[DataHandler] = Field(default_factory=list)
 
     #: Environment handlers that are used for the initial data setup.
-    env_handlers:  List[EnvHandler] = field(default_factory=list)
+    env_handlers:  List[EnvHandler] = Field(default_factory=list)
 
 class BenchmarkSummary(PydanticConfigMixin):
     """
@@ -93,8 +93,8 @@ class BenchmarkSummary(PydanticConfigMixin):
     #: The walltime of the actual execution in seconds.
     walltime: float
 
-@dataclass
-class Benchmark:
+
+class Benchmark(PydanticConfigMixin):
     """
     Generic benchmark implementation.
 
