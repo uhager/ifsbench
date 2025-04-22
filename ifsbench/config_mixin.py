@@ -6,13 +6,21 @@
 # nor does it submit to any jurisdiction.
 
 from abc import ABC, abstractmethod
+from functools import wraps
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import Any, ClassVar, Dict, List, Optional, Type, Union
 
-from pydantic import BaseModel, model_validator
-from typing_extensions import Self
+from pydantic import (
+    BaseModel,
+    model_validator,
+    ModelWrapValidatorHandler,
+    TypeAdapter,
+    Field,
+)
+from pydantic_core.core_schema import ValidatorFunctionWrapHandler
+from typing_extensions import Annotated, Literal, Self
 
-__all__ = ['ConfigMixin', 'PydanticConfigMixin', 'CLASSNAME', 'RESERVED_NAMES']
+__all__ = ['ConfigMixin', 'PydanticConfigMixin', 'pydantic_subclass_resolution', 'CLASSNAME', 'RESERVED_NAMES']
 
 # Reserved strings:
 # 'classname' is used in the configuration to indicate which class has to be
@@ -103,3 +111,35 @@ class PydanticConfigMixin(ConfigMixin, BaseModel, use_enum_values=True):
                 f'Invalid ConfigMixin class: contains reserved member name(s). Reserved: {RESERVED_NAMES}'
             )
         return self
+
+
+def pydantic_subclass_resolution(inner_cls):
+
+    @classmethod
+    @model_validator(mode='wrap')
+    def _parse_into_subclass(
+        cls, v: Any, handler: ValidatorFunctionWrapHandler
+    ) -> Self:
+        print(f'[DEBUG] parse_into\ninner_cls: {inner_cls}, cls: {cls}, Self: {Self}, v: {v}')
+        if cls is inner_cls:
+            print(f'[DEBUG] cls is Self')
+            return cls._discriminating_type_adapter.validate_python(v)
+        print(f'[DEBUG] cls is not Self')
+        return handler(v)
+
+    @classmethod
+    def __pydantic_init_subclass__(cls, **kwargs):
+        print(f'[DEBUG] __pyd_init_subc, inner_cls: {inner_cls}, cls: {cls}')
+        cls._subclasses[cls.model_fields[cls._discriminator_tag].default] = cls
+        print(f'[DEBUG] {cls} subclasses: {cls._subclasses}')
+        cls._discriminating_type_adapter = TypeAdapter(
+            Annotated[
+                Union[tuple(cls._subclasses.values())],
+                Field(discriminator=cls._discriminator_tag),
+            ]
+        )
+        print(f'[DEBUG] {inner_cls} - {cls} type_adapter:\n{cls._discriminating_type_adapter}')
+
+    setattr(inner_cls, '_parse_into_subclass', _parse_into_subclass)
+    setattr(inner_cls, '__pydantic_init_subclass__', __pydantic_init_subclass__)
+    return inner_cls

@@ -15,9 +15,9 @@ from typing import Any, ClassVar, Dict, List, Optional, Type, Union
 
 from pydantic import model_validator, TypeAdapter, Field
 from pydantic_core.core_schema import ValidatorFunctionWrapHandler
-from typing_extensions import Annotated
+from typing_extensions import Annotated, Literal
 
-from ifsbench.config_mixin import PydanticConfigMixin
+from ifsbench.config_mixin import PydanticConfigMixin, pydantic_subclass_resolution
 from ifsbench.env import EnvPipeline
 from ifsbench.job import Job
 from ifsbench.logging import debug, info
@@ -69,6 +69,7 @@ class LaunchData:
         )
 
 
+@pydantic_subclass_resolution
 class Launcher(PydanticConfigMixin):
     """
     Abstract base class for launching parallel jobs.
@@ -81,25 +82,26 @@ class Launcher(PydanticConfigMixin):
 
     _subclasses: ClassVar[Dict[str, Type[Any]]] = {}
     _discriminating_type_adapter: ClassVar[TypeAdapter]
+    _discriminator_tag: ClassVar[str] = 'launcher_type'
 
-    @model_validator(mode='wrap')
-    @classmethod
-    def _parse_into_subclass(
-        cls, v: Any, handler: ValidatorFunctionWrapHandler
-    ) -> 'Launcher':
-        if cls is Launcher:
-            return Launcher._discriminating_type_adapter.validate_python(v)
-        return handler(v)
+    # @model_validator(mode='wrap')
+    # @classmethod
+    # def _parse_into_subclass(
+    #     cls, v: Any, handler: ValidatorFunctionWrapHandler
+    # ) -> 'Launcher':
+    #     if cls is Launcher:
+    #         return Launcher._discriminating_type_adapter.validate_python(v)
+    #     return handler(v)
 
-    @classmethod
-    def __pydantic_init_subclass__(cls, **kwargs):
-        Launcher._subclasses[cls.model_fields['launcher_type'].default] = cls
-        Launcher._discriminating_type_adapter = TypeAdapter(
-            Annotated[
-                Union[tuple(Launcher._subclasses.values())],
-                Field(discriminator='launcher_type'),
-            ]
-        )
+    # @classmethod
+    # def __pydantic_init_subclass__(cls, **kwargs):
+    #     Launcher._subclasses[cls.model_fields['launcher_type'].default] = cls
+    #     Launcher._discriminating_type_adapter = TypeAdapter(
+    #         Annotated[
+    #             Union[tuple(Launcher._subclasses.values())],
+    #             Field(discriminator='launcher_type'),
+    #         ]
+    #     )
 
     @abstractmethod
     def prepare(
