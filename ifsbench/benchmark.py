@@ -9,7 +9,6 @@
 Generic benchmark implementation.
 """
 
-from dataclasses import dataclass, field
 import os
 from pathlib import Path
 from time import time

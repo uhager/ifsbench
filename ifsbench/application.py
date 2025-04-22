@@ -5,11 +5,13 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from pathlib import Path
-from typing import List, Union
+from typing import Any, ClassVar, Dict, List, Type, Union
 
-from pydantic import Field
+from pydantic import model_validator, TypeAdapter, Field
+from pydantic_core.core_schema import ValidatorFunctionWrapHandler
+from typing_extensions import Annotated, Literal
 
 from ifsbench.config_mixin import PydanticConfigMixin
 from ifsbench.data import DataHandler
@@ -19,10 +21,36 @@ from ifsbench.job import Job
 __all__ = ['Application', 'DefaultApplication']
 
 
-class Application(ABC):
+class Application(PydanticConfigMixin):
     """
     Base class for applications that can be launched.
     """
+
+    # application_type is used to distinguish Application subclasses and has
+    # to be defined in all subclasses.
+    application_type: str
+
+    _subclasses: ClassVar[Dict[str, Type[Any]]] = {}
+    _discriminating_type_adapter: ClassVar[TypeAdapter]
+
+    @model_validator(mode='wrap')
+    @classmethod
+    def _parse_into_subclass(
+        cls, v: Any, handler: ValidatorFunctionWrapHandler
+    ) -> 'Application':
+        if cls is Application:
+            return Application._discriminating_type_adapter.validate_python(v)
+        return handler(v)
+
+    @classmethod
+    def __pydantic_init_subclass__(cls, **kwargs):
+        Application._subclasses[cls.model_fields['application_type'].default] = cls
+        Application._discriminating_type_adapter = TypeAdapter(
+            Annotated[
+                Union[tuple(Application._subclasses.values())],
+                Field(discriminator='application_type'),
+            ]
+        )
 
     @abstractmethod
     def get_data_handlers(self, run_dir: Path, job: Job) -> List[DataHandler]:
@@ -109,7 +137,7 @@ class Application(ABC):
         return NotImplemented
 
 
-class DefaultApplication(Application, PydanticConfigMixin):
+class DefaultApplication(Application):
     """
     Default application implementation.
 
@@ -128,10 +156,10 @@ class DefaultApplication(Application, PydanticConfigMixin):
         The library path list that is returned by get_library_paths.
     """
 
+    application_type: Literal['DefaultApplication'] = 'DefaultApplication'
+
     command: List[str]
-    data_handlers: List[DataHandler] = Field(
-        default_factory=list
-    )
+    data_handlers: List[DataHandler] = Field(default_factory=list)
     env_handlers: List[EnvHandler] = Field(default_factory=list)
     library_paths: List[Path] = Field(default_factory=list)
 
