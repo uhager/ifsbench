@@ -52,7 +52,7 @@ def fixture_test_setup_files():
     science_files = [Path('file1'), Path('file2')]
 
     science = ScienceSetup(
-        application=DefaultApplication(command=['pwd']),
+        application={'application_type': 'DefaultApplication', 'command': ['pwd']},
         env_handlers=env_handlers,
         data_handlers_init=data_handlers,
     )
