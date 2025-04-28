@@ -39,11 +39,11 @@ def test_cpuconfiguration_from_config_dump_config(cpu_config):
     clsname = conf_out.pop('classname')
     assert clsname == 'CpuConfiguration'
 
-    for field, _ in CpuConfiguration.model_fields.items():
+    for field, field_value in CpuConfiguration.model_fields.items():
         if field not in cpu_config:
             value = conf_out.pop(field)
             # pylint: disable=unsubscriptable-object
-            assert value == CpuConfiguration.model_fields[field].get_default()
+            assert value == field_value.get_default()
             # pylint: enable=unsubscriptable-object
     assert conf_out == cpu_config
 
