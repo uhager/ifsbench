@@ -26,9 +26,10 @@ from ifsbench.data import ExtractHandler
     'target_dir, target_valid',
     [('somewhere/archive.tar', True), (None, True), (2, False)],
 )
-def test_extracthandler_init(archive_path, archive_valid, target_dir, target_valid):
+def test_extracthandler_from_config(archive_path, archive_valid, target_dir, target_valid):
     """
-    Initialise the ExtractHandler and make sure that only correct values are accepted.
+    Initialise the ExtractHandler using the from_config function and make
+    sure that only correct values are accepted.
     """
     if archive_valid and target_valid:
         context = nullcontext()
@@ -40,6 +41,30 @@ def test_extracthandler_init(archive_path, archive_valid, target_dir, target_val
 
     with context:
         ExtractHandler.from_config(config)
+
+@pytest.mark.parametrize(
+    'archive_path,archive_valid',
+    [('somewhere/archive.tar', True), (None, False), (2, False)],
+)
+@pytest.mark.parametrize(
+    'target_dir, target_valid',
+    [('somewhere/archive.tar', True), (None, True), (2, False)],
+)
+def test_extracthandler_init(archive_path, archive_valid, target_dir, target_valid):
+    """
+    Initialise the ExtractHandler using the constructor and make
+    sure that only correct values are accepted.
+    """
+    if archive_valid and target_valid:
+        context = nullcontext()
+    else:
+        context = pytest.raises(Exception)
+    config = {'archive_path': archive_path}
+    if target_dir:
+        config['target_dir'] = target_dir
+
+    with context:
+        ExtractHandler(**config)
 
 
 @pytest.mark.parametrize(
@@ -110,7 +135,7 @@ def test_extracthandler_execute(
         tmp_path: `pathlib.Path`
             pytest-provided temporary directory which acts as our working directory.
 
-        fixture_archive:
+        archive:
             Directory structure inside the archive.
 
         archive_path:
@@ -161,6 +186,8 @@ def test_extracthandler_execute(
         archive_path = shutil.make_archive(
             tmp_path / archive_path, archive_type, pack_path
         )
+
+        archive_path = Path(archive_path).relative_to(tmp_path)
 
     # Actually extract the archive.
     config = {'archive_path': archive_path}
