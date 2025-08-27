@@ -9,7 +9,7 @@ import click
 import f90nml
 
 from ifsbench.logging import colors, logger, INFO
-from ifsbench.namelist import namelist_diff, sanitize_namelist
+from ifsbench.namelist import namelist_diff, sanitise_namelist
 
 
 def print_neutral(indent, msg, *args, **kwargs):
@@ -75,8 +75,8 @@ def nml_diff(color, namelist1, namelist2):
     nml1 = f90nml.read(namelist1)
     nml2 = f90nml.read(namelist2)
 
-    nml1 = sanitize_namelist(nml1)
-    nml2 = sanitize_namelist(nml2)
+    nml1 = sanitise_namelist(nml1)
+    nml2 = sanitise_namelist(nml2)
 
     diff = namelist_diff(nml1, nml2)
     if diff:

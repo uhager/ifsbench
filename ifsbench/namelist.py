@@ -9,11 +9,12 @@
 Handling and modifying of Fortran namelists for IFS
 """
 from collections import OrderedDict
+from enum import Enum
 from pathlib import Path
 import f90nml
 
 
-__all__ = ['IFSNamelist', 'sanitize_namelist', 'namelist_diff']
+__all__ = ['IFSNamelist', 'SanitiseMode', 'sanitise_namelist', 'namelist_diff']
 
 
 class IFSNamelist:
@@ -75,16 +76,36 @@ class IFSNamelist:
         if self.mode == 'f90nml':
             other_nml = f90nml.read(filepath)
         else:
-            other_nml = sanitize_namelist(f90nml.read(filepath), mode=self.mode)
+            other_nml = sanitise_namelist(f90nml.read(filepath), mode=self.mode)
         self.nml.update(other_nml)
 
     def write(self, filepath, force=True):
         self.nml.write(filepath, force=force)
 
-
-def sanitize_namelist(nml, merge_strategy='first', mode='auto'):
+class SanitiseMode(str, Enum):
     """
-    Sanitize a given namelist
+    Specify, how duplicated entries in a namelist should be sanitised.
+    """
+
+    #: For multiply defined namelist groups, retain only the first.
+    FIRST = 'first'
+
+    #: For multiply defined namelist groups, retain only the last.
+    LAST = 'last'
+
+    #: For multiply defined namelist groups, merge variable definitions from
+    #: all groups. Conflicts are resolved by using the first occurence of a
+    #: variable.
+    MERGE_FIRST = 'merge_first'
+
+    #: For multiply defined namelist groups, merge variable definitions from
+    #: all groups. Conflicts are resolved by using the last occurence of a
+    #: variable.
+    MERGE_LAST = 'merge_last'
+
+def sanitise_namelist(nml, merge_strategy='first', mode='auto'):
+    """
+    Sanitise a given namelist
 
     Currently, this only removes redundant namelist groups by applying one
     of the following merge strategies:
@@ -132,16 +153,16 @@ def sanitize_namelist(nml, merge_strategy='first', mode='auto'):
                     for _values in values:
                         nml.add_cogroup(key, _values)
                     continue
-            if merge_strategy == 'first':
+            if merge_strategy == SanitiseMode.FIRST:
                 nml[key] = values[0]
-            elif merge_strategy == 'last':
+            elif merge_strategy == SanitiseMode.LAST:
                 nml[key] = values[-1]
-            elif merge_strategy == 'merge_first':
+            elif merge_strategy == SanitiseMode.MERGE_FIRST:
                 merged = f90nml.Namelist({key: {}})
                 for _values in reversed(values):
                     merged.patch(f90nml.Namelist({key: _values}))
                 nml[key] = merged[key]
-            elif merge_strategy == 'merge_last':
+            elif merge_strategy == SanitiseMode.MERGE_LAST:
                 merged = f90nml.Namelist({key: {}})
                 for _values in values:
                     merged.patch(f90nml.Namelist({key: _values}))

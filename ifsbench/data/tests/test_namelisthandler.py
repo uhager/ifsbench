@@ -11,16 +11,17 @@ Tests for the NamelistHandler class.
 
 from contextlib import nullcontext
 from pathlib import Path
+from io import StringIO
 
-from f90nml import Namelist, read
+import f90nml
 import pytest
 
-from ifsbench.data import NamelistHandler, NamelistOverride, NamelistOperation
+from ifsbench.data import NamelistHandler, NamelistOverride, NamelistOperation, SanitiseMode, NamelistSanitiseHandler
 
 
 @pytest.fixture(name='initial_namelist')
 def fixture_namelist():
-    namelist = Namelist()
+    namelist = f90nml.Namelist()
 
     namelist['namelist1'] = {'int': 2, 'str': 'test', 'list': [2, 3, 'entry']}
 
@@ -94,7 +95,7 @@ def test_namelisthandler_apply_set(initial_namelist, key, value):
     Initialise the NamelistOverride and make sure that only correct values are accepted.
     """
 
-    namelist = Namelist(initial_namelist)
+    namelist = f90nml.Namelist(initial_namelist)
 
     config = {'namelist': key[0], 'entry': key[1], 'mode': 'set', 'value': value}
     override = NamelistOverride.from_config(config)
@@ -126,7 +127,7 @@ def test_namelistoverride_apply_append(initial_namelist, key, value, success):
     Initialise the NamelistOverride and make sure that only correct values are accepted.
     """
 
-    namelist = Namelist(initial_namelist)
+    namelist = f90nml.Namelist(initial_namelist)
 
     config = {'namelist': key[0], 'entry': key[1], 'mode': 'append', 'value': value}
     override = NamelistOverride(**config)
@@ -165,7 +166,7 @@ def test_namelistoverride_apply_delete(initial_namelist, key):
     Initialise the NamelistOverride and make sure that only correct values are accepted.
     """
 
-    namelist = Namelist(initial_namelist)
+    namelist = f90nml.Namelist(initial_namelist)
 
     config = {'namelist': key[0], 'entry': key[1], 'mode': 'delete'}
     override = NamelistOverride(**config)
@@ -440,7 +441,7 @@ def test_namelisthandler_write_symlink(
     file and not overwrite the target of the symlink.
     """
 
-    namelist = Namelist()
+    namelist = f90nml.Namelist()
 
     namelist['namelist1'] = {'int': 5}
 
@@ -457,8 +458,195 @@ def test_namelisthandler_write_symlink(
 
     handler.execute(tmp_path)
 
-    namelist1 = read(tmp_path/'namelist')
-    namelist2 = read(tmp_path/'sym_namelist')
+    namelist1 = f90nml.read(tmp_path/'namelist')
+    namelist2 = f90nml.read(tmp_path/'sym_namelist')
 
     assert namelist1['namelist1']['int'] == 5
     assert namelist2['namelist1']['int'] == 6
+
+@pytest.mark.parametrize(
+    'input_path,input_valid',
+    [
+        ('somewhere/namelist', True),
+        (Path('somewhere/fort.4'), True),
+        (None, False),
+        (2, False),
+    ],
+)
+@pytest.mark.parametrize(
+    'output_path,output_valid',
+    [
+        ('somewhere/namelist', True),
+        (Path('somewhere/fort.4'), True),
+        (None, False),
+        (2, False),
+    ],
+)
+@pytest.mark.parametrize(
+    'mode',
+    [SanitiseMode.FIRST, SanitiseMode.LAST, SanitiseMode.MERGE_FIRST, SanitiseMode.MERGE_LAST, 'something', 5]
+)
+def test_namelisthandlersanitise_init(
+    input_path, input_valid, output_path, output_valid, mode
+):
+    """
+    Initialise the NamelistSanitiseHandler and make sure that only correct values are accepted.
+    """
+    if input_valid and output_valid and isinstance(mode, SanitiseMode):
+        context = nullcontext()
+    else:
+        context = pytest.raises(Exception)
+
+    with context:
+        config = {
+            'input_path': input_path,
+            'output_path': output_path,
+            'mode': mode,
+        }
+        NamelistSanitiseHandler.from_config(config)
+
+
+@pytest.mark.parametrize(
+    'mode',
+    [SanitiseMode.FIRST, SanitiseMode.LAST, SanitiseMode.MERGE_FIRST, SanitiseMode.MERGE_LAST]
+)
+def test_namelisthandlersanitise_dump_config(mode):
+    """
+    Initialise the NamelistSanitiseHandler and make sure that only correct values are accepted.
+    """
+    input_path = 'somewhere/namelist'
+    output_path = 'somewhere/namelist'
+    config = {
+        'input_path': input_path,
+        'output_path': output_path,
+        'mode': mode,
+    }
+    nh = NamelistSanitiseHandler.from_config(config)
+
+    expected = {
+        'handler_type': NamelistSanitiseHandler.__name__,
+        'input_path': input_path,
+        'output_path': output_path,
+        'mode': mode.value,
+    }
+    assert nh.dump_config() == expected
+
+
+@pytest.fixture(name='duplicate_namelist')
+def fixture_duplicate_namelist():
+    nml_string = """
+&a
+    foo = 4
+    foobar = 3
+/
+&b
+    bar = 1
+    foo = 2
+/
+&a
+    foo = 1
+    bar = 2
+/
+    """.strip()
+
+    namelist = f90nml.read(StringIO(nml_string))
+
+    return namelist
+
+@pytest.mark.parametrize('input_path', ['somewhere/namelist'])
+@pytest.mark.parametrize('input_relative', [True, False])
+@pytest.mark.parametrize(
+    'output_path',
+    [
+        'somewhere/namelist',
+    ],
+)
+@pytest.mark.parametrize('output_relative', [True, False])
+@pytest.mark.parametrize(
+    'mode,reference',
+    [
+        (SanitiseMode.FIRST, {'a': {'foo': 4, 'foobar': 3}, 'b': {'bar': 1, 'foo': 2}}),
+        (SanitiseMode.LAST, {'a': {'foo': 1, 'bar': 2}, 'b': {'bar': 1, 'foo': 2}}),
+        (SanitiseMode.MERGE_FIRST, {'a': {'foo': 4, 'foobar': 3, 'bar': 2}, 'b': {'bar': 1, 'foo': 2}}),
+        (SanitiseMode.MERGE_LAST, {'a': {'foo': 1, 'foobar': 3, 'bar': 2}, 'b': {'bar': 1, 'foo': 2}}),
+    ]
+)
+def test_namelistsanitisehandler_execute(
+    tmp_path,
+    duplicate_namelist,
+    input_path,
+    input_relative,
+    output_path,
+    output_relative,
+    mode,
+    reference
+):
+    """
+    Test that the execute function sanitises the namelists correctly.
+
+        Parameters
+        ----------
+        tmp_path: `pathlib.Path`
+            pytest-provided temporary directory which acts as our working directory.
+
+        input_path:
+            Relative path (to tmp_path) where the input namelist resides.
+
+        input_relative:
+            Whether input_path will be passed to the NamelistHandler as a relative
+            or absolute path.
+
+        output_path:
+            Relative path (to tmp_path) to the output namelist.
+
+        output_relative:
+            Whether output_path will be passed to the NamelistHandler as a relative
+            or absolute path.
+
+        mode:
+            The sanitise mode.
+
+        reference:
+            The expected namelist (specified as a dict).
+
+    """
+    # Build the paths that are passed to the NamelistSanitiseHandler. If the paths
+    # are supposed to be absolute, use tmp_path to build an absolute path.
+    # Also distinguish between str and Path (ExtractHandler should support
+    # both).
+    if not input_relative:
+        if isinstance(input_path, str):
+            input_path = str((tmp_path / input_path).resolve())
+        else:
+            input_path = (tmp_path / input_path).resolve()
+
+    if not output_relative:
+        if isinstance(output_path, str):
+            output_path = str((tmp_path / output_path).resolve())
+        else:
+            output_path = (tmp_path / output_path).resolve()
+
+    # Create the initial namelist.
+
+    abs_input_path = tmp_path / output_path
+
+    abs_input_path.parent.mkdir(parents=True, exist_ok=True)
+    duplicate_namelist.write(abs_input_path)
+
+    # Actually extract the archive.
+    config = {
+        'input_path': str(input_path),
+        'output_path': str(output_path),
+        'mode': mode,
+    }
+    handler = NamelistSanitiseHandler.from_config(config)
+    handler.execute(tmp_path)
+
+    if output_relative:
+        assert (tmp_path / output_path).exists()
+        namelist = f90nml.read(tmp_path / output_path)
+    else:
+        assert Path(output_path).exists()
+        namelist = f90nml.read(output_path)
+
+    assert namelist.todict() == reference
