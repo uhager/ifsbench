@@ -17,7 +17,7 @@ try:
     from collections import OrderedDict
 except ImportError:
     OrderedDict = dict
-from ifsbench import sanitize_namelist, namelist_diff, IFSNamelist
+from ifsbench import sanitise_namelist, namelist_diff, IFSNamelist
 
 
 @pytest.fixture(scope='module', name='here')
@@ -63,7 +63,7 @@ def available_modes(xfail=None, skip=None):
 
 
 @pytest.mark.parametrize('mode', available_modes())
-def test_sanitize_namelist(mode):
+def test_sanitise_namelist(mode):
     nml_string = """
 &a
     foo = 4
@@ -85,17 +85,17 @@ def test_sanitize_namelist(mode):
             f.write(nml_string)
         nml = f90nml.read(nml_file)
 
-    sanitized = sanitize_namelist(nml, merge_strategy='first', mode=mode)
-    assert sanitized.todict() == {'a': {'foo': 4, 'foobar': 3}, 'b': {'bar': 1, 'foo': 2}}
+    sanitised = sanitise_namelist(nml, merge_strategy='first', mode=mode)
+    assert sanitised.todict() == {'a': {'foo': 4, 'foobar': 3}, 'b': {'bar': 1, 'foo': 2}}
 
-    sanitized = sanitize_namelist(nml, merge_strategy='last', mode=mode)
-    assert sanitized.todict() == {'a': {'foo': 1, 'bar': 2}, 'b': {'bar': 1, 'foo': 2}}
+    sanitised = sanitise_namelist(nml, merge_strategy='last', mode=mode)
+    assert sanitised.todict() == {'a': {'foo': 1, 'bar': 2}, 'b': {'bar': 1, 'foo': 2}}
 
-    sanitized = sanitize_namelist(nml, merge_strategy='merge_first', mode=mode)
-    assert sanitized.todict() == {'a': {'foo': 4, 'foobar': 3, 'bar': 2}, 'b': {'bar': 1, 'foo': 2}}
+    sanitised = sanitise_namelist(nml, merge_strategy='merge_first', mode=mode)
+    assert sanitised.todict() == {'a': {'foo': 4, 'foobar': 3, 'bar': 2}, 'b': {'bar': 1, 'foo': 2}}
 
-    sanitized = sanitize_namelist(nml, merge_strategy='merge_last', mode=mode)
-    assert sanitized.todict() == {'a': {'foo': 1, 'foobar': 3, 'bar': 2}, 'b': {'bar': 1, 'foo': 2}}
+    sanitised = sanitise_namelist(nml, merge_strategy='merge_last', mode=mode)
+    assert sanitised.todict() == {'a': {'foo': 1, 'foobar': 3, 'bar': 2}, 'b': {'bar': 1, 'foo': 2}}
 
 
 def test_empty_namelist():
@@ -122,17 +122,17 @@ def test_empty_namelist():
         nml_file.write_text(nml_string)
         nml = f90nml.read(nml_file)
 
-    sanitized = sanitize_namelist(nml, merge_strategy='first')
-    assert sanitized.todict() == {'a': {'foo': 4, 'foobar': 3}, 'b': {'bar': 1, 'foo': 2}, 'c':{}}
+    sanitised = sanitise_namelist(nml, merge_strategy='first')
+    assert sanitised.todict() == {'a': {'foo': 4, 'foobar': 3}, 'b': {'bar': 1, 'foo': 2}, 'c':{}}
 
-    sanitized = sanitize_namelist(nml, merge_strategy='last')
-    assert sanitized.todict() == {'a':{}, 'b': {'bar': 1, 'foo': 2}, 'c':{}}
+    sanitised = sanitise_namelist(nml, merge_strategy='last')
+    assert sanitised.todict() == {'a':{}, 'b': {'bar': 1, 'foo': 2}, 'c':{}}
 
-    sanitized = sanitize_namelist(nml, merge_strategy='merge_first')
-    assert sanitized.todict() == {'a': {'foo': 4, 'foobar': 3, 'bar': 2}, 'b': {'bar': 1, 'foo': 2}, 'c':{}}
+    sanitised = sanitise_namelist(nml, merge_strategy='merge_first')
+    assert sanitised.todict() == {'a': {'foo': 4, 'foobar': 3, 'bar': 2}, 'b': {'bar': 1, 'foo': 2}, 'c':{}}
 
-    sanitized = sanitize_namelist(nml, merge_strategy='merge_last')
-    assert sanitized.todict() == {'a': {'foo': 1, 'foobar': 3, 'bar': 2}, 'b': {'bar': 1, 'foo': 2}, 'c':{}}
+    sanitised = sanitise_namelist(nml, merge_strategy='merge_last')
+    assert sanitised.todict() == {'a': {'foo': 1, 'foobar': 3, 'bar': 2}, 'b': {'bar': 1, 'foo': 2}, 'c':{}}
 
 
 def test_namelist_diff():
@@ -328,7 +328,7 @@ def test_namelist_duplicate_key(here, mode):
         assert _converted_nml_1 == _converted_nml_2
 
 
-@pytest.mark.parametrize('mode', available_modes(xfail=[('f90nml', 'nml["someval"] is a list as not sanitized')]))
+@pytest.mark.parametrize('mode', available_modes(xfail=[('f90nml', 'nml["someval"] is a list as not sanitised')]))
 def test_namelist_duplicate_key_set_val(here, mode):
 
     nml_template = here / 'namelists/template.nml'

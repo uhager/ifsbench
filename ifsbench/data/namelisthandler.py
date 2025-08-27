@@ -17,9 +17,11 @@ import f90nml
 from ifsbench.config_mixin import PydanticConfigMixin
 from ifsbench.data.datahandler import DataHandler
 from ifsbench.logging import debug, info
+from ifsbench.namelist import SanitiseMode, sanitise_namelist
 
 
-__all__ = ['NamelistOverride', 'NamelistHandler', 'NamelistOperation']
+
+__all__ = ['NamelistOverride', 'NamelistHandler', 'NamelistOperation', 'SanitiseMode', 'NamelistSanitiseHandler']
 
 
 class NamelistOperation(str, Enum):
@@ -143,7 +145,7 @@ class NamelistHandler(DataHandler):
     output_path: pathlib.Path
     overrides: List[NamelistOverride]
 
-    def execute(self, wdir, **kwargs):
+    def execute(self, wdir: pathlib.Path, **kwargs):
         wdir = pathlib.Path(wdir)
 
         if self.input_path.is_absolute():
@@ -164,6 +166,9 @@ class NamelistHandler(DataHandler):
         debug(f"Modify namelist {input_path}.")
         namelist = f90nml.read(input_path)
 
+        namelist.uppercase = True
+        namelist.end_comma = True
+
         for override in self.overrides:
             override.apply(namelist)
 
@@ -172,5 +177,61 @@ class NamelistHandler(DataHandler):
         # output_path, if it is a symlink.
         if output_path.is_symlink():
             output_path.unlink()
+
+        namelist.write(output_path, force=True)
+
+class NamelistSanitiseHandler(DataHandler):
+    """
+    DataHandler specialisation that can sanitise Fortran namelists.
+    Sanitise means that duplicate entries in a namelist will be resolved,
+    using different resolution strategies.
+    """
+
+    handler_type: Literal['NamelistSanitiseHandler'] = 'NamelistSanitiseHandler'
+
+    #: The path to the namelist that will be modified. If a relative path is
+    #: given, this will be relative to the ``wdir`` argument in :meth:`execute`.
+    input_path: pathlib.Path
+
+    #: The path to which the updated namelist will be written. If a relative
+    #: path is given, this will be relative to the ``wdir`` argument in
+    #: :meth:`execute`.
+    output_path: pathlib.Path
+
+    #: The sanitising/merging strategy that is used. See :class:`SanitiseMode`
+    #: for the different options.
+    mode: SanitiseMode = SanitiseMode.MERGE_LAST
+
+    def execute(self, wdir: pathlib.Path, **kwargs):
+        wdir = pathlib.Path(wdir)
+
+        if self.input_path.is_absolute():
+            input_path = self.input_path
+        else:
+            input_path = wdir / self.input_path
+
+        # Do nothing if the input namelist doesn't exist.
+        if not input_path.exists():
+            info(f"Namelist {input_path} doesn't exist.")
+            return
+
+        if self.output_path.is_absolute():
+            output_path = self.output_path
+        else:
+            output_path = wdir / self.output_path
+
+
+        debug(f"Sanitise namelist {input_path} using sanitise mode {self.mode}.")
+
+        namelist = f90nml.read(input_path)
+
+        namelist.uppercase = True
+        namelist.end_comma = True
+
+        namelist = sanitise_namelist(
+            nml = namelist,
+            merge_strategy=self.mode,
+            mode='auto'
+        )
 
         namelist.write(output_path, force=True)
