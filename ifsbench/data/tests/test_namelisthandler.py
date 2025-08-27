@@ -12,7 +12,7 @@ Tests for the NamelistHandler class.
 from contextlib import nullcontext
 from pathlib import Path
 
-from f90nml import Namelist
+from f90nml import Namelist, read
 import pytest
 
 from ifsbench.data import NamelistHandler, NamelistOverride, NamelistOperation
@@ -431,3 +431,34 @@ def test_namelisthandler_execute(
         assert (tmp_path / output_path).exists()
     else:
         assert Path(output_path).exists()
+
+def test_namelisthandler_write_symlink(
+    tmp_path,
+):
+    """
+    Test that writing a namelist to a symlink will create a new namelist
+    file and not overwrite the target of the symlink.
+    """
+
+    namelist = Namelist()
+
+    namelist['namelist1'] = {'int': 5}
+
+    namelist.write(tmp_path/'namelist')
+    (tmp_path/'sym_namelist').symlink_to(tmp_path/'namelist')
+
+    override = NamelistOverride(namelist='namelist1', entry='int', value=6, mode=NamelistOperation.SET)
+
+    handler = NamelistHandler(
+        input_path=tmp_path/'namelist',
+        output_path=tmp_path/'sym_namelist',
+        overrides=[override]
+    )
+
+    handler.execute(tmp_path)
+
+    namelist1 = read(tmp_path/'namelist')
+    namelist2 = read(tmp_path/'sym_namelist')
+
+    assert namelist1['namelist1']['int'] == 5
+    assert namelist2['namelist1']['int'] == 6

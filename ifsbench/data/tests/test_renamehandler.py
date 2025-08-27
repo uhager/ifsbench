@@ -157,3 +157,23 @@ def test_renamehandler_from_filename(
 
     for f in files_out:
         assert (tmp_path / f).exists()
+
+
+def test_renamehandler_symlink(tmp_path):
+    """
+    Test that a RenameHandler deals with symlinks correctly.
+    """
+
+    (tmp_path/'subdir').mkdir(parents=True, exist_ok=True)
+    (tmp_path/'subdir/file.txt').touch()
+    (tmp_path/'subdir/symlink').symlink_to(tmp_path/'subdir/file.txt')
+
+    handler = RenameHandler(pattern='file', repl='dir', mode=RenameMode.SYMLINK)
+
+    handler.execute(tmp_path)
+
+    assert (tmp_path/'subdir/dir.txt').exists()
+    assert (tmp_path/'subdir/file.txt').exists()
+    assert (tmp_path/'subdir/symlink').exists()
+
+    assert (tmp_path/'subdir/symlink').resolve() == tmp_path/'subdir/file.txt'
