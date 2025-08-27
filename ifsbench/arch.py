@@ -10,7 +10,7 @@ Architecture specifications
 """
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List
 
 from ifsbench.config_mixin import PydanticConfigMixin
 from ifsbench.env import EnvHandler
@@ -108,11 +108,11 @@ class DefaultArch(Arch, PydanticConfigMixin):
     #:     If not, these values will stay None, if not specified.
     set_explicit: bool = False
 
-    #: The account that is passed to the launcher.
-    account: Optional[str] = None
+    #: Additional flags that are passed to the launcher.
+    launcher_flags: List[str] = []
 
-    #: The partition that will be passed to the launcher.
-    partition: Optional[str] = None
+    #: Additional environment handlers that are passed to the launcher.
+    env_handlers: List[EnvHandler] = []
 
     def get_default_launcher(self) -> Launcher:
         return self.launcher
@@ -123,19 +123,13 @@ class DefaultArch(Arch, PydanticConfigMixin):
     def process_job(self, job: Job, **kwargs) -> ArchResult:
         result = ArchResult()
 
-        account = self.account
-        partition = self.partition
-
         result.job = job.clone()
-
-        if partition:
-            result.job.set('partition', partition)
-        if account:
-            result.job.set('account', account)
 
         if self.set_explicit:
             result.job.calculate_missing(self.get_cpu_configuration())
 
         result.default_launcher = self.get_default_launcher()
+        result.default_launcher_flags = list(self.launcher_flags)
+        result.env_handlers = list(self.env_handlers)
 
         return result
