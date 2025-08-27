@@ -167,4 +167,10 @@ class NamelistHandler(DataHandler):
         for override in self.overrides:
             override.apply(namelist)
 
+        # If output_path exists and is a symlink, f90nml will just overwrite
+        # the target of the namelist. This is not ideal, therefore we delete
+        # output_path, if it is a symlink.
+        if output_path.is_symlink():
+            output_path.unlink()
+
         namelist.write(output_path, force=True)

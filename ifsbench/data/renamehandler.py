@@ -8,6 +8,7 @@
 from enum import Enum
 from functools import cached_property
 from pathlib import Path
+import os
 import re
 import shutil
 from typing import Union
@@ -75,8 +76,8 @@ class RenameHandler(DataHandler):
             if f.is_dir():
                 continue
 
-            dest = Path(self._pattern.sub(self.repl, str(f.relative_to(wdir))))
-            dest = (wdir / dest).resolve()
+            dest = self._pattern.sub(self.repl, str(f.relative_to(wdir)))
+            dest = Path(os.path.normpath(wdir/dest))
 
             if f != dest:
                 path_mapping[f] = dest
