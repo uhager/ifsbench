@@ -9,10 +9,10 @@ import pathlib
 import shutil
 from typing import Optional, Union
 
-from ifsbench.data.datahandler import DataHandler
+from ifsbench.data.datahandler import absolutise_path, DataHandler
 from ifsbench.logging import debug
 
-__all__ = ['ExtractHandler']
+__all__ = ["ExtractHandler"]
 
 
 class ExtractHandler(DataHandler):
@@ -36,19 +36,12 @@ class ExtractHandler(DataHandler):
     target_dir: Optional[pathlib.Path] = None
 
     def execute(self, wdir: Union[str, pathlib.Path], **kwargs) -> None:
-        wdir = pathlib.Path(wdir)
+        archive_path = absolutise_path(wdir, self.archive_path)
 
-        if not self.archive_path.is_absolute():
-            archive_path = wdir/self.archive_path
-        else:
-            archive_path = self.archive_path
-
-        target_dir = wdir
         if self.target_dir is not None:
-            if self.target_dir.is_absolute():
-                target_dir = self.target_dir
-            else:
-                target_dir = wdir / self.target_dir
+            target_dir = absolutise_path(wdir, self.target_dir)
+        else:
+            target_dir = pathlib.Path(wdir)
 
         debug(f"Unpack archive {str(archive_path)} to {str(target_dir)}.")
         shutil.unpack_archive(archive_path, target_dir)

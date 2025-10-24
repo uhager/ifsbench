@@ -18,7 +18,7 @@ from pydantic import computed_field
 from ifsbench.data.datahandler import DataHandler
 from ifsbench.logging import debug
 
-__all__ = ['RenameHandler', 'RenameMode']
+__all__ = ["RenameHandler", "RenameMode"]
 
 
 class RenameMode(str, Enum):
@@ -27,13 +27,13 @@ class RenameMode(str, Enum):
     """
 
     #: Copy the file from its current place to the new location.
-    COPY = 'copy'
+    COPY = "copy"
 
     #: Create a symlink in the new location, pointing to its current location.
-    SYMLINK = 'symlink'
+    SYMLINK = "symlink"
 
     #: Move the file from its current place to the new location.
-    MOVE = 'move'
+    MOVE = "move"
 
 
 class RenameHandler(DataHandler):
@@ -70,12 +70,12 @@ class RenameHandler(DataHandler):
         # modified.
         path_mapping = {}
 
-        for f in wdir.rglob('*'):
+        for f in wdir.rglob("*"):
             if f.is_dir():
                 continue
 
             dest = self._pattern.sub(self.repl, str(f.relative_to(wdir)))
-            dest = Path(os.path.normpath(wdir/dest))
+            dest = Path(os.path.normpath(wdir / dest))
 
             if f != dest:
                 path_mapping[f] = dest

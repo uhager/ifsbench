@@ -11,10 +11,11 @@ import shutil
 import urllib.error
 import urllib.request
 
-from ifsbench.data.datahandler import DataHandler
+from ifsbench.data.datahandler import absolutise_path, DataHandler
 from ifsbench.logging import debug, info, warning
 
-__all__ = ['FetchHandler']
+__all__ = ["FetchHandler"]
+
 
 class FetchHandler(DataHandler):
     """
@@ -36,12 +37,7 @@ class FetchHandler(DataHandler):
     ignore_errors: bool = True
 
     def execute(self, wdir: Union[str, pathlib.Path], **kwargs) -> None:
-        wdir = pathlib.Path(wdir)
-
-        target_path = self.target_path
-
-        if not self.target_path.is_absolute():
-            target_path = wdir/self.target_path
+        target_path = absolutise_path(wdir, self.target_path)
 
         # Create the necessary parent folders.
         target_path.parent.mkdir(parents=True, exist_ok=True)
@@ -56,7 +52,9 @@ class FetchHandler(DataHandler):
         debug(f"Download file from {self.source_url} to {target_path}.")
 
         try:
-            with urllib.request.urlopen(self.source_url) as source, target_path.open('wb') as target:
+            with urllib.request.urlopen(self.source_url) as source, target_path.open(
+                "wb"
+            ) as target:
                 shutil.copyfileobj(source, target)
         except urllib.error.URLError as ue:
             warning(f"Fetching file failed: {ue}")

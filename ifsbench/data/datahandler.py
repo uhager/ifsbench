@@ -12,7 +12,7 @@ from typing import Union
 
 from ifsbench.serialisation_mixin import SubclassableSerialisationMixin
 
-__all__ = ['DataHandler']
+__all__ = ["DataHandler", "absolutise_path"]
 
 
 class DataHandler(SubclassableSerialisationMixin):
@@ -37,3 +37,23 @@ class DataHandler(SubclassableSerialisationMixin):
             unless absolute paths are given.
         """
         return NotImplemented
+
+
+def absolutise_path(wdir: Union[str, Path], target: Path) -> Path:
+    """
+    Ensure target is an absolute path.
+
+    Parameters
+    wdir    : str or :any:`pathlib.Path`
+        If the target path is not absolute, it will be in this directory.
+    target  : :any:`pathlib.Path`
+        Path which if not absolute will be inside wdir
+
+    Returns:
+       Path to target as absolute pathlib.Path
+
+    """
+    if target.is_absolute():
+        return target
+
+    return Path(wdir) / target

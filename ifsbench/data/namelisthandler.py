@@ -15,19 +15,24 @@ from typing_extensions import Self
 import f90nml
 
 from ifsbench.serialisation_mixin import SerialisationMixin
-from ifsbench.data.datahandler import DataHandler
+from ifsbench.data.datahandler import absolutise_path, DataHandler
 from ifsbench.logging import debug, info
 from ifsbench.namelist import SanitiseMode, sanitise_namelist
 
 
-
-__all__ = ['NamelistOverride', 'NamelistHandler', 'NamelistOperation', 'SanitiseMode', 'NamelistSanitiseHandler']
+__all__ = [
+    "NamelistOverride",
+    "NamelistHandler",
+    "NamelistOperation",
+    "SanitiseMode",
+    "NamelistSanitiseHandler",
+]
 
 
 class NamelistOperation(str, Enum):
-    SET = 'set'
-    APPEND = 'append'
-    DELETE = 'delete'
+    SET = "set"
+    APPEND = "append"
+    DELETE = "delete"
 
 
 class NamelistOverride(SerialisationMixin):
@@ -56,7 +61,7 @@ class NamelistOverride(SerialisationMixin):
     mode: NamelistOperation
     value: Union[int, float, str, bool, List, None] = None
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def validate_value_for_mode(self) -> Self:
         if self.value is None:
             if self.mode in (NamelistOperation.SET, NamelistOperation.APPEND):
@@ -91,7 +96,7 @@ class NamelistOverride(SerialisationMixin):
             if key not in namelist:
                 namelist[key] = []
 
-            if not hasattr(namelist[key], 'append'):
+            if not hasattr(namelist[key], "append"):
                 raise ValueError("Values can only be appended to arrays!")
 
             # f90nml doesn't seem to do any kind of checking, so we could
@@ -144,23 +149,15 @@ class NamelistHandler(DataHandler):
     output_path: pathlib.Path
     overrides: List[NamelistOverride]
 
-    def execute(self, wdir: pathlib.Path, **kwargs):
-        wdir = pathlib.Path(wdir)
-
-        if self.input_path.is_absolute():
-            input_path = self.input_path
-        else:
-            input_path = wdir / self.input_path
+    def execute(self, wdir: Union[str, pathlib.Path], **kwargs):
+        input_path = absolutise_path(wdir, self.input_path)
 
         # Do nothing if the input namelist doesn't exist.
         if not input_path.exists():
             info(f"Namelist {input_path} doesn't exist.")
             return
 
-        if self.output_path.is_absolute():
-            output_path = self.output_path
-        else:
-            output_path = wdir / self.output_path
+        output_path = absolutise_path(wdir, self.output_path)
 
         debug(f"Modify namelist {input_path}.")
         namelist = f90nml.read(input_path)
@@ -178,6 +175,7 @@ class NamelistHandler(DataHandler):
             output_path.unlink()
 
         namelist.write(output_path, force=True)
+
 
 class NamelistSanitiseHandler(DataHandler):
     """
@@ -200,23 +198,14 @@ class NamelistSanitiseHandler(DataHandler):
     mode: SanitiseMode = SanitiseMode.MERGE_LAST
 
     def execute(self, wdir: pathlib.Path, **kwargs):
-        wdir = pathlib.Path(wdir)
-
-        if self.input_path.is_absolute():
-            input_path = self.input_path
-        else:
-            input_path = wdir / self.input_path
+        input_path = absolutise_path(wdir, self.input_path)
 
         # Do nothing if the input namelist doesn't exist.
         if not input_path.exists():
             info(f"Namelist {input_path} doesn't exist.")
             return
 
-        if self.output_path.is_absolute():
-            output_path = self.output_path
-        else:
-            output_path = wdir / self.output_path
-
+        output_path = absolutise_path(wdir, self.output_path)
 
         debug(f"Sanitise namelist {input_path} using sanitise mode {self.mode}.")
 
@@ -226,9 +215,7 @@ class NamelistSanitiseHandler(DataHandler):
         namelist.end_comma = True
 
         namelist = sanitise_namelist(
-            nml = namelist,
-            merge_strategy=self.mode,
-            mode='auto'
+            nml=namelist, merge_strategy=self.mode, mode="auto"
         )
 
         namelist.write(output_path, force=True)
